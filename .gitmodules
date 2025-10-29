@@ -1,6 +1,8 @@
 [submodule "web-peladaapp"]
 	path = web-peladaapp
 	url = git@github.com:marlonchalegre/web-peladaapp.git
+	branch = main
 [submodule "api-peladaapp"]
 	path = api-peladaapp
 	url = git@github.com:marlonchalegre/api-peladaapp.git
+	branch = main
