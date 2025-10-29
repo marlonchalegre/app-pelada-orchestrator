@@ -1,16 +1,16 @@
 services:
   frontend:
     build:
-      context: ./web-100folego
+      context: ./web-peladaapp
       dockerfile: Dockerfile
       target: prod
-    image: app-100folego-frontend:prod
+    image: peladaapp-frontend:prod
 
   backend:
     build:
-      context: ./api-100folego
+      context: ./api-peladaapp
       dockerfile: Dockerfile
-    image: app-100folego-backend:prod
+    image: peladaapp-backend:prod
 
   web:
     image: nginx:alpine

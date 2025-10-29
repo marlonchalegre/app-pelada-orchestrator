@@ -1,0 +1,34 @@
+# macOS
+.DS_Store
+
+# Node / Front-end artifacts
+node_modules/
+dist/
+.next/
+.turbo/
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+.eslintcache
+
+# Vite cache
+.vite/
+
+# Environment files
+.env
+.env.*
+
+# Clojure / JVM build outputs
+target/
+classes/
+.lein-repl-history
+.lein-failures
+
+# Editor / IDE
+.idea/
+.vscode/
+*.iml
+
+# Docker
+docker-compose.override.yml
+tmp/
