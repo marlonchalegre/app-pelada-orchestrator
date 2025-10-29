@@ -1,0 +1,35 @@
+services:
+  frontend:
+    hostname: frontend
+    environment:
+      - PORT=8080
+    build:
+      context: ./web-100folego
+      dockerfile: Dockerfile
+      target: dev
+    volumes:
+      - /app/node_modules
+      - ./web-100folego:/app
+    depends_on:
+      - backend
+
+  backend:
+    hostname: backend
+    build:
+      context: ./api-100folego
+      dockerfile: Dockerfile.dev
+    ports:
+      - 8000:8000
+    volumes:
+      - ./api-100folego:/app
+
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - 8080:80
+    depends_on:
+      - frontend
+      - backend
