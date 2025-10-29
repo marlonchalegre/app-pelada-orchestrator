@@ -24,7 +24,7 @@ Cloning the Repository
 Clone with submodules in a single step:
 
 ```bash
-git clone --recurse-submodules git@github.com:marlonchalegre/app-100folego.git
+git clone --recurse-submodules git@github.com:marlonchalegre/app-pelada-orchestrator.git
 ```
 
 If you already cloned the project without `--recurse-submodules`, initialize them afterwards:
@@ -63,14 +63,6 @@ Working on Submodules
 
    ```bash
    git push origin <branch-name>
-   ```
-
-4. Return to the monorepo root and commit the updated submodule pointer:
-
-   ```bash
-   cd ..
-   git add <submodule-path>
-   git commit -m "chore(submodule): bump <name>"
    ```
 
 Docker Workflows
