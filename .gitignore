@@ -32,3 +32,6 @@ classes/
 # Docker
 docker-compose.override.yml
 tmp/
+
+.clj-kondo/
+.lsp/
