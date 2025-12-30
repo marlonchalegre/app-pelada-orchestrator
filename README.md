@@ -10,6 +10,7 @@ Repository Layout
 - `web-peladaapp`: React + Vite front-end.
 - `docker-compose*.yml`: Docker Compose definitions for development and production-like workflows.
 - `nginx/`: Reverse proxy configuration used by the Compose stacks.
+- `seed_anime_users.sh`: Script to seed the database with test users.
 
 Prerequisites
 -------------
@@ -70,7 +71,7 @@ Docker Workflows
 
 ### Local development stack
 
-Runs the React front-end with hot reload, the Clojure API with code reloading, and Nginx for unified access.
+Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access.
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
