@@ -9,8 +9,12 @@ services:
       dockerfile: Dockerfile
       target: dev
     volumes:
-      - /app/node_modules
-      - ./web-peladaapp:/app
+      - ./web-peladaapp/src:/app/src
+      - ./web-peladaapp/public:/app/public
+      - ./web-peladaapp/index.html:/app/index.html
+      - ./web-peladaapp/vite.config.ts:/app/vite.config.ts
+      - ./web-peladaapp/tsconfig.json:/app/tsconfig.json
+      - ./web-peladaapp/tsconfig.app.json:/app/tsconfig.app.json
     depends_on:
       - backend
 
