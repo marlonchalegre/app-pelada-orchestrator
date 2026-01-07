@@ -63,6 +63,7 @@ This document outlines the principles and practices to be followed by an AI assi
 ## Tooling & Environment
 
 *   Utilize project-specific tooling (linters, formatters, build tools) to ensure code quality and consistency.
+*   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
 *   Understand and leverage the `docker-compose` setup for development and production environments.
 
