@@ -3,6 +3,13 @@ Pelada App Monorepo
 
 The Pelada App monorepo bundles the backend Clojure API and the React front-end that powers the product. Both applications live here as Git submodules so that each can evolve independently while still sharing common infrastructure (Docker, Nginx, deployment pipelines, etc.).
 
+Technology Stack
+---------------
+
+- **Backend:** Clojure, Ring/Compojure, next.jdbc, SQLite, Buddy Auth (JWT), Stuart Sierra Component.
+- **Frontend:** React 19, TypeScript, Vite, Material-UI (MUI), Vitest.
+- **Infrastructure:** Docker, Docker Compose, Nginx.
+
 Repository Layout
 -----------------
 
@@ -34,38 +41,6 @@ If you already cloned the project without `--recurse-submodules`, initialize the
 git submodule update --init --recursive
 ```
 
-Keeping Submodules in Sync
---------------------------
-
-- Pull latest changes in every submodule:
-
-  ```bash
-  git submodule update --remote --merge
-  ```
-
-- Rebase/merge each submodule against its default branch:
-
-  ```bash
-  git submodule foreach 'git checkout main && git pull --ff-only'
-  ```
-
-- Inspect submodule state at any time:
-
-  ```bash
-  git submodule status
-  ```
-
-Working on Submodules
----------------------
-
-1. Enter the submodule directory (`api-peladaapp` or `web-peladaapp`).
-2. Create feature branches, edit files, and commit as usual.
-3. Push your branch from inside the submodule:
-
-   ```bash
-   git push origin <branch-name>
-   ```
-
 Docker Workflows
 ----------------
 
@@ -79,8 +54,9 @@ docker compose -f docker-compose.dev.yml up --build
 
 Services exposed:
 
-- Front-end dev server: `http://localhost:8080`
-- Backend API: `http://localhost:8000`
+- **Unified Web UI (Nginx):** `http://localhost:8080`
+- **Front-end dev server:** `http://localhost:8080` (Proxied)
+- **Backend API:** `http://localhost:8000` (Direct) or `http://localhost:8080/api` (Proxied)
 
 Restart or rebuild individual services as needed:
 
@@ -88,16 +64,6 @@ Restart or rebuild individual services as needed:
 docker compose -f docker-compose.dev.yml up --build frontend
 docker compose -f docker-compose.dev.yml restart backend
 ```
-
-### Default stack
-
-The root `docker-compose.yml` mirrors the development stack but with fewer environment overrides. Use it when you want a minimal local run without the additional dev-only configuration.
-
-```bash
-docker compose up --build
-```
-
-Once the services are healthy, access the unified web interface via Nginx at `http://localhost:8080`.
 
 ### Production build preview
 
@@ -110,27 +76,12 @@ docker compose -f docker-compose.prod.yml up
 
 This stack builds and tags production images as `peladaapp-frontend:prod` and `peladaapp-backend:prod`. The Nginx container exposes the bundled site at `http://localhost`.
 
-Environment Variables
----------------------
+Development Tips
+----------------
 
-- Front-end: `VITE_BACKEND_URL` (defaults to the internal Compose hostname `http://backend:8000` in dev).
-- Backend: configure via environment variables or configuration files inside `api-peladaapp/resources`.
-- Add private overrides in a `.env` file at the repository root; Compose automatically loads it.
-
-Cleaning Up
------------
-
-- Stop all services:
-
-  ```bash
-  docker compose down
-  ```
-
-- Remove volumes and images created by the dev stack:
-
-  ```bash
-  docker compose -f docker-compose.dev.yml down --volumes --rmi local
-  ```
+- **Database:** The backend uses an embedded SQLite database (`peladaapp.db`). In development, this file is persisted via Docker volumes if you mount the `api-peladaapp` directory.
+- **Seeding:** Use `./seed_anime_users.sh` to populate the database with test data once the backend is running.
+- **Submodules:** Remember that `api-peladaapp` and `web-peladaapp` are separate git repositories. Commits made inside them must be pushed to their respective remotes.
 
 License
 -------
