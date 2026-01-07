@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend:
+    name: Backend CI (Clojure)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-peladaapp
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Install Leiningen
+        uses: DeLaGuardo/setup-clojure@1.2.5
+        with:
+          lein: 'latest'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('api-peladaapp/project.clj') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Install clj-kondo
+        run: |
+          curl -sLO https://raw.githubusercontent.com/clj-kondo/clj-kondo/master/install
+          chmod +x install
+          ./install --dir .
+
+      - name: Run Lint
+        run: clj-kondo --lint src
+
+      - name: Run Tests
+        run: lein test
+
+  frontend:
+    name: Frontend CI (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-peladaapp
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web-peladaapp/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm test
