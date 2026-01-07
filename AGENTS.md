@@ -21,6 +21,7 @@ This document outlines the principles and practices to be followed by an AI assi
 
 *   **Technology Stack:** Vite, React, TypeScript.
 *   **Component-Based Architecture:** Develop reusable, well-defined components.
+*   **Strict Typing:** Avoid using the `any` type. Use specific types or `unknown` where appropriate, and leverage TypeScript's type system to ensure type safety.
 *   **State Management:** Use established patterns (e.g., React Context, Zustand, Redux if applicable) consistently.
 *   **Styling:** Follow existing styling conventions (e.g., Tailwind CSS, CSS Modules, Styled Components).
 *   **Performance Optimization:** Implement lazy loading, code splitting, and optimize rendering where appropriate.
