@@ -47,6 +47,9 @@ jobs:
       - name: Run Lint
         run: clj-kondo --lint src
 
+      - name: Lein Check
+        run: lein check
+
       - name: Run Tests
         run: lein test
 
@@ -74,6 +77,9 @@ jobs:
 
       - name: Run Lint
         run: npm run lint
+
+      - name: Run Build
+        run: npm run build
 
       - name: Run Tests
         run: npm test
