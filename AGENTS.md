@@ -32,6 +32,9 @@ This document outlines the principles and practices to be followed by an AI assi
 
 *   **Technology Stack:** Clojure, Ring, Compojure, JDBC for database interaction.
 *   **Functional Programming:** Embrace Clojure's functional paradigm. Write pure functions, immutability, and manage side effects carefully.
+*   **Clojure Code Quality:**
+    *   **Unused Symbols:** If a symbol is not being used, remove it entirely. Avoid prepending `_` to the symbol name.
+    *   **Naming Conventions:** Use kebab-case (`-`) for field names in models and business logic. Use snake_case (`_`) only for request/response payloads and database interaction layers (e.g., SQL column names).
 *   **Data-Oriented Programming:** Structure data clearly and leverage Clojure's powerful data manipulation capabilities.
 *   **Concurrency:** Use Clojure's concurrency primitives (atoms, agents, refs, core.async) appropriately and safely.
 *   **API Design:** Design RESTful APIs that are clear, consistent, and well-documented.
