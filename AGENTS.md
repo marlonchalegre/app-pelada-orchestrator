@@ -13,6 +13,7 @@ This document outlines the principles and practices to be followed by an AI assi
 
 *   **SOLID Principles:** Apply Single Responsibility, Open/Closed, Liskov Substitution, Interface Segregation, and Dependency Inversion principles in all design and implementation decisions.
 *   **Clean Architecture:** Promote separation of concerns, independent development, and testability by structuring code into layers (e.g., Domain, Application, Adapters, Infrastructure). Ensure business logic is independent of frameworks and UI.
+*   **Minimal API Interaction:** The frontend should avoid calling multiple endpoints to complete one task. The hard work must always be done in the backend with a minimal amount of endpoint calls.
 *   **Modularity:** Design components and modules to be loosely coupled and highly cohesive.
 *   **Scalability & Performance:** Consider the impact of changes on system performance and scalability.
 *   **Security:** Implement security best practices by default.
