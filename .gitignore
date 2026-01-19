@@ -35,3 +35,6 @@ tmp/
 
 .clj-kondo/
 .lsp/
+
+# Scripts
+scripts/
