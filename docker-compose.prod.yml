@@ -4,6 +4,8 @@ services:
       context: ./web-peladaapp
       dockerfile: Dockerfile
       target: prod
+      args:
+        - VITE_APP_VERSION=${TAG:-prod}
     image: peladaapp-frontend:${TAG:-prod}
     ports:
       - 80:80
@@ -20,5 +22,6 @@ services:
     environment:
       - DB_NAME=data/peladaapp.db
       - SKIP_MIGRATIONS=false
+      - APP_VERSION=${TAG:-prod}
     volumes:
       - ./data:/app/data
