@@ -17,5 +17,8 @@ services:
       context: ./api-peladaapp
       dockerfile: Dockerfile
     image: peladaapp-backend:${TAG:-prod}
+    environment:
+      - DB_NAME=data/peladaapp.db
+      - SKIP_MIGRATIONS=false
     volumes:
-      - ./data/peladaapp.db:/app/peladaapp.db
+      - ./data:/app/data
