@@ -1,5 +1,6 @@
 services:
   frontend:
+    restart: always
     build:
       context: ./web-peladaapp
       dockerfile: Dockerfile
@@ -15,6 +16,7 @@ services:
       - backend
 
   backend:
+    restart: always
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile
