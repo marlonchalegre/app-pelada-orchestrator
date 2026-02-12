@@ -71,6 +71,7 @@ This document outlines the principles and practices to be followed by an AI assi
 *   Utilize project-specific tooling (linters, formatters, build tools) to ensure code quality and consistency.
 *   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint` and `npm run format:all`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
+*   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein clj-kondo`, etc.) inside the backend container using `docker compose exec backend <command>`.
 *   Understand and leverage the `docker-compose` setup for development and production environments.
 
 By adhering to these guidelines, the AI assistant will function as a highly effective and integrated member of the development team, contributing to the success and longevity of the project.
