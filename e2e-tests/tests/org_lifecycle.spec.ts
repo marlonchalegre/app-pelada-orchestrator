@@ -18,8 +18,9 @@ test.describe('Phase 2: Organization Lifecycle', () => {
   };
 
   test('should manage organization and invitation flow', async ({ browser }) => {
+    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: 'test-results/videos/' } } : {};
     // Context for Owner
-    const ownerContext = await browser.newContext();
+    const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
 
     // 1. Owner Registration & Org Creation
@@ -59,7 +60,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
       expect(invitationLinkText).toContain('/first-access');
 
       // 3. Invited User Flow (First Access)
-      const invitedContext = await browser.newContext();
+      const invitedContext = await browser.newContext(videoOptions);
       const invitedPage = await invitedContext.newPage();
       await invitedPage.goto(invitationLinkText);
 

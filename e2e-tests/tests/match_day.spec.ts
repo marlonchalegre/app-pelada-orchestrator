@@ -16,8 +16,9 @@ test.describe('Phase 4: Match Day', () => {
   };
 
   test('should record match events and close pelada', async ({ browser }) => {
+    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: 'test-results/videos/' } } : {};
     // 1. Setup: Register Owner and Create Org
-    const ownerContext = await browser.newContext();
+    const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
     
     // Handle confirms automatically
@@ -43,7 +44,7 @@ test.describe('Phase 4: Match Day', () => {
     await ownerPage.getByTestId('send-invite-button').click();
     const invitationLinkText = await ownerPage.getByTestId('invitation-link-text').innerText();
 
-    const invitedContext = await browser.newContext();
+    const invitedContext = await browser.newContext(videoOptions);
     const invitedPage = await invitedContext.newPage();
     await invitedPage.goto(invitationLinkText);
     await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);

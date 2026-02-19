@@ -16,8 +16,9 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
   };
 
   test('should close pelada and cast votes', async ({ browser }) => {
+    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: 'test-results/videos/' } } : {};
     // 1. Setup: Register, Org, Invite, Pelada, Attendance, Teams, Start (Consolidated for Phase 5)
-    const ownerContext = await browser.newContext();
+    const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
     ownerPage.on('dialog', dialog => dialog.accept());
     
@@ -40,7 +41,7 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
     await ownerPage.getByTestId('send-invite-button').click();
     const invitationLinkText = await ownerPage.getByTestId('invitation-link-text').innerText();
 
-    const invitedContext = await browser.newContext();
+    const invitedContext = await browser.newContext(videoOptions);
     const invitedPage = await invitedContext.newPage();
     await invitedPage.goto(invitationLinkText);
     await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);

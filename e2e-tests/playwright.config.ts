@@ -14,6 +14,10 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: process.env.VIDEO ? 'on' : 'off',
   },
+  // Custom property to make it easy to reuse in manual contexts
+  metadata: {
+    recordVideo: process.env.VIDEO ? { dir: 'test-results/videos/' } : undefined,
+  },
   projects: [
     {
       name: 'chromium',

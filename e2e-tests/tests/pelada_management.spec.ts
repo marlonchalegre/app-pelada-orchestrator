@@ -16,8 +16,9 @@ test.describe('Phase 3: Pelada Management', () => {
   };
 
   test('should manage pelada lifecycle from creation to start', async ({ browser }) => {
+    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: 'test-results/videos/' } } : {};
     // Context for Owner
-    const ownerContext = await browser.newContext();
+    const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
     ownerPage.on('console', msg => console.log('OWNER LOG:', msg.text()));
     ownerPage.on('dialog', dialog => dialog.accept());
@@ -43,7 +44,7 @@ test.describe('Phase 3: Pelada Management', () => {
     const invitationLinkText = await ownerPage.getByTestId('invitation-link-text').innerText();
 
     // 3. Invited player completes registration
-    const invitedContext = await browser.newContext();
+    const invitedContext = await browser.newContext(videoOptions);
     const invitedPage = await invitedContext.newPage();
     await invitedPage.goto(invitationLinkText);
     await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);
