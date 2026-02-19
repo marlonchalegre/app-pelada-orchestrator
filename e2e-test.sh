@@ -23,6 +23,30 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
+# Backup original database if it exists
+TEMP_DB_DIR=$(mktemp -d)
+HAS_BACKUP=false
+if ls api-peladaapp/peladaapp.db* 1> /dev/null 2>&1; then
+  echo "Backing up existing database..."
+  cp api-peladaapp/peladaapp.db* "$TEMP_DB_DIR/"
+  HAS_BACKUP=true
+fi
+
+# Cleanup function
+cleanup() {
+  echo "Cleaning up environment..."
+  docker-compose down
+
+  if [ "$HAS_BACKUP" = true ]; then
+    echo "Restoring original database..."
+    rm -f api-peladaapp/peladaapp.db*
+    cp "$TEMP_DB_DIR"/peladaapp.db* api-peladaapp/
+  fi
+  rm -rf "$TEMP_DB_DIR"
+}
+
+trap cleanup EXIT
+
 echo "Cleaning up previous database..."
 rm -f api-peladaapp/peladaapp.db*
 
@@ -56,17 +80,16 @@ check_health() {
 if check_health; then
   echo "Environment is ready! Running smoke tests..."
   cd e2e-tests
+  # Disable set -e temporarily to capture exit code without exiting early
+  set +e
   npx playwright test
   EXIT_CODE=$?
+  set -e
   cd ..
 else
   echo "Failed to start environment properly."
   docker-compose logs
   EXIT_CODE=1
 fi
-
-# Cleanup
-echo "Cleaning up environment..."
-docker-compose down
 
 exit $EXIT_CODE
