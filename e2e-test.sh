@@ -6,6 +6,22 @@ BASE_URL="http://localhost:8080"
 HEALTH_URL="http://localhost:8080/api/health"
 MAX_RETRIES=15
 RETRY_INTERVAL=2
+RECORD_VIDEO=""
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --video) RECORD_VIDEO="--video on"; shift ;;
+        --help) 
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  --video    Record video of the tests"
+            echo "  --help     Show this help message"
+            exit 0
+            ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+done
 
 echo "Cleaning up previous database..."
 rm -f api-peladaapp/peladaapp.db*
@@ -40,7 +56,7 @@ check_health() {
 if check_health; then
   echo "Environment is ready! Running smoke tests..."
   cd e2e-tests
-  npx playwright test
+  npx playwright test $RECORD_VIDEO
   EXIT_CODE=$?
   cd ..
 else
