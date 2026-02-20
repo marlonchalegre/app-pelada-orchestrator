@@ -39,12 +39,13 @@ cleanup() {
 
   if [ "$HAS_BACKUP" = true ]; then
     echo "Restoring original database..."
-    rm -f api-peladaapp/peladaapp.db*
-    cp "$TEMP_DB_DIR"/peladaapp.db* api-peladaapp/
+    rm -f "$SCRIPT_DIR/api-peladaapp/peladaapp.db"*
+    cp "$TEMP_DB_DIR"/peladaapp.db* "$SCRIPT_DIR/api-peladaapp/"
   fi
   rm -rf "$TEMP_DB_DIR"
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 trap cleanup EXIT
 
 echo "Cleaning up previous database..."
@@ -85,6 +86,32 @@ if check_health; then
   npx playwright test
   EXIT_CODE=$?
   set -e
+
+  # Post-process videos if recording was enabled
+  if [ "$VIDEO" = "on" ]; then
+    echo "Waiting for video files to be finalized..."
+    sleep 2
+    echo "Processing video recordings..."
+    mkdir -p test-results/videos
+    
+    # Find all .webm files in test-results recursively (excluding our target folder)
+    find test-results -name "*.webm" -not -path "test-results/videos/*" | while read -r video; do
+      # Avoid files that might be still being written (though saveVideo should have finished)
+      if [ -f "$video" ]; then
+        filename=$(basename "$video" .webm)
+        # Unique name if duplicates exist
+        if [ -f "test-results/videos/${filename}.mp4" ]; then
+           filename="${filename}_$(date +%s%N)"
+        fi
+        
+        echo "Slowing down and converting: $filename"
+        ffmpeg -y -i "$video" -filter:v "setpts=3.33*PTS" -filter:a "atempo=0.5,atempo=0.6" "test-results/videos/${filename}.mp4" -loglevel error
+        rm "$video"
+      fi
+    done
+    echo "Videos processed and moved to e2e-tests/test-results/videos/"
+  fi
+
   cd ..
 else
   echo "Failed to start environment properly."

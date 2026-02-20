@@ -4,6 +4,7 @@ services:
     hostname: frontend
     environment:
       - PORT=8080
+      - LANG=en_US.UTF-8
     build:
       context: ./web-peladaapp
       dockerfile: Dockerfile
@@ -19,6 +20,8 @@ services:
     hostname: backend
     environment:
       - APP_VERSION=development
+      - LANG=en_US.UTF-8
+      - JWT_SECRET=secret-for-dev-only-not-for-prod
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev

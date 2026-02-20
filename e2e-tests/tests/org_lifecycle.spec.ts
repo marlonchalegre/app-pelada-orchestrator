@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { saveVideo, acceptPendingInvitation } from './utils';
 
 test.describe('Phase 2: Organization Lifecycle', () => {
   const timestamp = Date.now();
@@ -17,8 +18,8 @@ test.describe('Phase 2: Organization Lifecycle', () => {
     position: 'Striker'
   };
 
-  test('should manage organization and invitation flow', async ({ browser }) => {
-    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: 'test-results/videos/' } } : {};
+  test('should manage organization and invitation flow', async ({ browser }, testInfo) => {
+    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
     // Context for Owner
     const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
@@ -74,10 +75,18 @@ test.describe('Phase 2: Organization Lifecycle', () => {
       await invitedPage.getByRole('option', { name: invitedUser.position }).click();
       await invitedPage.getByTestId('first-access-submit').click();
 
-      // Should land on home and see the organization in the member list
+      // Should land on home and see the invitation
       await expect(invitedPage).toHaveURL('/');
+      
+      // NEW: Accept the invitation
+      await acceptPendingInvitation(invitedPage, orgName);
+      
+      // After acceptance, the organization should be in the sidebar/home list
+      await invitedPage.goto('/');
       await expect(invitedPage.getByRole('link', { name: orgName })).toBeVisible();
+      
       await invitedContext.close();
+      await saveVideo(invitedPage, 'invited-player-registration', testInfo);
     } else {
       console.log("User already exists, skipping first access flow");
     }
@@ -91,7 +100,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
     const publicLink = await publicLinkLocator.innerText();
     expect(publicLink).toContain('/join/');
 
-    const joinerContext = await browser.newContext();
+    const joinerContext = await browser.newContext(videoOptions);
     const joinerPage = await joinerContext.newPage();
     
     // Register joiner first
@@ -114,7 +123,10 @@ test.describe('Phase 2: Organization Lifecycle', () => {
     await expect(joinerPage).toHaveURL(/\/organizations\/\d+/);
 
     // Cleanup contexts
-    await ownerContext.close();
     await joinerContext.close();
+    await saveVideo(joinerPage, 'joiner-public-flow', testInfo);
+    
+    await ownerContext.close();
+    await saveVideo(ownerPage, 'owner-org-lifecycle', testInfo);
   });
 });
