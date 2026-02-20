@@ -21,7 +21,7 @@ services:
     environment:
       - APP_VERSION=development
       - LANG=en_US.UTF-8
-      - JWT_SECRET=secret-for-dev-only-not-for-prod
+      - PELADA_API_SECURITY_SIGNING_KEY=secret-for-dev-only-not-for-prod
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev

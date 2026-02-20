@@ -21,7 +21,7 @@ services:
   backend:
     hostname: backend
     environment:
-      - JWT_SECRET=secret-for-dev-only-not-for-prod
+      - PELADA_API_SECURITY_SIGNING_KEY=secret-for-dev-only-not-for-prod
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev
