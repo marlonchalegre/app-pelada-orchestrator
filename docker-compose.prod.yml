@@ -25,5 +25,6 @@ services:
       - DB_NAME=data/peladaapp.db
       - SKIP_MIGRATIONS=false
       - APP_VERSION=${TAG:-prod}
+      - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY}
     volumes:
       - ./data:/app/data
