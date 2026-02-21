@@ -7,16 +7,19 @@ HEALTH_URL="http://localhost:8080/api/health"
 MAX_RETRIES=15
 RETRY_INTERVAL=2
 export VIDEO=""
+SPECIFIC_TEST=""
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --video) export VIDEO="on"; shift ;;
+        --test|-t) SPECIFIC_TEST="$2"; shift 2 ;;
         --help) 
             echo "Usage: $0 [options]"
             echo "Options:"
-            echo "  --video    Record video of the tests"
-            echo "  --help     Show this help message"
+            echo "  --video        Record video of the tests"
+            echo "  --test, -t     Run a specific test file (e.g., tests/auth.spec.ts)"
+            echo "  --help         Show this help message"
             exit 0
             ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -83,7 +86,7 @@ if check_health; then
   cd e2e-tests
   # Disable set -e temporarily to capture exit code without exiting early
   set +e
-  npx playwright test
+  npx playwright test $SPECIFIC_TEST
   EXIT_CODE=$?
   set -e
 

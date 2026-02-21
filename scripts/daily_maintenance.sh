@@ -169,15 +169,19 @@ migrate_turso() {
             db_name=$(echo "$TURSO_DATABASE_URL" | sed -E 's/libsql:\/\/([^.]+).*/\1/')
         fi
         
-        if command -v turso &> /dev/null; then
-            (
-                cd api-peladaapp/resources/migrations
-                log "Applying migrations to Turso database: $db_name"
-                cat *.up.sql | turso db shell "$db_name" &> /dev/null || log "Warning: Some migration commands may have already been applied."
-            )
+        if [ -f "./scripts/migrate.sh" ]; then
+            log "Applying migrations to Turso database: $db_name using migrate.sh"
+            ./scripts/migrate.sh "$db_name"
             log "TURSO MIGRATION: Completed."
         else
-            log "Warning: Turso CLI not found. Skipping cloud migrations."
+            log "Warning: scripts/migrate.sh not found. Skipping robust migrations."
+            # Fallback to old method if absolutely necessary, but log warning
+            if command -v turso &> /dev/null; then
+                 (
+                    cd api-peladaapp/resources/migrations
+                    cat *.up.sql | turso db shell "$db_name" &> /dev/null || true
+                )
+            fi
         fi
     fi
 }
