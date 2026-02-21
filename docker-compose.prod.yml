@@ -26,5 +26,7 @@ services:
       - SKIP_MIGRATIONS=false
       - APP_VERSION=${TAG:-prod}
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY}
+      - TURSO_DATABASE_URL=${TURSO_DATABASE_URL}
+      - TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN}
     volumes:
       - ./data:/app/data
