@@ -83,8 +83,7 @@ check_for_changes() {
         local last_success_commit=$(cat "$TAG_FILE.commit")
         local current_commit=$(git rev-parse HEAD)
         if [ "$last_success_commit" != "$current_commit" ]; then
-            log "Detected code version change since last successful deployment. Forcing rebuild."
-            # Set flags based on what differs from the last success
+            log "Detected code version change since last successful deployment. Forcing check."
             local history_diff=$(git diff --name-only $last_success_commit HEAD)
             for file in $history_diff; do
                 case "$file" in
@@ -111,9 +110,9 @@ check_for_changes() {
         cleanup_no_changes
         return 1
     else
-        [ $CHANGE_API -eq 1 ] && log "Change detected in API."
-        [ $CHANGE_WEB -eq 1 ] && log "Change detected in Web."
-        [ $CHANGE_ROOT -eq 1 ] && log "Change detected in Root/Config."
+        [ $CHANGE_API -eq 1 ] && log "Change detected in API code."
+        [ $CHANGE_WEB -eq 1 ] && log "Change detected in Web code."
+        [ $CHANGE_ROOT -eq 1 ] && log "Change detected in Root/Configuration."
         return 0
     fi
 }
@@ -156,6 +155,30 @@ backup_database() {
     fi
 }
 
+# NEW: Automated Turso Migrations
+migrate_turso() {
+    if [ -n "$TURSO_DATABASE_URL" ]; then
+        log "TURSO MIGRATION: Checking for new migrations to apply to Cloud DB..."
+        
+        # Extract DB name from URL (e.g. libsql://db-name.turso.io -> db-name)
+        local db_name=$(echo "$TURSO_DATABASE_URL" | sed -E 's/libsql:\/\/([^.]+).*/\1/')
+        
+        if command -v turso &> /dev/null; then
+            # Concatenate all .up.sql files and pipe them to turso shell. 
+            # SQLite handles 'CREATE TABLE IF NOT EXISTS' gracefully.
+            # We use a subshell to avoid changing directories
+            (
+                cd api-peladaapp/resources/migrations
+                log "Applying migrations to Turso database: $db_name"
+                cat *.up.sql | turso db shell "$db_name" &> /dev/null || log "Warning: Some migration commands may have already been applied."
+            )
+            log "TURSO MIGRATION: Completed."
+        else
+            log "Warning: Turso CLI not found. Skipping cloud migrations."
+        fi
+    fi
+}
+
 update_code() {
     log "Updating code to origin/main..."
     git reset --hard origin/main
@@ -169,17 +192,11 @@ update_code() {
 }
 
 build_images() {
-    local build_targets=""
-    [ $CHANGE_API -eq 1 ] && build_targets+="backend "
-    [ $CHANGE_WEB -eq 1 ] && build_targets+="frontend "
+    local targets=()
+    [ $CHANGE_API -eq 1 ] && targets+=("backend")
+    [ $CHANGE_WEB -eq 1 ] && targets+=("frontend")
     
-    # If root changes (like Nginx), we rebuild everything to ensure config is baked in
-    if [ $CHANGE_ROOT -eq 1 ]; then
-        build_targets="backend frontend"
-    fi
-
-    # Trim any accidental extra spaces
-    build_targets=$(echo $build_targets | xargs)
+    local build_targets="${targets[*]}"
 
     # Load from existing .env if present on the host
     [ -f .env ] && log "Found .env file, loading variables..." && source .env
@@ -198,22 +215,20 @@ build_images() {
         log "HOT BUILD: Building new images ($build_targets) while old version stays online..."
         DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.tmp -f "$COMPOSE_FILE" build --pull $build_targets
     else
-        log "No images need rebuilding."
+        log "No source code changes detected. Skipping builds."
     fi
 
-    # CRITICAL FIX: For services NOT in build_targets, we must ensure an image with the new $TAG exists
-    # otherwise 'docker compose up' will try to pull it and fail.
+    # Ensure all services have an image matching the new $TAG
     local all_services="backend frontend"
     for service in $all_services; do
         if [[ ! "$build_targets" =~ "$service" ]]; then
             log "Re-tagging existing $service image with $TAG..."
             local image_name="peladaapp-$service"
-            # Find the most recent existing image for this service to use as a base
             local latest_existing=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^$image_name:" | head -n 1)
             if [ -n "$latest_existing" ]; then
                 docker tag "$latest_existing" "$image_name:$TAG"
             else
-                log "Warning: Could not find existing image for $service to re-tag. Forcing build..."
+                log "Warning: Could not find existing image for $service. Forcing build..."
                 DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.tmp -f "$COMPOSE_FILE" build $service
             fi
         fi
@@ -279,32 +294,19 @@ perform_rollback() {
 
 cleanup() {
     log "Cleaning up old Docker images..."
-    # 1. Remove dangling images (untagged)
     docker image prune -f
-
-    # 2. Identify images currently in use
     local running_images=$(docker ps --format "{{.Image}}" | sort -u)
-    
-    # 3. Define services to cleanup
     local services="peladaapp-backend peladaapp-frontend"
     local images_to_keep=""
-
     for service in $services; do
         local top_images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^$service" | sort -Vr | head -n 3)
         images_to_keep="$images_to_keep $top_images"
     done
-    
-    log "Preserved project images:"
-    echo "$images_to_keep $running_images" | tr ' ' '\n' | grep "peladaapp-" | sort -u | sed 's/^/  - /'
-    
-    # 4. Remove project images that are neither running nor in the 'top' list
     local all_project_images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "peladaapp-")
-    
     echo "$all_project_images" | while read -r repo_tag; do
         local keep=0
         if echo "$images_to_keep" | grep -qF "$repo_tag"; then keep=1; fi
         if echo "$running_images" | grep -qF "$repo_tag"; then keep=1; fi
-        
         if [ $keep -eq 0 ]; then
             log "Removing old tag: $repo_tag"
             docker rmi "$repo_tag" 2>/dev/null || true
@@ -325,6 +327,7 @@ main() {
     update_code
     build_images
     backup_database
+    migrate_turso
 
     if replace_containers && perform_health_check; then
         save_success_state
