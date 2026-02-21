@@ -50,7 +50,7 @@ This document outlines the principles and practices to be followed by an AI assi
     *   **Test-Driven Development (TDD):** Where appropriate, write tests before implementation.
     *   **Unit Tests:** Cover individual functions/components with comprehensive unit tests.
     *   **Integration Tests:** Ensure different parts of the system work together correctly.
-    *   **End-to-End (E2E) Tests:** Verify critical user flows.
+    *   **End-to-End (E2E) Tests:** Verify critical user flows using Playwright. These tests run against a full docker-compose environment to ensure real-world reliability.
     *   **Test Coverage:** Aim for high test coverage, but prioritize meaningful tests over arbitrary percentages.
     *   **Clear Test Names:** Test names should clearly describe what they are testing.
     *   **Maintainable Tests:** Tests should be easy to read, understand, and maintain.
@@ -72,6 +72,10 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint` and `npm run format:all`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
 *   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein clj-kondo`, etc.) inside the backend container using `docker compose exec backend <command>`.
+*   **End-to-End Tests:** Use the root-level `./e2e-test.sh` script to run the Playwright suite.
+    *   To run all E2E tests: `./e2e-test.sh`
+    *   To run a specific E2E test file: `./e2e-test.sh --test tests/filename.spec.ts`
+    *   To record video of the tests: `./e2e-test.sh --video`
 *   Understand and leverage the `docker-compose` setup for development and production environments.
 
 By adhering to these guidelines, the AI assistant will function as a highly effective and integrated member of the development team, contributing to the success and longevity of the project.
