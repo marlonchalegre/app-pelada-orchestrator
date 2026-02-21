@@ -76,6 +76,26 @@ docker compose -f docker-compose.prod.yml up
 
 This stack builds and tags production images as `peladaapp-frontend:prod` and `peladaapp-backend:prod`. The Nginx container exposes the bundled site at `http://localhost`.
 
+Testing
+-------
+
+### End-to-End (E2E) Tests
+
+We use Playwright for end-to-end testing. The `e2e-test.sh` script orchestrates the environment setup (using Docker), runs the tests, and handles cleanup.
+
+```bash
+# Run all E2E tests
+./e2e-test.sh
+
+# Run a specific test file
+./e2e-test.sh --test tests/leave_organization.spec.ts
+
+# Record video of the test run
+./e2e-test.sh --video
+```
+
+See `e2e-tests/README.md` for more details.
+
 Development Tips
 ----------------
 
