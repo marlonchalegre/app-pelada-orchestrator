@@ -45,7 +45,7 @@ This document outlines the principles and practices to be followed by an AI assi
 ## General Development Practices
 
 *   **Testing is Paramount:**
-    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api) after modifying any code in the respective projects. This is a strict rule.
+    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api, and `./e2e-test.sh` for critical user flows) after modifying any code in the respective projects. This is a strict rule.
     *   **Bug Fix Verification:** When fixing a bug, you MUST create a new test case that reproduces the bug (failing initially) and passes after the fix. This ensures regression testing.
     *   **Test-Driven Development (TDD):** Where appropriate, write tests before implementation.
     *   **Unit Tests:** Cover individual functions/components with comprehensive unit tests.
