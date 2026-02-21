@@ -200,6 +200,24 @@ build_images() {
     else
         log "No images need rebuilding."
     fi
+
+    # CRITICAL FIX: For services NOT in build_targets, we must ensure an image with the new $TAG exists
+    # otherwise 'docker compose up' will try to pull it and fail.
+    local all_services="backend frontend"
+    for service in $all_services; do
+        if [[ ! "$build_targets" =~ "$service" ]]; then
+            log "Re-tagging existing $service image with $TAG..."
+            local image_name="peladaapp-$service"
+            # Find the most recent existing image for this service to use as a base
+            local latest_existing=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^$image_name:" | head -n 1)
+            if [ -n "$latest_existing" ]; then
+                docker tag "$latest_existing" "$image_name:$TAG"
+            else
+                log "Warning: Could not find existing image for $service to re-tag. Forcing build..."
+                DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.tmp -f "$COMPOSE_FILE" build $service
+            fi
+        fi
+    done
 }
 
 replace_containers() {
