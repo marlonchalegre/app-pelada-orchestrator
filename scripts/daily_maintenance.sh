@@ -13,8 +13,12 @@ DATA_FILE="./data/peladaapp.db"
 TAG_FILE="./last_success_tag"
 COMPOSE_FILE="docker-compose.prod.yml"
 LOCK_FILE="/tmp/peladaapp_maintenance.lock"
+TURSO_DB_NAME="peladaapp"
 CURRENT_DATE=$(date +%F-%H%M)
 TAG="$CURRENT_DATE"
+
+# Ensure Turso is in PATH for the script
+export PATH="$HOME/.turso:$PATH"
 
 # Global variables
 SUBMODULES=""
@@ -63,12 +67,12 @@ check_for_changes() {
             case "$file" in
                 "api-peladaapp") CHANGE_API=1 ;;
                 "web-peladaapp") CHANGE_WEB=1 ;;
-                *) CHANGE_ROOT=1 ;; # Any other file (nginx, compose, etc)
+                *) CHANGE_ROOT=1 ;; 
             esac
         done
     fi
 
-    # 2. Check submodule remotes (in case root pointer wasn't updated but remote branch was)
+    # 2. Check submodule remotes
     SUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{print $2}')
     for SUBMODULE in $SUBMODULES; do
         if check_submodule_changes "$SUBMODULE"; then
@@ -78,7 +82,7 @@ check_for_changes() {
         fi
     done
 
-    # 3. CRITICAL: Check if current HEAD matches the last successful deployment
+    # 3. Check deployment gap
     if [ -f "$TAG_FILE.commit" ]; then
         local last_success_commit=$(cat "$TAG_FILE.commit")
         local current_commit=$(git rev-parse HEAD)
@@ -145,7 +149,7 @@ check_submodule_changes() {
 }
 
 backup_database() {
-    log "Backing up database..."
+    log "Backing up local database..."
     mkdir -p ./data
     if [ -f "$DATA_FILE" ]; then
         cp "$DATA_FILE" "$BACKUP_DIR/peladaapp.db_$TAG"
@@ -155,18 +159,17 @@ backup_database() {
     fi
 }
 
-# NEW: Automated Turso Migrations
 migrate_turso() {
     if [ -n "$TURSO_DATABASE_URL" ]; then
         log "TURSO MIGRATION: Checking for new migrations to apply to Cloud DB..."
         
-        # Extract DB name from URL (e.g. libsql://db-name.turso.io -> db-name)
-        local db_name=$(echo "$TURSO_DATABASE_URL" | sed -E 's/libsql:\/\/([^.]+).*/\1/')
+        # Use config variable if set, otherwise extract from URL
+        local db_name="${TURSO_DB_NAME}"
+        if [ -z "$db_name" ]; then
+            db_name=$(echo "$TURSO_DATABASE_URL" | sed -E 's/libsql:\/\/([^.]+).*/\1/')
+        fi
         
         if command -v turso &> /dev/null; then
-            # Concatenate all .up.sql files and pipe them to turso shell. 
-            # SQLite handles 'CREATE TABLE IF NOT EXISTS' gracefully.
-            # We use a subshell to avoid changing directories
             (
                 cd api-peladaapp/resources/migrations
                 log "Applying migrations to Turso database: $db_name"
@@ -195,10 +198,8 @@ build_images() {
     local targets=()
     [ $CHANGE_API -eq 1 ] && targets+=("backend")
     [ $CHANGE_WEB -eq 1 ] && targets+=("frontend")
-    
     local build_targets="${targets[*]}"
 
-    # Load from existing .env if present on the host
     [ -f .env ] && log "Found .env file, loading variables..." && source .env
 
     echo "TAG=$TAG" > .env.tmp
@@ -218,7 +219,6 @@ build_images() {
         log "No source code changes detected. Skipping builds."
     fi
 
-    # Ensure all services have an image matching the new $TAG
     local all_services="backend frontend"
     for service in $all_services; do
         if [[ ! "$build_targets" =~ "$service" ]]; then
@@ -246,7 +246,7 @@ perform_health_check() {
     local wait_time=15
     for ((i=1; i<=max_attempts; i++)); do
         log "Attempt $i/$max_attempts - Checking http://localhost/api/health"
-        if curl -s -f http://localhost/api/health > /dev/null; then
+        if curl -s -f http://localhost/api/health | grep -qi "ok" > /dev/null; then
             log "Backend is healthy!"
             return 0
         fi
