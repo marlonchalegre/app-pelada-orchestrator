@@ -15,6 +15,7 @@ Repository Layout
 
 - `api-peladaapp`: Clojure backend service (Leiningen project).
 - `web-peladaapp`: React + Vite front-end.
+- `e2e-tests/`: Playwright end-to-end tests suite and documentation.
 - `docker-compose*.yml`: Docker Compose definitions for development and production-like workflows.
 - `nginx/`: Reverse proxy configuration used by the Compose stacks.
 - `seed_anime_users.sh`: Script to seed the database with test users.
