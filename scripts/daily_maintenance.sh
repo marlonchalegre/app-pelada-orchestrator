@@ -25,12 +25,10 @@ CHANGE_ROOT=0
 
 # Function definitions
 
-# Logging function
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
 
-# Error handling function
 error_exit() {
     log "ERROR: $1"
     [ -f "$LOCK_FILE" ] && rm -f "$LOCK_FILE"
@@ -38,21 +36,14 @@ error_exit() {
     exit 1
 }
 
-# Setup and validation
 setup_environment() {
     log "Setting up environment..."
-
-    # Lock mechanism
     if [ -f "$LOCK_FILE" ]; then
         log "Maintenance already in progress (lock file exists). Exiting."
         exit 0
     fi
     touch "$LOCK_FILE"
-
-    # Ensure backup directory exists
     mkdir -p "$BACKUP_DIR"
-
-    # Navigate to project directory
     if [ -d "$PROJECT_DIR" ]; then
         cd "$PROJECT_DIR" || error_exit "Failed to navigate to project directory"
     else
@@ -60,33 +51,29 @@ setup_environment() {
     fi
 }
 
-# Check for changes in main project and submodules
 check_for_changes() {
     log "Checking for changes in main project and submodules..."
-
-    # Initialize submodules
     git submodule init
-
-    # Check main project changes
     git fetch origin main --quiet
     
-    # 1. Check for Git differences
+    # 1. Inspect the root diff to see WHAT changed
     local root_diff=$(git diff --name-only HEAD origin/main)
     if [ -n "$root_diff" ]; then
-        CHANGE_ROOT=1
-        log "Root project changes detected."
+        for file in $root_diff; do
+            case "$file" in
+                "api-peladaapp") CHANGE_API=1 ;;
+                "web-peladaapp") CHANGE_WEB=1 ;;
+                *) CHANGE_ROOT=1 ;; # Any other file (nginx, compose, etc)
+            esac
+        done
     fi
 
-    # 2. Check for Submodule differences
+    # 2. Check submodule remotes (in case root pointer wasn't updated but remote branch was)
     SUBMODULES=$(git config --file .gitmodules --get-regexp path | awk '{print $2}')
     for SUBMODULE in $SUBMODULES; do
         if check_submodule_changes "$SUBMODULE"; then
-            if [[ "$SUBMODULE" == *"api"* ]]; then
-                CHANGE_API=1
-            elif [[ "$SUBMODULE" == *"web"* ]]; then
-                CHANGE_WEB=1
-            else
-                CHANGE_ROOT=1
+            if [[ "$SUBMODULE" == *"api"* ]]; then CHANGE_API=1;
+            elif [[ "$SUBMODULE" == *"web"* ]]; then CHANGE_WEB=1;
             fi
         fi
     done
@@ -96,37 +83,41 @@ check_for_changes() {
         local last_success_commit=$(cat "$TAG_FILE.commit")
         local current_commit=$(git rev-parse HEAD)
         if [ "$last_success_commit" != "$current_commit" ]; then
-            log "Detected code changes that were never successfully deployed. Forcing maintenance."
-            CHANGE_ROOT=1 
+            log "Detected code version change since last successful deployment. Forcing rebuild."
+            # Set flags based on what differs from the last success
+            local history_diff=$(git diff --name-only $last_success_commit HEAD)
+            for file in $history_diff; do
+                case "$file" in
+                    "api-peladaapp") CHANGE_API=1 ;;
+                    "web-peladaapp") CHANGE_WEB=1 ;;
+                    *) CHANGE_ROOT=1 ;;
+                esac
+            done
         fi
     fi
 
     if [ $CHANGE_API -eq 0 ] && [ $CHANGE_WEB -eq 0 ] && [ $CHANGE_ROOT -eq 0 ]; then
         log "No changes detected in code or configuration."
-        
-        # Verify if the last successful tag is still the one running
         if [ -f "$TAG_FILE" ]; then
             local current_tag=$(cat "$TAG_FILE")
             log "Current active version tag: $current_tag"
-            
-            # Check if containers are actually running with this tag
             local running_images=$(TAG=$current_tag docker compose -f "$COMPOSE_FILE" ps --format "{{.Image}}")
             if [[ "$running_images" =~ "$current_tag" ]]; then
                 log "Verification successful: Containers are running the latest version ($current_tag)."
             else
-                log "Warning: Containers are NOT running the latest version found in $TAG_FILE. Use --force to fix."
+                log "Warning: Containers are NOT running the latest version found in $TAG_FILE."
             fi
         fi
-
-        # Even if no changes, perform a cleanup to keep the system tidy
         cleanup_no_changes
-        return 1  # No changes detected
+        return 1
     else
-        return 0  # Changes detected
+        [ $CHANGE_API -eq 1 ] && log "Change detected in API."
+        [ $CHANGE_WEB -eq 1 ] && log "Change detected in Web."
+        [ $CHANGE_ROOT -eq 1 ] && log "Change detected in Root/Config."
+        return 0
     fi
 }
 
-# Optimized cleanup for when no deployment happens
 cleanup_no_changes() {
     log "Performing routine cleanup..."
     docker image prune -f
@@ -136,7 +127,6 @@ cleanup_no_changes() {
     fi
 }
 
-# Check changes in a single submodule
 check_submodule_changes() {
     local submodule="$1"
     local has_changes=1
@@ -155,17 +145,6 @@ check_submodule_changes() {
     return $has_changes
 }
 
-# Stop services
-stop_services() {
-    log "Stopping services..."
-    if [ -f .env.tmp ]; then
-        docker compose --env-file .env.tmp -f "$COMPOSE_FILE" down
-    else
-        TAG=$TAG docker compose -f "$COMPOSE_FILE" down
-    fi
-}
-
-# Backup database
 backup_database() {
     log "Backing up database..."
     mkdir -p ./data
@@ -177,15 +156,11 @@ backup_database() {
     fi
 }
 
-# Pull and update code
 update_code() {
-    log "Updating main project to origin/main..."
+    log "Updating code to origin/main..."
     git reset --hard origin/main
-
-    log "Updating submodules..."
     git submodule sync --recursive
     git submodule update --init --recursive --force
-    
     git submodule foreach --recursive '
         branch=$(git config -f $toplevel/.gitmodules submodule.$name.branch || echo main)
         git fetch origin $branch --quiet
@@ -193,50 +168,49 @@ update_code() {
     '
 }
 
-# Build and start services
-build_and_start_services() {
+build_images() {
     local build_targets=""
+    [ $CHANGE_API -eq 1 ] && build_targets+="backend "
+    [ $CHANGE_WEB -eq 1 ] && build_targets+="frontend "
     
-    if [ $CHANGE_API -eq 1 ]; then build_targets="$build_targets backend"; fi
-    if [ $CHANGE_WEB -eq 1 ]; then build_targets="$build_targets frontend"; fi
-
-    if [ $CHANGE_ROOT -eq 1 ] && [ -z "$build_targets" ]; then
-        log "Root changes detected. Rebuilding all services to be safe..."
+    # If root changes (like Nginx), we rebuild everything to ensure config is baked in
+    if [ $CHANGE_ROOT -eq 1 ]; then
         build_targets="backend frontend"
     fi
 
-    # Create temporary .env file for Docker Compose
+    # Trim any accidental extra spaces
+    build_targets=$(echo $build_targets | xargs)
+
+    # Load from existing .env if present on the host
+    [ -f .env ] && log "Found .env file, loading variables..." && source .env
+
     echo "TAG=$TAG" > .env.tmp
-    [ -n "$TURSO_DATABASE_URL" ] && echo "TURSO_DATABASE_URL=$TURSO_DATABASE_URL" >> .env.tmp
-    [ -n "$TURSO_AUTH_TOKEN" ] && echo "TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN" >> .env.tmp
+    if [ -n "$TURSO_DATABASE_URL" ] && [ -n "$TURSO_AUTH_TOKEN" ]; then
+        log "Turso credentials detected. Configuring for Cloud Database."
+        echo "TURSO_DATABASE_URL=$TURSO_DATABASE_URL" >> .env.tmp
+        echo "TURSO_AUTH_TOKEN=$TURSO_AUTH_TOKEN" >> .env.tmp
+    else
+        log "No Turso credentials found. Using local SQLite."
+    fi
     log "Using deployment tag: $TAG"
 
     if [ -n "$build_targets" ]; then
-        log "Building targets:$build_targets..."
-        # Enable BuildKit for cache mount support
+        log "HOT BUILD: Building new images ($build_targets) while old version stays online..."
         DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file .env.tmp -f "$COMPOSE_FILE" build --pull $build_targets
     else
         log "No images need rebuilding."
     fi
-
-    log "Starting all services..."
-    docker compose --env-file .env.tmp -f "$COMPOSE_FILE" up -d --force-recreate
-    
-    # Verify running images
-    log "Verifying running image versions..."
-    local running_images=$(docker compose --env-file .env.tmp -f "$COMPOSE_FILE" ps --format "{{.Image}}")
-    if [[ ! "$running_images" =~ "$TAG" ]]; then
-        log "CRITICAL: Running images do not match expected tag $TAG!"
-        return 1
-    fi
 }
 
-# Health check
+replace_containers() {
+    log "HOT REPLACE: Swapping containers now (minimal downtime)..."
+    docker compose --env-file .env.tmp -f "$COMPOSE_FILE" up -d --force-recreate
+}
+
 perform_health_check() {
     log "Performing health check..."
     local max_attempts=20
     local wait_time=15
-
     for ((i=1; i<=max_attempts; i++)); do
         log "Attempt $i/$max_attempts - Checking http://localhost/api/health"
         if curl -s -f http://localhost/api/health > /dev/null; then
@@ -248,13 +222,11 @@ perform_health_check() {
     return 1
 }
 
-# Save success state
 save_success_state() {
     log "Saving success state..."
     [ -f "$TAG_FILE" ] && cp "$TAG_FILE" "$TAG_FILE.prev"
     echo "$TAG" > "$TAG_FILE"
     git rev-parse HEAD > "$TAG_FILE.commit"
-    
     echo "Submodule commits:" > "$TAG_FILE.submodules"
     for SUBMODULE in $SUBMODULES; do
         if [ -d "$SUBMODULE/.git" ]; then
@@ -266,21 +238,17 @@ save_success_state() {
     log "Success state saved."
 }
 
-# Perform rollback
 perform_rollback() {
     log "Starting rollback procedure..."
     docker compose -f "$COMPOSE_FILE" down --remove-orphans
-    
     if [ -f "$BACKUP_DIR/peladaapp.db_$TAG" ]; then
         log "Restoring database from backup..."
         cp "$BACKUP_DIR/peladaapp.db_$TAG" "$DATA_FILE"
     fi
-
     local target_tag=""
     if [ -f "$TAG_FILE.prev" ]; then target_tag=$(cat "$TAG_FILE.prev")
     elif [ -f "$TAG_FILE" ]; then target_tag=$(cat "$TAG_FILE")
     fi
-
     if [ -n "$target_tag" ]; then
         log "Restoring to stable version: $target_tag"
         echo "TAG=$target_tag" > .env.rollback
@@ -291,34 +259,43 @@ perform_rollback() {
     log "Rollback completed."
 }
 
-# Cleanup old images
 cleanup() {
     log "Cleaning up old Docker images..."
+    # 1. Remove dangling images (untagged)
     docker image prune -f
+
+    # 2. Identify images currently in use
     local running_images=$(docker ps --format "{{.Image}}" | sort -u)
+    
+    # 3. Define services to cleanup
     local services="peladaapp-backend peladaapp-frontend"
     local images_to_keep=""
 
     for service in $services; do
-        local top_images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^$service" | sort -r | head -n 3)
+        local top_images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "^$service" | sort -Vr | head -n 3)
         images_to_keep="$images_to_keep $top_images"
     done
     
-    local all_project_images=$(docker images --format "{{.Repository}}:{{.Tag}} {{.ID}}" | grep "peladaapp-")
-    echo "$all_project_images" | while read -r repo_tag id; do
+    log "Preserved project images:"
+    echo "$images_to_keep $running_images" | tr ' ' '\n' | grep "peladaapp-" | sort -u | sed 's/^/  - /'
+    
+    # 4. Remove project images that are neither running nor in the 'top' list
+    local all_project_images=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "peladaapp-")
+    
+    echo "$all_project_images" | while read -r repo_tag; do
         local keep=0
-        if echo "$images_to_keep" | grep -q "$repo_tag"; then keep=1; fi
-        if echo "$running_images" | grep -q "^$repo_tag$"; then keep=1; fi
+        if echo "$images_to_keep" | grep -qF "$repo_tag"; then keep=1; fi
+        if echo "$running_images" | grep -qF "$repo_tag"; then keep=1; fi
+        
         if [ $keep -eq 0 ]; then
-            log "Removing old image: $repo_tag ($id)"
-            docker rmi "$id" 2>/dev/null || true
+            log "Removing old tag: $repo_tag"
+            docker rmi "$repo_tag" 2>/dev/null || true
         fi
     done
 }
 
-# Main execution function
 main() {
-    log "Starting maintenance procedure..."
+    log "Starting HOT MAINTENANCE procedure..."
     setup_environment
 
     if ! check_for_changes; then
@@ -327,18 +304,18 @@ main() {
         exit 0
     fi
 
-    stop_services
-    backup_database
     update_code
-    
-    if build_and_start_services && perform_health_check; then
+    build_images
+    backup_database
+
+    if replace_containers && perform_health_check; then
         save_success_state
         cleanup
         CONTAINER_IDS=$(docker compose -f "$COMPOSE_FILE" ps -q)
         if [ -n "$CONTAINER_IDS" ]; then
             docker update --restart always $CONTAINER_IDS
         fi
-        log "Maintenance completed successfully."
+        log "Maintenance completed successfully with minimal downtime."
     else
         log "Maintenance failed! Starting rollback..."
         perform_rollback
