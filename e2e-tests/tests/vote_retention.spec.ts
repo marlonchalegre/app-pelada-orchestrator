@@ -28,6 +28,7 @@ test.describe('Voting Feature: Retention and Isolation', () => {
       // Owner Register
       await ownerPage.goto('/register');
       await ownerPage.getByTestId('register-name').fill(owner.name);
+      await ownerPage.getByTestId('register-username').fill(`user_${timestamp}`);
       await ownerPage.getByTestId('register-email').fill(owner.email);
       await ownerPage.getByTestId('register-password').fill(owner.password);
       await ownerPage.getByLabel('Position').click();
@@ -53,6 +54,7 @@ test.describe('Voting Feature: Retention and Isolation', () => {
       // Invited User Register
       await invitedPage.goto(invitationLinkText);
       await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);
+      await invitedPage.getByTestId('first-access-username').fill(`user_invited_${timestamp}`);
       await invitedPage.getByTestId('first-access-password').fill(invitedUser.password);
       await invitedPage.getByLabel('Position').click();
       await invitedPage.getByRole('option', { name: 'Striker' }).click();

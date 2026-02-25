@@ -26,6 +26,7 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
     await test.step('Owner Setup and Invitation', async () => {
       await ownerPage.goto('/register');
       await ownerPage.getByTestId('register-name').fill(owner.name);
+      await ownerPage.getByTestId('register-username').fill(`user_${timestamp}`);
       await ownerPage.getByTestId('register-email').fill(owner.email);
       await ownerPage.getByTestId('register-password').fill(owner.password);
       await ownerPage.getByLabel('Position').click();
@@ -50,6 +51,7 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
       (invitedUser as any).page = invitedPage;
       await invitedPage.goto(invitationLinkText);
       await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);
+      await invitedPage.getByTestId('first-access-username').fill(`user_invited_${timestamp}`);
       await invitedPage.getByTestId('first-access-password').fill(invitedUser.password);
       await invitedPage.getByLabel('Position').click();
       await invitedPage.getByRole('option', { name: 'Striker' }).click();

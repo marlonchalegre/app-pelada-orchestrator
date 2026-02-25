@@ -17,6 +17,7 @@ test.describe('Phase 7: Copy Utilities & Dialogs', () => {
 
     await ownerPage.goto('/register');
     await ownerPage.getByTestId('register-name').fill(owner.name);
+    await ownerPage.getByTestId('register-username').fill(`user_${timestamp}`);
     await ownerPage.getByTestId('register-email').fill(owner.email);
     await ownerPage.getByTestId('register-password').fill(owner.password);
     await ownerPage.getByLabel('Position').click();

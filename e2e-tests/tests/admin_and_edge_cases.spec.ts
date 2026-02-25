@@ -27,6 +27,7 @@ test.describe('Phase 6: Admin Management & Edge Cases', () => {
     await test.step('Register Owner and Create Org', async () => {
       await ownerPage.goto('/register');
       await ownerPage.getByTestId('register-name').fill(owner.name);
+      await ownerPage.getByTestId('register-username').fill(`user_${timestamp}`);
       await ownerPage.getByTestId('register-email').fill(owner.email);
       await ownerPage.getByTestId('register-password').fill(owner.password);
       await ownerPage.getByLabel('Position').click();
@@ -53,6 +54,7 @@ test.describe('Phase 6: Admin Management & Edge Cases', () => {
       const invitedPage = await invitedContext.newPage();
       await invitedPage.goto(invitationLink);
       await invitedPage.getByTestId('first-access-name').fill(playerToPromote.name);
+      await invitedPage.getByTestId('first-access-username').fill(`user_promote_${timestamp}`);
       await invitedPage.getByTestId('first-access-password').fill(playerToPromote.password);
       await invitedPage.getByLabel('Position').click();
       await invitedPage.getByRole('option', { name: 'Striker' }).click();

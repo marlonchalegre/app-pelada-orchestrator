@@ -28,6 +28,7 @@ test.describe('Leave Organization feature', () => {
     
     await ownerPage.goto('/register');
     await ownerPage.getByTestId('register-name').fill(owner.name);
+    await ownerPage.getByTestId('register-username').fill(`owner_${timestamp}`);
     await ownerPage.getByTestId('register-email').fill(owner.email);
     await ownerPage.getByTestId('register-password').fill(owner.password);
     await ownerPage.getByLabel('Position').click();
@@ -58,6 +59,7 @@ test.describe('Leave Organization feature', () => {
     
     await playerPage.goto('/register');
     await playerPage.getByTestId('register-name').fill(player.name);
+    await playerPage.getByTestId('register-username').fill(`player_${timestamp}`);
     await playerPage.getByTestId('register-email').fill(player.email);
     await playerPage.getByTestId('register-password').fill(player.password);
     await playerPage.getByLabel('Position').click();

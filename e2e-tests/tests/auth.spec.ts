@@ -5,6 +5,7 @@ test.describe('Phase 1: Identity & Profile', () => {
   const timestamp = Date.now();
   const user = {
     name: `Auth User ${timestamp}`,
+    username: `user_${timestamp}`,
     email: `auth-${timestamp}@example.com`,
     password: 'password123',
     newPassword: 'new-password456',
@@ -20,6 +21,7 @@ test.describe('Phase 1: Identity & Profile', () => {
     await test.step('Registration', async () => {
       await page.goto('/register');
       await page.getByTestId('register-name').fill(user.name);
+      await page.getByTestId('register-username').fill(user.username);
       await page.getByTestId('register-email').fill(user.email);
       await page.getByTestId('register-password').fill(user.password);
       await page.getByLabel('Position').click();

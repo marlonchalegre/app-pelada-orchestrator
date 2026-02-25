@@ -5,6 +5,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
   const timestamp = Date.now();
   const owner = {
     name: `Owner ${timestamp}`,
+    username: `owner_${timestamp}`,
     email: `owner-${timestamp}@example.com`,
     password: 'password123',
     position: 'Defender'
@@ -13,6 +14,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
   
   const invitedUser = {
     name: `Invited ${timestamp}`,
+    username: `invited_${timestamp}`,
     email: `invited-${timestamp}-${Math.floor(Math.random() * 1000)}@example.com`,
     password: 'password123',
     position: 'Striker'
@@ -27,6 +29,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
     // 1. Owner Registration & Org Creation
     await ownerPage.goto('/register');
     await ownerPage.getByTestId('register-name').fill(owner.name);
+    await ownerPage.getByTestId('register-username').fill(owner.username);
     await ownerPage.getByTestId('register-email').fill(owner.email);
     await ownerPage.getByTestId('register-password').fill(owner.password);
     await ownerPage.getByLabel('Position').click();
@@ -70,6 +73,7 @@ test.describe('Phase 2: Organization Lifecycle', () => {
       await expect(invitedPage.getByTestId('first-access-email')).toBeDisabled();
 
       await invitedPage.getByTestId('first-access-name').fill(invitedUser.name);
+      await invitedPage.getByTestId('first-access-username').fill(invitedUser.username);
       await invitedPage.getByTestId('first-access-password').fill(invitedUser.password);
       await invitedPage.getByTestId('first-access-position-select').click();
       await invitedPage.getByRole('option', { name: invitedUser.position }).click();
@@ -106,11 +110,13 @@ test.describe('Phase 2: Organization Lifecycle', () => {
     // Register joiner first
     const joiner = { 
       name: `Joiner ${timestamp}`, 
+      username: `joiner_${timestamp}`,
       email: `joiner-${timestamp}@example.com`, 
       password: 'password123' 
     };
     await joinerPage.goto('/register');
     await joinerPage.getByTestId('register-name').fill(joiner.name);
+    await joinerPage.getByTestId('register-username').fill(joiner.username);
     await joinerPage.getByTestId('register-email').fill(joiner.email);
     await joinerPage.getByTestId('register-password').fill(joiner.password);
     await joinerPage.getByTestId('register-submit').click();
