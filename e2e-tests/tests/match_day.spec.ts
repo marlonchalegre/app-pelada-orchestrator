@@ -134,6 +134,7 @@ test.describe('Phase 4: Match Day', () => {
       await expect(playerRow.getByTestId('stat-assists-value')).toHaveText('1');
 
       await ownerPage.getByTestId('end-match-button').click();
+      await ownerPage.getByText(/Seq 1:/).first().click();
       await expect(ownerPage.getByTestId('match-status-text')).toBeVisible({ timeout: 10000 });
 
       await ownerPage.getByTestId('close-pelada-button').click();

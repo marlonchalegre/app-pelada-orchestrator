@@ -90,6 +90,9 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
       // 2. End Match
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
       await ownerPage.getByTestId('end-match-button').click();
+      
+      // Go back to Seq 1 in case it auto-selected Seq 2
+      await ownerPage.getByText(/Seq 1:/).first().click();
       await expect(ownerPage.getByTestId('match-status-text')).toBeVisible();
 
       // 3. Close Pelada (opens voting)
