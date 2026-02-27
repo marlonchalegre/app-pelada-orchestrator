@@ -15,7 +15,7 @@ jobs:
   check-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.filter.outputs.changes }}
+      any_change: ${{ steps.filter.outputs.api == 'true' || steps.filter.outputs.web == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,20 +36,23 @@ jobs:
 
   build-and-push:
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.services != '[]' || startsWith(github.ref, 'refs/tags/') }}
+    # Build if there are changes in either service, or if it's a tag push
+    if: ${{ needs.check-changes.outputs.any_change == 'true' || startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: ${{ (startsWith(github.ref, 'refs/tags/') && fromJSON('["api", "web"]')) || fromJSON(needs.check-changes.outputs.services) }}
+        service: [api, web]
     
     steps:
-      - name: Set Matrix Variables
+      - name: Set Version
         id: var
         run: |
+          # Use BRT (UTC-3) for the timestamp
+          export TZ="America/Sao_Paulo"
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           else
-            VERSION=$(echo $GITHUB_SHA | cut -c1-7)
+            VERSION=$(date +'%d%m%Y-%H%M')
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -90,7 +93,6 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha,format=long
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=${{ steps.var.outputs.version }}
