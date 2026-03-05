@@ -7,8 +7,16 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "playwright test"
+    "test": "playwright test",
+    "env:up": "docker-compose -f ../docker-compose.yml up -d --build",
+    "env:down": "docker-compose -f ../docker-compose.yml down -v",
+    "db:backup": "cp ../api-peladaapp/peladaapp.db* /tmp/ 2>/dev/null || true",
+    "db:restore": "rm -f ../api-peladaapp/peladaapp.db* && cp /tmp/peladaapp.db* ../api-peladaapp/ 2>/dev/null || true",
+    "db:clean": "rm -f ../api-peladaapp/peladaapp.db*",
+    "wait-for-backend": "node scripts/wait-for-backend.js",
+    "test:e2e": "npm run db:backup && npm run env:down && npm run db:clean && npm run env:up && npm run wait-for-backend && (npm run test; EXIT_CODE=$?; npm run env:down; npm run db:restore; exit $EXIT_CODE)"
   },
+
   "keywords": [],
   "author": "",
   "license": "ISC",

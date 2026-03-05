@@ -76,8 +76,9 @@ test.describe('Phase 6: Admin Management & Edge Cases', () => {
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/attendance/);
       const peladaId = ownerPage.url().split('/').find((s, i, a) => a[i-1] === 'peladas');
 
-      await ownerPage.getByTestId('attendance-decline-button').click();
+      await ownerPage.getByTestId('attendance-card-decline').first().click();
       await expect(ownerPage.getByTestId('stats-declined-count')).toHaveText('1');
+
 
       await ownerPage.getByTestId('close-attendance-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));

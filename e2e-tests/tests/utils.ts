@@ -55,7 +55,7 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
       await page.waitForTimeout(1000);
     }
     await expect(inviteCard).toBeVisible({ timeout: 5000 });
-  }).toPass({ timeout: 20000 });
+  }).toPass({ timeout: 10000 });
   
   // Click the accept button for THIS specific organization
   const acceptBtn = page.getByTestId(`accept-invitation-${orgName}`);
@@ -64,14 +64,19 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
   // After accepting, the frontend refreshes the list on the home page.
   // We verify that the organization now appears in the Member Organizations list.
   await expect(async () => {
-    const orgLink = page.getByRole('link', { name: orgName });
+    const orgLink = page.getByTestId(`org-link-${orgName}`);
     if (!await orgLink.isVisible()) {
-      await page.reload();
+      await page.goto('/'); // Hard navigate to home to refresh
+      await page.waitForLoadState('networkidle');
     }
     await expect(orgLink).toBeVisible({ timeout: 5000 });
-  }).toPass({ timeout: 20000 });
+  }).toPass({ timeout: 15000 });
   
   // Click the link to proceed to the organization page
-  await page.getByRole('link', { name: orgName }).click();
-  await expect(page).toHaveURL(/\/organizations\/\d+/, { timeout: 15000 });
+  await page.getByTestId(`org-link-${orgName}`).click();
+  await expect(page).toHaveURL(/\/organizations\/\d+/, { timeout: 10000 });
 }
+
+
+
+

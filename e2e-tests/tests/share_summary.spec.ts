@@ -16,14 +16,19 @@ test.describe('Share Pelada Summary', () => {
     await page.getByTestId('register-username').fill(`user_share_${timestamp}`);
     await page.getByTestId('register-email').fill(owner.email);
     await page.getByTestId('register-password').fill(owner.password);
-    await page.getByLabel('Position').click();
+    await page.getByLabel(/Position/i).click();
     await page.getByRole('option', { name: 'Defender' }).click();
     await page.getByTestId('register-submit').click();
+    await expect(page).toHaveURL('/');
     
     await page.getByTestId('create-org-open-dialog').click();
     await page.getByTestId('org-name-input').fill(orgName);
     await page.getByTestId('org-submit-button').click();
-    await page.getByTestId(`org-link-${orgName}`).click();
+    
+    const orgLink = page.getByTestId(`org-link-${orgName}`);
+    await expect(orgLink).toBeVisible();
+    await orgLink.click();
+
 
     // 2. Create Pelada
     await page.getByTestId('create-pelada-submit').click();

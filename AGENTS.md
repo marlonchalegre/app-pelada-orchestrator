@@ -45,7 +45,7 @@ This document outlines the principles and practices to be followed by an AI assi
 ## General Development Practices
 
 *   **Testing is Paramount:**
-    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api, and `./e2e-test.sh` for critical user flows) after modifying any code in the respective projects. This is a strict rule.
+    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api, and `npm run test:e2e` in `e2e-tests`) after modifying any code in the respective projects. This is a strict rule.
     *   **Bug Fix Verification:** When fixing a bug, you MUST create a new test case that reproduces the bug (failing initially) and passes after the fix. This test case MUST be integrated into the existing feature or unit tests to ensure permanent regression testing. Never delete the reproduction test after the fix; make it a permanent part of the codebase.
     *   **Test-Driven Development (TDD):** Where appropriate, write tests before implementation.
     *   **Unit Tests:** Cover individual functions/components with comprehensive unit tests.
@@ -72,10 +72,10 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint` and `npm run format:all`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
 *   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein clj-kondo`, etc.) inside the backend container using `docker compose exec backend <command>`.
-*   **End-to-End Tests:** Use the root-level `./e2e-test.sh` script to run the Playwright suite.
-    *   To run all E2E tests: `./e2e-test.sh`
-    *   To run a specific E2E test file: `./e2e-test.sh --test tests/filename.spec.ts`
-    *   To record video of the tests: `./e2e-test.sh --video`
+*   **End-to-End Tests:** Use the `npm run test:e2e` command inside `e2e-tests` directory.
+    *   To run all E2E tests: `cd e2e-tests && npm run test:e2e`
+    *   To run a specific E2E test file (requires environment up): `cd e2e-tests && npm run test -- tests/filename.spec.ts`
+
 *   Understand and leverage the `docker-compose` setup for development and production environments.
 
 By adhering to these guidelines, the AI assistant will function as a highly effective and integrated member of the development team, contributing to the success and longevity of the project.

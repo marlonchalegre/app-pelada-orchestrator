@@ -78,7 +78,8 @@ test.describe('Leave Organization feature', () => {
     
     // Confirmation dialog
     await expect(playerPage.getByRole('dialog')).toBeVisible();
-    await playerPage.getByRole('button', { name: /Confirmar/i }).click();
+    await playerPage.getByRole('button', { name: /Confirm|Confirmar/i }).click();
+
     
     // Should be redirected to home
     await expect(playerPage).toHaveURL('/');

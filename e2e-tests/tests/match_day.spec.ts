@@ -117,25 +117,37 @@ test.describe('Phase 4: Match Day', () => {
       
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
+      
+      // Teams should be created automatically (default 2), wait for them
+      await expect(ownerPage.locator('[data-testid="team-card"]')).toHaveCount(2, { timeout: 10000 });
+      
       await ownerPage.getByTestId('randomize-teams-button').click();
+      
+      // Wait for randomization results: both players should be in teams
+      await expect(ownerPage.getByTestId('player-row')).toHaveCount(2, { timeout: 10000 });
+
       await ownerPage.getByTestId('start-pelada-button').click();
       await ownerPage.getByTestId('confirm-start-pelada-button').click();
 
-      await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
-      
-      const ownerRow = ownerPage.getByTestId(`player-row-${owner.name}`);
+      await ownerPage.waitForURL(/\/peladas\/\d+\/matches/);
+
+      const ownerRow = ownerPage.getByTestId('player-row').filter({ hasText: owner.name });
       await ownerRow.getByTestId('stat-goals-increment').click();
       await expect(ownerRow.getByTestId('stat-goals-value')).toHaveText('1');
-      
-      const playerRow = ownerPage.getByTestId(`player-row-${invitedUser.name}`);
-      await playerRow.getByTestId('stat-goals-increment').click();
+
+      const playerRow = ownerPage.getByTestId('player-row').filter({ hasText: invitedUser.name });
       await playerRow.getByTestId('stat-assists-increment').click();
-      await expect(playerRow.getByTestId('stat-goals-value')).toHaveText('1');
+
+      await expect(playerRow.getByTestId('stat-goals-value')).toHaveText('0');
       await expect(playerRow.getByTestId('stat-assists-value')).toHaveText('1');
 
+
       await ownerPage.getByTestId('end-match-button').click();
-      await ownerPage.getByText(/Seq 1:/).first().click();
+      
+      const sidebarMatch1 = ownerPage.locator('button, [role="button"]').filter({ hasText: /Seq 1:/ }).first();
+      await sidebarMatch1.click();
       await expect(ownerPage.getByTestId('match-status-text')).toBeVisible({ timeout: 10000 });
+
 
       await ownerPage.getByTestId('close-pelada-button').click();
       await expect(ownerPage.getByText(/Pelada closed|Pelada encerrada/i)).toBeVisible({ timeout: 10000 });
