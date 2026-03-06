@@ -70,10 +70,10 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
       const peladaId = ownerPage.url().split('/').find((s, i, a) => a[i-1] === 'peladas');
       if (!peladaId) throw new Error("Could not extract peladaId from URL: " + ownerPage.url());
 
-      await ownerPage.getByTestId('attendance-confirm-button').click();
+      await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
       await invitedPage.goto('/');
       await invitedPage.getByTestId(`pelada-link-${peladaId}`).click();
-      await invitedPage.getByTestId('attendance-confirm-button').click();
+      await invitedPage.getByTestId('attendance-confirm-button').or(invitedPage.getByTestId('attendance-card-confirm')).first().click();
 
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
@@ -83,7 +83,19 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
     await test.step('Start, End Match and Vote', async () => {
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
+      
+      // Create teams manually
+      await ownerPage.getByTestId('create-team-button').click();
+      await ownerPage.getByTestId('create-team-button').click();
+      
+      // Set technical settings manually
+      const input = ownerPage.getByTestId('players-per-team-input').locator('input');
+      await input.click();
+      await input.fill('5');
+      await ownerPage.waitForTimeout(500);
+
       await ownerPage.getByTestId('randomize-teams-button').click();
+
       await ownerPage.getByTestId('start-pelada-button').click();
       await ownerPage.getByTestId('confirm-start-pelada-button').click();
 
@@ -91,9 +103,10 @@ test.describe('Phase 5: Post-Match & Analytics', () => {
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
       await ownerPage.getByTestId('end-match-button').click();
       
-      // Go back to Seq 1 in case it auto-selected Seq 2
-      await ownerPage.getByText(/Seq 1:/).first().click();
-      await expect(ownerPage.getByTestId('match-status-text')).toBeVisible();
+      // Go back to Match 1 in case it auto-selected Match 2
+      await ownerPage.getByTestId('match-history-item-1').click();
+      await ownerPage.waitForTimeout(2000);
+      await expect(ownerPage.getByText(/Finished|Encerrada/i)).toBeVisible();
 
       // 3. Close Pelada (opens voting)
       await ownerPage.getByTestId('close-pelada-button').click();

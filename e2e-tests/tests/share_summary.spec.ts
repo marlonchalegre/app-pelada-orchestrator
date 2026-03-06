@@ -33,10 +33,12 @@ test.describe('Share Pelada Summary', () => {
     // 2. Create Pelada
     await page.getByTestId('create-pelada-submit').click();
     await expect(page).toHaveURL(/\/peladas\/\d+\/attendance/);
-    await page.getByTestId('attendance-confirm-button').click();
+    await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
     await page.getByTestId('close-attendance-button').click();
 
     // 3. Start Pelada
+    await page.getByTestId('create-team-button').click();
+    await page.getByTestId('create-team-button').click();
     await page.getByTestId('randomize-teams-button').click();
     await page.getByTestId('start-pelada-button').click();
     await page.getByTestId('confirm-start-pelada-button').click();

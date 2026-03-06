@@ -76,41 +76,64 @@ test.describe('Feature: Global Fixed Goalkeepers', () => {
 
         await playerPage.getByTestId('join-org-button').click();
         await expect(playerPage).toHaveURL(/\/organizations\/\d+/);
-        await playerContext.close();
+        
+        // Verify in admin page
+        await adminPage.reload();
+        await expect(adminPage.getByText(player2.name)).toBeVisible({ timeout: 10000 });
 
+        await playerContext.close();
       });
 
-      await test.step('Create Pelada with Fixed Goalkeepers', async () => {
+      // Extra wait for data sync
+      await adminPage.waitForTimeout(5000);
+      await adminPage.reload();
+      await adminPage.waitForTimeout(2000);
+
+      await test.step('Create Pelada', async () => {
         await adminPage.goto(`/organizations/${orgId}`);
         await adminPage.getByTestId('create-pelada-submit').scrollIntoViewIfNeeded();
 
-        await adminPage.getByLabel(/Fixed Goalkeepers/i).check();
         await adminPage.getByTestId('create-pelada-submit').click();
         
         await expect(adminPage).toHaveURL(/\/peladas\/\d+\/attendance/);
       });
 
       await test.step('Manage Attendance', async () => {
-        // Admin confirms
-        await adminPage.getByRole('button', { name: /I'm In|Eu vou/i }).click();
+        // Players should be in pending list
+        const confirmBtn = adminPage.getByTestId('attendance-confirm-button').or(adminPage.getByTestId('attendance-card-confirm')).first();
+        await expect(confirmBtn).toBeVisible({ timeout: 15000 });
+        await confirmBtn.click();
         
-        // We need player 2 to confirm too. 
-        // Since we are admin, we can use the new "Add players" feature later or just login as player 2.
-        // Actually, let's use the new "Adicionar jogadores" feature!
-        await adminPage.getByRole('button', { name: /Close List and Create Teams/i }).click();
+        // Player 2 should be in the list as pending. Confirm them.
+        const p2Confirm = adminPage.getByTestId(`attendance-card-${player2.username}`).getByTestId('attendance-card-confirm');
+        await expect(p2Confirm).toBeVisible({ timeout: 10000 });
+        await p2Confirm.click();
+
+        await adminPage.getByTestId('close-attendance-button').click();
         await expect(adminPage).toHaveURL(/\/peladas\/\d+$/);
-        
-        // Add player 2 via Admin interface
-        await adminPage.getByRole('button', { name: /Adicionar jogadores|Add players/i }).click();
-        await adminPage.getByText(player2.name).click();
-        await adminPage.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
-        
+
         // Wait for player to be added
         await expect(adminPage.getByText(player2.name)).toBeVisible();
       });
 
       await test.step('Randomize and Start Match', async () => {
-        // Teams should be created automatically (default 2), wait for them
+        // Ensure we are on pelada page and it is loaded
+        await expect(adminPage.getByRole('button', { name: /Add players|Adicionar jogadores/i })).toBeVisible({ timeout: 15000 });
+
+        // NEW: Enable Fixed Goalkeepers on Teams page (now in header)
+        await adminPage.getByTestId('fixed-gk-toggle').click();
+
+        // Create teams manually
+        await adminPage.getByTestId('create-team-button').click();
+        await adminPage.getByTestId('create-team-button').click();
+
+        // Set technical settings manually
+        const input = adminPage.getByTestId('players-per-team-input').locator('input');
+        await input.click();
+        await input.fill('5');
+        await adminPage.waitForTimeout(500);
+
+        // Teams should be visible (seeded by default)
         await expect(adminPage.locator('[data-testid="team-card"]')).toHaveCount(2, { timeout: 10000 });
         
         await adminPage.getByTestId('randomize-teams-button').click();
@@ -120,9 +143,13 @@ test.describe('Feature: Global Fixed Goalkeepers', () => {
 
         // Assign fixed goalkeepers (since feature is enabled)
 
+        // Give it a moment for UI to stabilize after randomization
+        await adminPage.waitForTimeout(1000);
+
         // Find players already in teams to drag
-        const team1 = adminPage.locator('[data-testid="team-card"]').filter({ hasText: /Time 1/i });
-        const team2 = adminPage.locator('[data-testid="team-card"]').filter({ hasText: /Time 2/i });
+        const teams = adminPage.getByTestId('team-card');
+        const team1 = teams.nth(0);
+        const team2 = teams.nth(1);
         
         await team1.getByTestId('player-row').first().dragTo(adminPage.getByTestId('gk-slot-home'));
         await team2.getByTestId('player-row').first().dragTo(adminPage.getByTestId('gk-slot-away'));

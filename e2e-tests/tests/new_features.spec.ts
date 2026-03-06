@@ -83,10 +83,12 @@ test.describe('New Features: Export, Settings & Add Players', () => {
         peladaId = page.url().split('/').filter(p => p !== '').slice(-2, -1)[0];
         
         // Admin confirms
-        await page.getByRole('button', { name: /I'm In|Eu vou/i }).click();
+        const confirmBtn = page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first();
+        await expect(confirmBtn).toBeVisible({ timeout: 15000 });
+        await confirmBtn.click();
         
         // Skip attendance and go to pelada dashboard
-        await page.getByRole('button', { name: /Close List and Create Teams/i }).click();
+        await page.getByTestId('close-attendance-button').click();
         
         // Add player 2 using the new feature
         await page.getByRole('button', { name: /Adicionar jogadores|Add players/i }).click();
@@ -103,32 +105,30 @@ test.describe('New Features: Export, Settings & Add Players', () => {
 
       // 4. Test Settings (Fixed Goalkeepers Toggle)
       await test.step('Verify Settings Toggle', async () => {
-        await expect(page.getByTestId('pelada-settings-button')).toBeVisible({ timeout: 10000 });
-        await page.getByTestId('pelada-settings-button').click();
-        await page.waitForTimeout(500); // Wait for menu to open
-        await page.getByTestId('fixed-gk-switch-label').click();
+        await expect(page.getByTestId('fixed-gk-toggle')).toBeVisible({ timeout: 10000 });
+        await page.getByTestId('fixed-gk-toggle').click();
         
         // Verify GK areas appear
         await expect(page.getByTestId('gk-slot-home')).toBeVisible({ timeout: 10000 });
         
-        // Toggle off (menu might still be open or we might need to reopen it)
-        // Let's try to click the switch again directly if it's still visible, 
-        // or reopen if it closed.
-        if (!await page.getByTestId('fixed-gk-switch-label').isVisible()) {
-          await page.getByTestId('pelada-settings-button').click();
-          await page.waitForTimeout(500);
-        }
-        await page.getByTestId('fixed-gk-switch-label').click();
+        // Toggle off
+        await page.getByTestId('fixed-gk-toggle').click();
         await expect(page.getByTestId('gk-slot-home')).not.toBeVisible({ timeout: 10000 });
-        
-        // Final cleanup: close menu if still open
-        await page.keyboard.press('Escape');
-        await expect(page.locator('role=presentation')).not.toBeVisible();
       });
 
       // NEW STEP: Randomize and Start to enable Export (some export data might depend on match state)
       await test.step('Randomize and Start', async () => {
-        // Teams should be created automatically (default 2), wait for them
+        // Create teams manually
+        await page.getByTestId('create-team-button').click();
+        await page.getByTestId('create-team-button').click();
+        
+        // Set technical settings manually
+        const input = page.getByTestId('players-per-team-input').locator('input');
+        await input.click();
+        await input.fill('5');
+        await page.waitForTimeout(500);
+
+        // Teams should be visible
         await expect(page.locator('[data-testid="team-card"]')).toHaveCount(2, { timeout: 10000 });
         
         await page.getByTestId('randomize-teams-button').click();
@@ -149,15 +149,12 @@ test.describe('New Features: Export, Settings & Add Players', () => {
         
         await page.getByRole('button', { name: /Export/i }).click();
 
-        
         await expect(page.getByText(/Announcement Version|Versão de Divulgação/i)).toBeVisible();
-        await expect(page.getByText(/Copy to Clipboard|Copiar para área de transferência/i)).toBeVisible();
-        await expect(page.getByText(/Spreadsheet|Planilha/i)).toBeVisible();
+        await expect(page.getByText(/Evaluation Version|Versão para Avaliação/i)).toBeVisible();
         
-        // Click Copy to Clipboard and verify alert (mock alert if necessary or just check it doesn't crash)
-        // Playwright handles dialogs automatically or we can listen
+        // Click Evaluation Version and verify alert
         page.on('dialog', dialog => dialog.accept());
-        await page.getByText(/Copy to Clipboard|Copiar para área de transferência/i).click();
+        await page.getByText(/Evaluation Version|Versão para Avaliação/i).click();
       });
 
     } finally {

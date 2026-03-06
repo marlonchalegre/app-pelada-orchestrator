@@ -78,12 +78,12 @@ test.describe('Phase 3: Pelada Management', () => {
       const peladaUrl = ownerPage.url();
       const peladaId = peladaUrl.split('/').find((s, i, a) => a[i-1] === 'peladas');
 
-      await ownerPage.getByTestId('attendance-confirm-button').click();
+      await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
       await expect(ownerPage.getByTestId('stats-confirmed-count')).toHaveText('1');
 
       await invitedPage.goto('/');
       await invitedPage.getByTestId(`pelada-link-${peladaId}`).click();
-      await invitedPage.getByTestId('attendance-confirm-button').click();
+      await invitedPage.getByTestId('attendance-confirm-button').or(invitedPage.getByTestId('attendance-card-confirm')).first().click();
       await expect(invitedPage.getByTestId('stats-confirmed-count')).toHaveText('2');
 
       await invitedContext.close();
@@ -110,6 +110,16 @@ test.describe('Phase 3: Pelada Management', () => {
       // Extra reload here because isAdmin state might be stale
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
+
+      // Create teams manually
+      await ownerPage.getByTestId('create-team-button').click();
+      await ownerPage.getByTestId('create-team-button').click();
+
+      // Set technical settings manually
+      const input = ownerPage.getByTestId('players-per-team-input').locator('input');
+      await input.click();
+      await input.fill('5');
+      await ownerPage.waitForTimeout(500);
 
       // 7. Randomize Teams
       await ownerPage.getByTestId('randomize-teams-button').click();

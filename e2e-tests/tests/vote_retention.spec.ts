@@ -74,15 +74,17 @@ test.describe('Voting Feature: Retention and Isolation', () => {
       if (!peladaId) throw new Error("Could not extract peladaId");
 
       // Attendance
-      await ownerPage.getByTestId('attendance-confirm-button').click();
+      await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
       await invitedPage.goto(`/peladas/${peladaId}/attendance`);
-      await invitedPage.getByTestId('attendance-confirm-button').click();
+      await invitedPage.getByTestId('attendance-confirm-button').or(invitedPage.getByTestId('attendance-card-confirm')).first().click();
 
       await ownerPage.reload();
       await ownerPage.waitForTimeout(1000);
       await ownerPage.getByTestId('close-attendance-button').click();
 
       // Start and End Pelada
+      await ownerPage.getByTestId('create-team-button').click();
+      await ownerPage.getByTestId('create-team-button').click();
       await ownerPage.getByTestId('randomize-teams-button').click();
       await ownerPage.getByTestId('start-pelada-button').click();
       await ownerPage.getByTestId('confirm-start-pelada-button').click();

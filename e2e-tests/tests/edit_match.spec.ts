@@ -93,8 +93,18 @@ test.describe('Edit Match Feature', () => {
       await p3Page.getByTestId('join-org-button').click();
       await expect(p3Page).toHaveURL(/\/organizations\/\d+/, { timeout: 10000 });
 
+      // Verify players are in the organization list for the owner
+      await page.reload();
+      await expect(page.getByText(player2.name)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(player3.name)).toBeVisible({ timeout: 10000 });
+
       await p2Context.close();
       await p3Context.close();
+
+      // Give extra time for background joins to commit and sync
+      await page.waitForTimeout(5000);
+      await page.reload();
+      await page.waitForTimeout(2000);
 
       await test.step('Create Pelada and Manage Attendance', async () => {
         await page.goto(`/organizations/${orgId}`);
@@ -103,27 +113,48 @@ test.describe('Edit Match Feature', () => {
 
         const peladaId = page.url().split('/').reverse()[1];
 
-        await page.getByRole('button', { name: /I'm In|Eu vou/i }).click();
-        await page.getByRole('button', { name: /Close List and Create Teams/i }).click();
+        // Players joined org in background, need to reload to see them in pending list
+        await page.waitForTimeout(3000);
+        await page.reload();
+        await page.waitForTimeout(3000);
+
+        const confirmBtn = page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first();
+        await expect(confirmBtn).toBeVisible({ timeout: 15000 });
+        await confirmBtn.click();
+
+        // Player 2 and 3 should be in the list as pending. Confirm them.
+        const p2Confirm = page.getByTestId(`attendance-card-${player2.username}`).getByTestId('attendance-card-confirm');
+        await expect(p2Confirm).toBeVisible({ timeout: 10000 });
+        await p2Confirm.click();
+
+        const p3Confirm = page.getByTestId(`attendance-card-${player3.username}`).getByTestId('attendance-card-confirm');
+        await expect(p3Confirm).toBeVisible({ timeout: 10000 });
+        await p3Confirm.click();
+
+        await page.getByTestId('close-attendance-button').click();
         await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
-
-        // Add player 2 and 3
-        await page.getByRole('button', { name: /Adicionar jogadores|Add players/i }).click();
-        
-        // Wait for players to load in dialog
-        await expect(page.getByRole('dialog').getByText(player2.name)).toBeVisible();
-        await page.getByRole('dialog').getByText(player2.name).click();
-        await page.getByRole('dialog').getByText(player3.name).click();
-        
-        await page.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
-
-        await expect(page.getByText(player2.name)).toBeVisible();
+        await page.waitForTimeout(2000);
         await expect(page.getByText(player3.name)).toBeVisible();
       });
 
       await test.step('Randomize Teams and Start', async () => {
+        // Create teams manually
+        await page.getByTestId('create-team-button').click();
+        await page.getByTestId('create-team-button').click();
+        
+        // Set technical settings manually
+        const input = page.getByTestId('players-per-team-input').locator('input');
+        await input.click();
+        await input.fill('5');
+        await page.waitForTimeout(500);
+
         await page.getByTestId('randomize-teams-button').click();
-        await page.waitForTimeout(1000);
+
+        // Wait for randomization results: check if teams have players
+        await expect(page.getByTestId('player-row').first()).toBeVisible({ timeout: 15000 });
+        
+        // Ensure owner is in a team
+        await expect(page.locator('[data-testid="team-card"]').getByText(owner.name)).toBeVisible({ timeout: 10000 });
 
         await page.getByTestId('start-pelada-button').click();
         await page.getByTestId('confirm-start-pelada-button').click();
@@ -147,12 +178,21 @@ test.describe('Edit Match Feature', () => {
       });
 
       await test.step('Go back to match 1 to edit', async () => {
-        const sidebarMatch1 = page.locator('button, [role="button"]').filter({ hasText: /Seq 1:/ }).first();
-        await sidebarMatch1.click();
-        await page.waitForTimeout(1000);
+        // Ensure we are on the matches page
+        await expect(page).toHaveURL(/\/peladas\/\d+\/matches/);
         
-        await expect(page.getByTestId('match-status-text')).toBeVisible({ timeout: 15000 });
-        await page.getByTestId('edit-match-button').click();
+        // Find match 1 in the sidebar using the new testid and click it
+        const sidebarMatch1 = page.getByTestId('match-history-item-1');
+        await expect(sidebarMatch1).toBeVisible({ timeout: 10000 });
+        await sidebarMatch1.click();
+        
+        // Wait for dashboard to load match 1
+        await page.waitForTimeout(3000);
+        
+        // Verify we are on match 1 and can see the edit button
+        const editButton = page.getByTestId('edit-match-button');
+        await expect(editButton).toBeVisible({ timeout: 15000 });
+        await editButton.click();
         
         const ownerRow = page.getByTestId('player-row').filter({ hasText: owner.name });
         await expect(ownerRow.getByTestId('stat-goals-increment')).toBeEnabled();

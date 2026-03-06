@@ -83,6 +83,11 @@ test.describe('Phase 6: Admin Management & Edge Cases', () => {
       await ownerPage.getByTestId('close-attendance-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
       
+      // Give it a moment for the page to load and admin check to complete
+      await ownerPage.waitForTimeout(3000);
+      await ownerPage.reload();
+      await ownerPage.waitForTimeout(2000);
+      
       await ownerPage.getByTestId('create-team-button').click();
       await expect(ownerPage.getByTestId('team-card-name').first()).toBeVisible();
     });

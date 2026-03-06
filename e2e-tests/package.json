@@ -14,7 +14,7 @@
     "db:restore": "rm -f ../api-peladaapp/peladaapp.db* && cp /tmp/peladaapp.db* ../api-peladaapp/ 2>/dev/null || true",
     "db:clean": "rm -f ../api-peladaapp/peladaapp.db*",
     "wait-for-backend": "node scripts/wait-for-backend.js",
-    "test:e2e": "npm run db:backup && npm run env:down && npm run db:clean && npm run env:up && npm run wait-for-backend && (npm run test; EXIT_CODE=$?; npm run env:down; npm run db:restore; exit $EXIT_CODE)"
+    "test:e2e": "npm run db:backup && npm run env:down && npm run db:clean && npm run env:up && npm run wait-for-backend && (npm run test || (EXIT_CODE=$?; echo 'Test failed, capturing logs...'; docker compose -f ../docker-compose.yml logs > test-results/docker-error.log; npm run env:down; npm run db:restore; exit $EXIT_CODE)); npm run env:down && npm run db:restore"
   },
 
   "keywords": [],

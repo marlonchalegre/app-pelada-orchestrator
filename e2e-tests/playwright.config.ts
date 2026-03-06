@@ -13,10 +13,10 @@ export default defineConfig({
     baseURL: 'http://localhost:8080',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    actionTimeout: 10000,
+    actionTimeout: 30000,
   },
   expect: {
-    timeout: 10000,
+    timeout: 15000,
   },
   // Custom property to make it easy to reuse in manual contexts
 

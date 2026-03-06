@@ -86,26 +86,27 @@ test.describe('Phase 4: Match Day', () => {
       // Wait for navigation to attendance page to ensure creation is complete
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/attendance/, { timeout: 15000 });
       const peladaId = ownerPage.url().split('/').find((s, i, a) => a[i-1] === 'peladas');
+await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
+await expect(ownerPage.getByTestId('stats-confirmed-count')).toHaveText('1');
 
-      await ownerPage.getByTestId('attendance-confirm-button').click();
-      await expect(ownerPage.getByTestId('stats-confirmed-count')).toHaveText('1');
+const invitedPage = await invitedContext.newPage();
+// Go directly to the organization page
+await invitedPage.goto(`/organizations/${orgId}`);
 
-      const invitedPage = await invitedContext.newPage();
-      // Go directly to the organization page
-      await invitedPage.goto(`/organizations/${orgId}`);
-      
-      // Wait for any pelada row to appear then click it
-      const peladaRow = invitedPage.getByTestId('pelada-row').first();
-      await expect(async () => {
-        if (!await peladaRow.isVisible()) {
-          await invitedPage.reload();
-        }
-        await expect(peladaRow).toBeVisible({ timeout: 5000 });
-      }).toPass({ timeout: 20000 });
-      
-      // Click the link inside the row
-      await peladaRow.locator('a').first().click();
-      await invitedPage.getByTestId('attendance-confirm-button').click();
+// Wait for any pelada row to appear then click it
+const peladaRow = invitedPage.getByTestId('pelada-row').first();
+await expect(async () => {
+  if (!await peladaRow.isVisible()) {
+    await invitedPage.reload();
+  }
+  await expect(peladaRow).toBeVisible({ timeout: 5000 });
+}).toPass();
+
+await peladaRow.getByRole('link').click();
+await expect(invitedPage).toHaveURL(/\/peladas\/\d+\/attendance/);
+
+await invitedPage.getByTestId('attendance-confirm-button').or(invitedPage.getByTestId('attendance-card-confirm')).first().click();
+
       await expect(invitedPage.getByTestId('stats-confirmed-count')).toHaveText('2');
       await invitedPage.close();
     });
@@ -118,10 +119,20 @@ test.describe('Phase 4: Match Day', () => {
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
       
-      // Teams should be created automatically (default 2), wait for them
-      await expect(ownerPage.locator('[data-testid="team-card"]')).toHaveCount(2, { timeout: 10000 });
+      // Create teams manually
+      await ownerPage.getByTestId('create-team-button').click();
+      await ownerPage.getByTestId('create-team-button').click();
       
+      // Set technical settings manually
+      const input = ownerPage.getByTestId('players-per-team-input').locator('input');
+      await input.click();
+      await input.fill('5');
+      await ownerPage.waitForTimeout(500);
+
       await ownerPage.getByTestId('randomize-teams-button').click();
+      // Wait for teams to be populated
+      await expect(ownerPage.getByTestId('team-card-name').first()).toBeVisible();
+      await expect(ownerPage.getByTestId('team-card-name').nth(1)).toBeVisible();
       
       // Wait for randomization results: both players should be in teams
       await expect(ownerPage.getByTestId('player-row')).toHaveCount(2, { timeout: 10000 });
@@ -144,9 +155,10 @@ test.describe('Phase 4: Match Day', () => {
 
       await ownerPage.getByTestId('end-match-button').click();
       
-      const sidebarMatch1 = ownerPage.locator('button, [role="button"]').filter({ hasText: /Seq 1:/ }).first();
+      const sidebarMatch1 = ownerPage.getByTestId('match-history-item-1');
       await sidebarMatch1.click();
-      await expect(ownerPage.getByTestId('match-status-text')).toBeVisible({ timeout: 10000 });
+      await ownerPage.waitForTimeout(2000);
+      await expect(ownerPage.getByText(/Finished|Encerrada/i)).toBeVisible({ timeout: 10000 });
 
 
       await ownerPage.getByTestId('close-pelada-button').click();
