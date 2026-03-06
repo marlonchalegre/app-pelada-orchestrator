@@ -1,19 +1,17 @@
 import { test, expect } from '@playwright/test';
 import { saveVideo } from './utils';
 
-test.describe('Phase 1: Identity & Profile', () => {
+test.describe('Auth & Profile', () => {
   const timestamp = Date.now();
   const user = {
     name: `Auth User ${timestamp}`,
     username: `user_${timestamp}`,
     email: `auth-${timestamp}@example.com`,
     password: 'password123',
-    newPassword: 'new-password456',
     position: 'Midfielder',
-    newPosition: 'Goalkeeper'
   };
 
-  test('should register, login, update profile, and logout', async ({ browser }, testInfo) => {
+  test('should register, update profile, and delete account', async ({ browser }, testInfo) => {
     const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
     const context = await browser.newContext(videoOptions);
     const page = await context.newPage();
@@ -34,10 +32,11 @@ test.describe('Phase 1: Identity & Profile', () => {
       await page.getByTestId('user-settings-button').click();
       await page.getByTestId('profile-menu-item').click();
       await expect(page).toHaveURL('/profile');
+      
       const updatedName = `${user.name} Updated`;
       await page.getByTestId('profile-name').fill(updatedName);
       await page.getByTestId('profile-save-button').click();
-      await expect(page.getByText(/Profile updated successfully/i)).toBeVisible();
+      await expect(page.getByText(/Profile updated successfully|Perfil atualizado com sucesso/i)).toBeVisible();
     });
 
     await test.step('Delete Account', async () => {
