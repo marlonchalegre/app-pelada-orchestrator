@@ -80,23 +80,36 @@ test.describe('Organization Management', () => {
     await test.step('3. Admin Management & Revoke', async () => {
       // Refresh to see new member
       await ownerPage.reload();
+      
+      // Navigate to Admins tab
+      await ownerPage.getByTestId('mgmt-tab-admins').click();
+      
       await expect(ownerPage.getByTestId('admin-select')).toBeVisible({ timeout: 15000 });
       await ownerPage.getByTestId('admin-select').click();
       await ownerPage.getByRole('option', { name: invitedUser.name }).click();
       await ownerPage.getByTestId('add-admin-button').click();
       await expect(ownerPage.locator(`text=${invitedUser.name}`).last()).toBeVisible();
+      
+      // Refresh after promotion to ensure all contexts are updated and dialogs are GONE
+      await ownerPage.reload();
 
-      // Test Revoke dummy invitation
-      await ownerPage.getByTestId('members-invite-button').click();
+      // Navigate to Invitations tab
+      await ownerPage.getByTestId('mgmt-tab-invitations').click();
+      
+      await ownerPage.getByTestId('invitations-invite-button').click();
       const dummyEmail = `dummy-${timestamp}@example.com`;
       await expect(ownerPage.getByTestId('invite-email-input')).toBeVisible();
       await ownerPage.getByTestId('invite-email-input').fill(dummyEmail);
       await ownerPage.getByTestId('send-invite-button').click();
       await expect(ownerPage.getByTestId('invite-success-alert')).toBeVisible();
       
-      // Close dialog via escape
-      await ownerPage.keyboard.press('Escape');
-      await expect(ownerPage.getByRole('dialog')).toBeHidden();
+      // Close dialog via test-id (more reliable than role button name in multilingual apps)
+      const closeBtnId = 'invite-dialog-close-button';
+      await ownerPage.getByTestId(closeBtnId).click({ force: true });
+      
+      // Wait for dialog to be hidden and also the modal backdrop
+      await expect(ownerPage.getByRole('dialog')).toBeHidden({ timeout: 15000 });
+      await ownerPage.waitForTimeout(2000); // Wait for backdrop removal and pointer events to return
 
       const revokeBtn = ownerPage.locator('li').filter({ hasText: dummyEmail }).getByTestId(/^revoke-invitation-/);
       await revokeBtn.click();
@@ -104,6 +117,8 @@ test.describe('Organization Management', () => {
     });
 
     await test.step('4. Public Link & Leave Flow', async () => {
+      // Navigate back to members tab
+      await ownerPage.getByTestId('mgmt-tab-members').click();
       await ownerPage.getByTestId('members-invite-button').click();
       await ownerPage.getByTestId('generate-public-link-button').click();
       const publicLinkText = await ownerPage.getByTestId('public-invite-link-text').innerText();
@@ -134,6 +149,40 @@ test.describe('Organization Management', () => {
 
       await joinerContext.close();
       await saveVideo(joinerPage, 'joiner-leave-flow', testInfo);
+
+      // Close the invite dialog on ownerPage
+      await ownerPage.getByTestId('invite-dialog-close-button').click({ force: true });
+      await expect(ownerPage.getByRole('dialog')).toBeHidden({ timeout: 15000 });
+      await ownerPage.waitForTimeout(2000);
+    });
+
+    await test.step('5. Player Ratings Management', async () => {
+      // Navigate to Ratings tab
+      await ownerPage.getByTestId('mgmt-tab-ratings').click();
+      
+      // Find the invitedUser row in the ratings table
+      const playerRow = ownerPage.locator('tr', { hasText: invitedUser.name });
+      await expect(playerRow).toBeVisible();
+      
+      // Update rating to 8.5
+      const ratingInput = playerRow.getByTestId(/^rating-input-/).locator('input');
+      await ratingInput.fill('8.5');
+      
+      // Verify success snackbar and updated display
+      await expect(ownerPage.getByText(/sucesso|success/i)).toBeVisible();
+      const gradeDisplay = playerRow.getByTestId(/^grade-/);
+      await expect(gradeDisplay).toHaveText('8.5');
+    });
+
+    await test.step('6. Delete Organization', async () => {
+      // Navigate to Manage tab
+      await ownerPage.getByTestId('mgmt-tab-settings').click();
+      
+      await ownerPage.getByTestId('delete-org-button').click();
+      await ownerPage.getByTestId('confirm-org-name-input').fill(orgName);
+      await ownerPage.getByTestId('confirm-delete-org-button').click();
+      await expect(ownerPage).toHaveURL('/', { timeout: 10000 });
+      await expect(ownerPage.getByTestId(`org-link-${orgName}`)).not.toBeVisible();
     });
 
     await ownerContext.close();
