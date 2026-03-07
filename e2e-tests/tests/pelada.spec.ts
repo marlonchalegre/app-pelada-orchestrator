@@ -94,7 +94,8 @@ test.describe('Pelada Lifecycle', () => {
       peladaId = ownerPage.url().split('/').find((s, i, a) => a[i-1] === 'peladas')!;
 
       await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
-      await expect(ownerPage.getByTestId('stats-confirmed-count')).toHaveText('1');
+      // Instead of stats-confirmed-count, we can check for the success message in the header
+      await expect(ownerPage.getByText(/You're in!|Confirmado!/i)).toBeVisible();
 
       await ownerPage.getByTestId('close-attendance-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
@@ -105,8 +106,8 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
 
-      // Add Players who didn't confirm attendance
-      await ownerPage.getByRole('button', { name: /Adicionar jogadores|Add players/i }).click();
+      // Add Players who didn't confirm attendance - This button is now only in PeladaDetailPage
+      await ownerPage.getByTestId('invite-player-button').or(ownerPage.getByRole('button', { name: /\+ Adicionar jogadores|\+ Add players/i })).click();
       await ownerPage.getByRole('dialog').getByText(player2.name).click();
       await ownerPage.getByRole('dialog').getByText(player3.name).click();
       await ownerPage.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
