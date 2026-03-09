@@ -1,89 +1,97 @@
 import { test, expect } from '@playwright/test';
 import { saveVideo } from './utils';
 
-test.describe('UI Utilities & Export', () => {
+test.describe('Manual Statistics Import', () => {
   const timestamp = Date.now();
-  const user = {
-    name: `Utility User ${timestamp}`,
-    username: `util_${timestamp}`,
-    email: `util-${timestamp}@example.com`,
-    password: 'password123'
+  const owner = {
+    name: `Owner ${timestamp}`,
+    username: `owner_${timestamp}`,
+    email: `owner-${timestamp}@example.com`,
+    password: 'password123',
+    position: 'Defender'
   };
-  const orgName = `Util Org ${timestamp}`;
+  const orgName = `Stats Org ${timestamp}`;
 
-  test('should verify share, copy, and export utilities', async ({ browser }, testInfo) => {
+  test('should import manual statistics successfully', async ({ browser }, testInfo) => {
     const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
+    
     const context = await browser.newContext(videoOptions);
     const page = await context.newPage();
-    page.on('dialog', dialog => dialog.accept());
 
-    await test.step('1. Setup Organization', async () => {
+    await test.step('1. Registration & Org Creation', async () => {
       await page.goto('/register');
-      await page.getByTestId('register-name').fill(user.name);
-      await page.getByTestId('register-username').fill(user.username);
-      await page.getByTestId('register-email').fill(user.email);
-      await page.getByTestId('register-password').fill(user.password);
+      await page.getByTestId('register-name').fill(owner.name);
+      await page.getByTestId('register-username').fill(owner.username);
+      await page.getByTestId('register-email').fill(owner.email);
+      await page.getByTestId('register-password').fill(owner.password);
+      await page.getByLabel('Position').click();
+      await page.getByRole('option', { name: owner.position }).click();
       await page.getByTestId('register-submit').click();
+      await expect(page).toHaveURL('/', { timeout: 10000 });
 
       await page.getByTestId('create-org-open-dialog').click();
       await page.getByTestId('org-name-input').fill(orgName);
       await page.getByTestId('org-submit-button').click();
+      
+      await expect(page.getByTestId(`org-link-${orgName}`)).toBeVisible();
       await page.getByTestId(`org-link-${orgName}`).click();
+      await expect(page).toHaveURL(/\/organizations\/\d+/);
     });
 
-    await test.step('2. Verify Invitation Copy Buttons', async () => {
-      await page.getByTestId('org-management-button').click();
-      await page.getByTestId('members-invite-button').click();
+    await test.step('2. Navigate to Statistics and Open Import Dialog', async () => {
+      // Reload to ensure AuthContext picks up the new organization admin role
+      await page.reload();
       
-      // Public link copy
-      await page.getByTestId('generate-public-link-button').click();
-      await expect(page.getByTestId('copy-public-link-button')).toBeVisible();
-      await page.getByTestId('copy-public-link-button').click();
+      // Wait for the Statistics button and click it
+      const responsePromise = page.waitForResponse(response => response.url().includes('/players') && response.status() === 200);
+      await page.locator(`a[href*="/statistics"]`).first().click();
+      await responsePromise;
+      
+      // Wait for page to load
+      await expect(page.getByTestId('import-stats-button')).toBeVisible({ timeout: 15000 });
+      await page.getByTestId('import-stats-button').click();
 
-      // Personal link copy
-      await page.getByTestId('invite-email-input').fill(`other-${timestamp}@example.com`);
-      await page.getByTestId('send-invite-button').click();
-      await expect(page.getByTestId('copy-invitation-link-button')).toBeVisible();
-      await page.getByTestId('copy-invitation-link-button').click();
-      
-      await page.keyboard.press('Escape');
+      // Ensure the dialog opens
+      await expect(page.getByRole('dialog')).toBeVisible();
     });
 
-    await test.step('3. Verify Share Summary', async () => {
-      await page.goto('/');
-      await page.getByTestId(`org-link-${orgName}`).click();
-      await page.getByTestId('create-pelada-submit').click();
-      await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
-      await page.getByTestId('close-attendance-button').click();
-
-      await page.getByTestId('create-team-button').click();
-      await page.getByTestId('create-team-button').click();
-      await page.getByTestId('randomize-teams-button').click();
-      await page.getByTestId('start-pelada-button').click();
-      await page.getByTestId('confirm-start-pelada-button').click();
-
-      await expect(page).toHaveURL(/\/peladas\/\d+\/matches/);
+    await test.step('3. Add Manual Entry', async () => {
+      await page.getByTestId('add-manual-row-button').click();
       
-      // Wait for the insights title
-      await expect(page.getByText(/Insights/i)).toBeVisible();
+      // The row should be visible
+      await expect(page.getByTestId('import-row-0')).toBeVisible();
+
+      // Select the owner as the player
+      const playerInput = page.getByTestId('player-autocomplete-input-0');
+      await playerInput.fill(owner.name);
       
-      const shareButton = page.getByRole('button', { name: /Compartilhar Resumo|Share Summary/i });
-      await expect(shareButton).toBeVisible();
-      await shareButton.click();
+      // Select the option from autocomplete dropdown
+      await page.getByRole('option', { name: owner.name }).click();
+
+      // Fill stats
+      await page.getByTestId('goals-input-0').fill('5');
+      await page.getByTestId('assists-input-0').fill('3');
+      await page.getByTestId('own-goals-input-0').fill('1');
+
+      await page.getByTestId('import-confirm-button').click();
+
+      // Wait for dialog to close
+      await expect(page.getByRole('dialog')).toBeHidden({ timeout: 10000 });
     });
 
-    await test.step('4. Verify Export Menu', async () => {
-      const peladaId = page.url().split('/').find((s, i, a) => a[i-1] === 'peladas');
-      await page.goto(`/peladas/${peladaId}`);
-      
-      await page.getByRole('button', { name: /Export/i }).click();
-      await expect(page.getByText(/Announcement Version|Versão de Divulgação/i)).toBeVisible();
-      await expect(page.getByText(/Evaluation Version|Versão para Avaliação/i)).toBeVisible();
-      
-      await page.getByText(/Evaluation Version|Versão para Avaliação/i).click();
+    await test.step('4. Verify Statistics in Table', async () => {
+      // The table should now show 5 goals, 3 assists, 1 own goal for the owner
+      // Wait for the stats table to re-fetch and render
+      const row = page.locator('tr', { hasText: owner.name });
+      await expect(row).toBeVisible({ timeout: 10000 });
+
+      // Check values
+      await expect(row.getByText('5').first()).toBeVisible(); // Goals is the first numerical column usually
+      await expect(row.getByText('3').first()).toBeVisible(); // Assists
+      await expect(row.getByText('1').first()).toBeVisible(); // Own goals
     });
 
     await context.close();
-    await saveVideo(page, 'utilities-verification', testInfo);
+    await saveVideo(page, 'manual-stats', testInfo);
   });
 });
