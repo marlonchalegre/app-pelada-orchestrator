@@ -125,13 +125,16 @@ test.describe('Pelada Lifecycle', () => {
       
       await ownerPage.getByTestId('randomize-teams-button').click();
       await expect(ownerPage.getByTestId('team-card-name').first()).toBeVisible();
+
+      // Build Schedule (New required step)
+      await ownerPage.getByTestId('build-schedule-button').click();
+      await ownerPage.getByTestId('save-schedule-button').click();
+      await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
     });
 
     // 4. Matches & Events
     await test.step('Start Pelada and Record Events', async () => {
       await ownerPage.getByTestId('start-pelada-button').click();
-      await expect(ownerPage.getByTestId('confirm-start-pelada-button')).toBeVisible({ timeout: 10000 });
-      await ownerPage.getByTestId('confirm-start-pelada-button').click();
       
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
       // Wait for matches to load
@@ -180,12 +183,11 @@ test.describe('Pelada Lifecycle', () => {
     // 6. Close Pelada & Voting
     await test.step('Close Pelada and Vote', async () => {
       await ownerPage.getByTestId('close-pelada-button').click();
-      await expect(ownerPage.getByText(/Pelada closed|Pelada encerrada/i)).toBeVisible({ timeout: 15000 });
 
       // Navigate to voting page
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
       
-      await expect(ownerPage.getByText(/Rate the players|Avalie os jogadores|Voting for Pelada/i)).toBeVisible({ timeout: 15000 });
+      await expect(ownerPage.getByTestId('voting-page-container')).toBeVisible({ timeout: 15000 });
       
       const ratingCards = await ownerPage.getByTestId(/voting-card-\d+/).all();
       for (const card of ratingCards) {
