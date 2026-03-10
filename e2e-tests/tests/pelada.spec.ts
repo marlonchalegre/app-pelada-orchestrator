@@ -29,7 +29,6 @@ test.describe('Pelada Lifecycle', () => {
     
     const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
-    ownerPage.on('dialog', dialog => dialog.accept());
 
     // 1. Setup Organization and Invite Players
     await test.step('Setup Org and Invite Players', async () => {
@@ -128,14 +127,37 @@ test.describe('Pelada Lifecycle', () => {
 
       // Build Schedule (New required step)
       await ownerPage.getByTestId('build-schedule-button').click();
-      await ownerPage.getByTestId('save-schedule-button').click();
+      await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/build-schedule`));
+      
+      // Wait for page to load
+      await ownerPage.waitForTimeout(2000);
+
+      // Force add at least one match manually to ensure it's valid and enables start button
+      await ownerPage.getByTestId('add-match-button').click();
+
+      // Wait for table to be populated
+      await expect(ownerPage.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+      
+      const saveBtn = ownerPage.getByTestId('save-schedule-button');
+      await expect(saveBtn).toBeEnabled({ timeout: 15000 });
+      await saveBtn.click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
     });
 
     // 4. Matches & Events
     await test.step('Start Pelada and Record Events', async () => {
-      await ownerPage.getByTestId('start-pelada-button').click();
-      
+      // Ensure we are on detail page
+      await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
+
+      // Handle the window.confirm dialog triggered by having a schedule plan
+      ownerPage.once('dialog', dialog => dialog.accept());
+
+      // Click start button
+      const startBtn = ownerPage.getByTestId('start-pelada-button');
+      await expect(startBtn).toBeVisible({ timeout: 10000 });
+      await expect(startBtn).toBeEnabled({ timeout: 10000 });
+      await startBtn.click();
+
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
       // Wait for matches to load
       await expect(ownerPage.getByTestId('player-row').first()).toBeVisible({ timeout: 15000 });
@@ -156,7 +178,8 @@ test.describe('Pelada Lifecycle', () => {
         await ownerPage.keyboard.press('Escape');
       }
       
-      // End match (handles dialog automatically)
+      // End match (handles dialog explicitly)
+      ownerPage.once('dialog', dialog => dialog.accept());
       await ownerPage.getByTestId('end-match-button').click();
       
       // If there are more matches, it might auto-switch to next one.
@@ -182,13 +205,27 @@ test.describe('Pelada Lifecycle', () => {
 
     // 6. Close Pelada & Voting
     await test.step('Close Pelada and Vote', async () => {
-      await ownerPage.getByTestId('close-pelada-button').click();
+      // Handle the window.confirm dialog
+      ownerPage.once('dialog', dialog => dialog.accept());
+      const closeBtn = ownerPage.getByTestId('close-pelada-button');
+      await expect(closeBtn).toBeVisible({ timeout: 10000 });
+      await closeBtn.click();
+
+      // Check navigation to matches page (should NOT auto-redirect to results now)
+      await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+
+      // 'Ver Resultados' should NOT be visible yet because voting is open
+      await expect(ownerPage.getByRole('link', { name: /Ver Resultados|View Results/i })).not.toBeVisible();
 
       // Navigate to voting page
-      await ownerPage.goto(`/peladas/${peladaId}/voting`);
-      
+      const voteBtn = ownerPage.getByRole('link', { name: /Votar nos Jogadores|Vote on Players/i });
+      await expect(voteBtn).toBeVisible({ timeout: 15000 });
+      await voteBtn.click();      
       await expect(ownerPage.getByTestId('voting-page-container')).toBeVisible({ timeout: 15000 });
       
+      // Verify 'Ver Partidas' is on voting page
+      await expect(ownerPage.getByRole('link', { name: /Ver Partidas|View Matches/i })).toBeVisible();
+
       const ratingCards = await ownerPage.getByTestId(/voting-card-\d+/).all();
       for (const card of ratingCards) {
         // Find the 4-star radio button or its label
@@ -196,7 +233,17 @@ test.describe('Pelada Lifecycle', () => {
       }
 
       await ownerPage.getByTestId('submit-votes-button').click();
-      await expect(ownerPage.getByText(/Votes saved successfully|Votos registrados com sucesso/i)).toBeVisible();
+      await expect(ownerPage.getByText(/Votes saved successfully|Votos registrados com sucesso/i).first()).toBeVisible();
+      
+      // Still should NOT be able to see results (manual nav attempt)
+      await ownerPage.goto(`/peladas/${peladaId}/results`);
+      
+      // Wait for the error state to render
+      const backBtn = ownerPage.getByRole('link', { name: /Voltar para Pelada|Back to Pelada/i });
+      await expect(backBtn).toBeVisible({ timeout: 15000 });
+      
+      // Verify 'Ver Partidas' is on results page even when restricted
+      await expect(ownerPage.getByRole('link', { name: /Ver Partidas|View Matches/i })).toBeVisible();
     });
 
     await ownerContext.close();
