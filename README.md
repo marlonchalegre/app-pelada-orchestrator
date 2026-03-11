@@ -18,6 +18,8 @@ Repository Layout
 - `e2e-tests/`: Playwright end-to-end tests suite and documentation.
 - `docker-compose*.yml`: Docker Compose definitions for development and production-like workflows.
 - `nginx/`: Reverse proxy configuration used by the Compose stacks.
+- `ARCHITECTURE.md`: High-level system design overview.
+- `CONTRIBUTING.md`: Guidelines for development and submission.
 - `seed_anime_users.sh`: Script to seed the database with test users.
 
 Prerequisites
@@ -82,17 +84,14 @@ Testing
 
 ### End-to-End (E2E) Tests
 
-We use Playwright for end-to-end testing. The `e2e-test.sh` script orchestrates the environment setup (using Docker), runs the tests, and handles cleanup.
+We use Playwright for end-to-end testing. These tests run against a full docker-compose environment to ensure real-world reliability.
 
 ```bash
-# Run all E2E tests
-./e2e-test.sh
+# To run all E2E tests:
+cd e2e-tests && npm run test:e2e
 
-# Run a specific test file
-./e2e-test.sh --test tests/leave_organization.spec.ts
-
-# Record video of the test run
-./e2e-test.sh --video
+# To run a specific E2E test file (requires environment up):
+cd e2e-tests && npm run test -- tests/filename.spec.ts
 ```
 
 See `e2e-tests/README.md` for more details.

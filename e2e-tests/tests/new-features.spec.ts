@@ -31,6 +31,7 @@ test.describe('New Features and UI Improvements', () => {
     await page.getByTestId('create-pelada-submit').click();
     await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
     await page.getByTestId('close-attendance-button').click();
+    await page.getByTestId('confirm-close-attendance-button').click();
 
     // 2. Verify Available Players Panel
     // Wait for players to load
@@ -70,6 +71,7 @@ test.describe('New Features and UI Improvements', () => {
     await page.getByTestId('create-pelada-submit').click();
     await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
     await page.getByTestId('close-attendance-button').click();
+    await page.getByTestId('confirm-close-attendance-button').click();
 
     // Create 2 teams first
     await page.getByTestId('create-team-button').click();

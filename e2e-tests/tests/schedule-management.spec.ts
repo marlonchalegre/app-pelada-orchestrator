@@ -36,6 +36,7 @@ test.describe('Schedule Management', () => {
       // Create Pelada
       await ownerPage.getByTestId('create-pelada-submit').click();
       await ownerPage.getByTestId('close-attendance-button').click();
+      await ownerPage.getByTestId('confirm-close-attendance-button').click();
     });
 
     // 2. Build Schedule

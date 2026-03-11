@@ -97,6 +97,7 @@ test.describe('Pelada Lifecycle', () => {
       await expect(ownerPage.getByText(/You're in!|Confirmado!/i)).toBeVisible();
 
       await ownerPage.getByTestId('close-attendance-button').click();
+      await ownerPage.getByTestId('confirm-close-attendance-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
     });
 
