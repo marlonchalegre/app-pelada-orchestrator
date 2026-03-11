@@ -182,6 +182,17 @@ test.describe('Pelada Lifecycle', () => {
       // End match (handles dialog explicitly)
       ownerPage.once('dialog', dialog => dialog.accept());
       await ownerPage.getByTestId('end-match-button').click();
+
+      // NEW: Verify Match Summary Modal
+      await expect(ownerPage.getByText(/Match Finished!|Partida Finalizada!/i)).toBeVisible({ timeout: 10000 });
+      await expect(ownerPage.getByTestId('match-summary-highlights')).toBeVisible();
+      
+      const nextMatchBtn = ownerPage.getByRole('button', { name: /Next Match|Próxima Partida/i });
+      if (await nextMatchBtn.isVisible()) {
+        await nextMatchBtn.click();
+      } else {
+        await ownerPage.getByRole('button', { name: /Close|Fechar/i }).click();
+      }
       
       // If there are more matches, it might auto-switch to next one.
       // We'll select Match 1 again just to be sure we are verifying the right one.
