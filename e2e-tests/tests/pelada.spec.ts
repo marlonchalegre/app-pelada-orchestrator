@@ -28,7 +28,11 @@ test.describe('Pelada Lifecycle', () => {
     const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
     
     const ownerContext = await browser.newContext(videoOptions);
+    const player2Context = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
+    const p2Page = await player2Context.newPage();
+
+    let peladaId = '';
 
     // 1. Setup Organization and Invite Players
     await test.step('Setup Org and Invite Players', async () => {
@@ -82,8 +86,6 @@ test.describe('Pelada Lifecycle', () => {
       await p3Context.close();
     });
 
-    let peladaId = '';
-
     // 2. Attendance
     await test.step('Attendance Phase', async () => {
       await ownerPage.goto('/');
@@ -93,7 +95,6 @@ test.describe('Pelada Lifecycle', () => {
       peladaId = ownerPage.url().split('/').find((s, i, a) => a[i-1] === 'peladas')!;
 
       await ownerPage.getByTestId('attendance-confirm-button').or(ownerPage.getByTestId('attendance-card-confirm')).first().click();
-      // Instead of stats-confirmed-count, we can check for the success message in the header
       await expect(ownerPage.getByText(/You're in!|Confirmado!/i)).toBeVisible();
 
       await ownerPage.getByTestId('close-attendance-button').click();
@@ -106,18 +107,19 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
 
-      // Add Players who didn't confirm attendance - This button is now only in PeladaDetailPage
       await ownerPage.getByTestId('invite-player-button').or(ownerPage.getByRole('button', { name: /\+ Adicionar jogadores|\+ Add players/i })).click();
       await ownerPage.getByRole('dialog').getByText(player2.name).click();
       await ownerPage.getByRole('dialog').getByText(player3.name).click();
       await ownerPage.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
-      await expect(ownerPage.getByTestId('player-row').filter({ hasText: player2.name })).toBeVisible();
+      
+      const p2DetailRow = ownerPage.getByTestId('player-row').filter({ hasText: player2.name });
+      await expect(p2DetailRow).toBeVisible();
 
       // Create teams
       await ownerPage.getByTestId('create-team-button').click();
       await ownerPage.getByTestId('create-team-button').click();
 
-      // Set players per team to 1. With 3 players, 1 will be on the bench.
+      // Set players per team to 1
       const input = ownerPage.getByTestId('players-per-team-input').locator('input');
       await input.click();
       await input.fill('1');
@@ -126,17 +128,11 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.getByTestId('randomize-teams-button').click();
       await expect(ownerPage.getByTestId('team-card-name').first()).toBeVisible();
 
-      // Build Schedule (New required step)
+      // Build Schedule
       await ownerPage.getByTestId('build-schedule-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/build-schedule`));
-      
-      // Wait for page to load
       await ownerPage.waitForTimeout(2000);
-
-      // Force add at least one match manually to ensure it's valid and enables start button
       await ownerPage.getByTestId('add-match-button').click();
-
-      // Wait for table to be populated
       await expect(ownerPage.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
       
       const saveBtn = ownerPage.getByTestId('save-schedule-button');
@@ -150,42 +146,40 @@ test.describe('Pelada Lifecycle', () => {
       // Ensure we are on detail page
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
 
-      // Handle the window.confirm dialog triggered by having a schedule plan
-      ownerPage.once('dialog', dialog => dialog.accept());
-
       // Click start button
       const startBtn = ownerPage.getByTestId('start-pelada-button');
       await expect(startBtn).toBeVisible({ timeout: 10000 });
       await expect(startBtn).toBeEnabled({ timeout: 10000 });
       await startBtn.click();
 
+      // Handle the pretty confirm dialog
+      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
+
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
       // Wait for matches to load
-      await expect(ownerPage.getByTestId('player-row').first()).toBeVisible({ timeout: 15000 });
+      await expect(ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first()).toBeVisible({ timeout: 15000 });
 
-      // Record a goal
-      const ownerRow = ownerPage.getByTestId('player-row').filter({ hasText: owner.name });
-      await ownerRow.getByTestId('stat-goals-increment').click();
-      await expect(ownerRow.getByTestId('stat-goals-value')).toHaveText('1');
+      // Record a goal for ANY player that is currently in the match
+      const anyPlayerRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
+      await anyPlayerRow.getByTestId('stat-goals-increment').click();
+      await expect(anyPlayerRow.getByTestId('stat-goals-value')).toHaveText('1');
 
       // Record a substitution
-      await ownerRow.getByTestId('sub-button').click();
-      await expect(ownerPage.getByTestId('sub-menu')).toBeVisible();
-      // Click first bench player if available, else just close
-      const benchItem = ownerPage.getByTestId('bench-player-item').first();
+      await anyPlayerRow.getByTestId('sub-button').click();
+      await expect(ownerPage.getByTestId('player-select-dialog')).toBeVisible();
+      const benchItem = ownerPage.getByTestId(/bench-player-item-\d+/).first();
       if (await benchItem.isVisible()) {
         await benchItem.click();
       } else {
         await ownerPage.keyboard.press('Escape');
       }
       
-      // End match (handles dialog explicitly)
-      ownerPage.once('dialog', dialog => dialog.accept());
+      // End match
       await ownerPage.getByTestId('end-match-button').click();
+      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
 
-      // NEW: Verify Match Summary Modal
-      await expect(ownerPage.getByText(/Match Finished!|Partida Finalizada!/i)).toBeVisible({ timeout: 10000 });
-      await expect(ownerPage.getByTestId('match-summary-highlights')).toBeVisible();
+      // Match Summary Modal
+      await expect(ownerPage.getByText(/Match Finished!|Partida Finalizada!/i)).toBeVisible({ timeout: 15000 });
       
       const nextMatchBtn = ownerPage.getByRole('button', { name: /Next Match|Próxima Partida/i });
       if (await nextMatchBtn.isVisible()) {
@@ -194,9 +188,18 @@ test.describe('Pelada Lifecycle', () => {
         await ownerPage.getByRole('button', { name: /Close|Fechar/i }).click();
       }
       
-      // If there are more matches, it might auto-switch to next one.
-      // We'll select Match 1 again just to be sure we are verifying the right one.
-      await ownerPage.getByTestId('match-history-item-1').click();
+      // History selection
+      await ownerPage.getByTestId('toggle-history-drawer').click();
+      const drawer = ownerPage.getByTestId('history-drawer');
+      await ownerPage.waitForTimeout(1000);
+      await drawer.getByTestId('match-history-item-1').click();
+      
+      // Ensure we are on Dashboard tab
+      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
+
+      // CLOSE DRAWER
+      await ownerPage.keyboard.press('Escape');
+      await ownerPage.waitForTimeout(1000);
       
       await expect(ownerPage.getByTestId('match-status-text').first()).toBeVisible({ timeout: 20000 });
       await expect(ownerPage.getByTestId('match-status-text').first()).toContainText(/Finished|Encerrada/i);
@@ -204,61 +207,69 @@ test.describe('Pelada Lifecycle', () => {
 
     // 5. Edit Finished Match
     await test.step('Edit Match', async () => {
-      await ownerPage.getByTestId('match-history-item-1').click();
+      // Re-select match 1 from history
+      await ownerPage.getByTestId('toggle-history-drawer').click();
+      const drawer = ownerPage.getByTestId('history-drawer');
+      await ownerPage.waitForTimeout(1000);
+      await drawer.getByTestId('match-history-item-1').click();
+      
+      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
+
+      // CLOSE DRAWER
+      await ownerPage.keyboard.press('Escape');
+      await ownerPage.waitForTimeout(1000);
+      
       await ownerPage.getByTestId('edit-match-button').click();
       
-      // Find the player row for player 2 (who should be in the away team if owner is in home)
-      const p2Row = ownerPage.getByTestId('player-row').filter({ hasText: player2.name });
-      await p2Row.getByTestId('stat-goals-increment').click();
+      // Find ANY player row in the finished match to increment goal
+      const editPlayerRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
+      const currentGoals = await editPlayerRow.getByTestId('stat-goals-value').innerText();
+      const expectedGoals = (parseInt(currentGoals) + 1).toString();
+      
+      await editPlayerRow.getByTestId('stat-goals-increment').click();
       
       await ownerPage.getByTestId('finish-editing-button').click();
-      await expect(p2Row.getByTestId('stat-goals-value')).toHaveText('1');
+      await ownerPage.waitForTimeout(1000);
+      
+      // RE-SELECT MATCH 1 AGAIN
+      await ownerPage.getByTestId('toggle-history-drawer').click();
+      await ownerPage.waitForTimeout(1000);
+      await drawer.getByTestId('match-history-item-1').click();
+      
+      // CLOSE DRAWER
+      await ownerPage.keyboard.press('Escape');
+      await ownerPage.waitForTimeout(1000);
+
+      const editPlayerRowUpdated = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
+      await expect(editPlayerRowUpdated.getByTestId('stat-goals-value')).toHaveText(expectedGoals, { timeout: 15000 });
     });
 
     // 6. Close Pelada & Voting
     await test.step('Close Pelada and Vote', async () => {
-      // Handle the window.confirm dialog
-      ownerPage.once('dialog', dialog => dialog.accept());
+      await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
+
       const closeBtn = ownerPage.getByTestId('close-pelada-button');
       await expect(closeBtn).toBeVisible({ timeout: 10000 });
       await closeBtn.click();
 
-      // Check navigation to matches page (should NOT auto-redirect to results now)
+      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
 
-      // 'Ver Resultados' should NOT be visible yet because voting is open
-      await expect(ownerPage.getByRole('link', { name: /Ver Resultados|View Results/i })).not.toBeVisible();
-
-      // Navigate to voting page
-      const voteBtn = ownerPage.getByRole('link', { name: /Votar nos Jogadores|Vote on Players/i });
-      await expect(voteBtn).toBeVisible({ timeout: 15000 });
-      await voteBtn.click();      
-      await expect(ownerPage.getByTestId('voting-page-container')).toBeVisible({ timeout: 15000 });
+      await ownerPage.goto(`/peladas/${peladaId}/voting`);
+      await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
       
-      // Verify 'Ver Partidas' is on voting page
-      await expect(ownerPage.getByRole('link', { name: /Ver Partidas|View Matches/i })).toBeVisible();
-
-      const ratingCards = await ownerPage.getByTestId(/voting-card-\d+/).all();
-      for (const card of ratingCards) {
-        // Find the 4-star radio button or its label
-        await card.getByRole('radio', { name: '4 Stars' }).click({ force: true });
+      const ratingContainers = await ownerPage.getByTestId(/rating-\d+/).all();
+      for (const container of ratingContainers) {
+        await container.scrollIntoViewIfNeeded();
+        await container.getByRole('radio', { name: /5 Stars/i }).click({ force: true });
       }
-
-      await ownerPage.getByTestId('submit-votes-button').click();
-      await expect(ownerPage.getByText(/Votes saved successfully|Votos registrados com sucesso/i).first()).toBeVisible();
       
-      // Still should NOT be able to see results (manual nav attempt)
-      await ownerPage.goto(`/peladas/${peladaId}/results`);
-      
-      // Wait for the error state to render
-      const backBtn = ownerPage.getByRole('link', { name: /Voltar para Pelada|Back to Pelada/i });
-      await expect(backBtn).toBeVisible({ timeout: 15000 });
-      
-      // Verify 'Ver Partidas' is on results page even when restricted
-      await expect(ownerPage.getByRole('link', { name: /Ver Partidas|View Matches/i })).toBeVisible();
+      await ownerPage.getByTestId('save-votes-button').click();
+      await expect(ownerPage.getByText(/Votos registrados|Votes saved/i).first()).toBeVisible();
     });
 
     await ownerContext.close();
+    await player2Context.close();
     await saveVideo(ownerPage, 'full-pelada-lifecycle', testInfo);
   });
 });

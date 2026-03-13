@@ -76,19 +76,24 @@ test.describe('Schedule Management', () => {
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+$/);
     });
 
-    // 3. Start Pelada
+    // 4. Start Pelada with Plan
     await test.step('Start with Built Schedule', async () => {
       const startButton = ownerPage.getByTestId('start-pelada-button');
       await expect(startButton).toBeEnabled();
       await startButton.click();
 
-      // Since we auto-accept dialogs in this test setup (ownerPage.on('dialog', ...)), 
-      // the confirm() will be handled immediately.
-      
+      // Handle pretty confirm
+      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
+
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+\/matches/);
-      await expect(ownerPage.getByTestId('match-history-item-1')).toBeVisible();
-      await expect(ownerPage.getByTestId('match-history-item-4')).toBeVisible();
+
+      await ownerPage.getByTestId('toggle-history-drawer').click();
+      const drawer = ownerPage.getByTestId('history-drawer');
+      await ownerPage.waitForTimeout(1000);
+      await expect(drawer.getByTestId('match-history-item-1')).toBeVisible();
+      await expect(drawer.getByTestId('match-history-item-4')).toBeVisible();
     });
+
 
     await ownerContext.close();
     await saveVideo(ownerPage, 'schedule-management', testInfo);

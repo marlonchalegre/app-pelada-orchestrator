@@ -43,3 +43,4 @@ e2e-tests/test-results/
 
 # Local Documentation
 local-docs/
+peladaapp.db*

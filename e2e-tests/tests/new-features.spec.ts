@@ -95,8 +95,8 @@ test.describe('New Features and UI Improvements', () => {
     await expect(page.getByTestId('build-schedule-button-edit')).toBeVisible();
 
     // 4. Start pelada
-    page.on('dialog', dialog => dialog.accept());
     await page.getByTestId('start-pelada-button').click();
+    await page.getByRole('button', { name: /Confirmar|Confirm/i }).click();
     await expect(page).toHaveURL(/\/matches/);
 
     // 5. Go back to details, should REDIRECT to matches page because it is running
