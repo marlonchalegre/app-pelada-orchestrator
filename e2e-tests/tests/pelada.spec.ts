@@ -205,8 +205,36 @@ test.describe('Pelada Lifecycle', () => {
       await expect(ownerPage.getByTestId('match-status-text').first()).toContainText(/Finished|Encerrada/i);
     });
 
-    // 5. Edit Finished Match
+    // 5. Verify Timeline and Export
+    await test.step('Verify Timeline and Export', async () => {
+      // Check Timeline tab
+      await ownerPage.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
+      
+      // Should see the goal we recorded earlier
+      const timeline = ownerPage.locator('.MuiTimeline-root');
+      await expect(timeline).toBeVisible({ timeout: 10000 });
+      
+      // Ensure we scroll to see the content if needed
+      await timeline.scrollIntoViewIfNeeded();
+      
+      // MUI Timeline might take a moment to animate/render
+      await expect(timeline.getByText(/GOL|GOAL|Gol/i).first()).toBeVisible({ timeout: 15000 });
+
+      // Check Export dropdown
+      await ownerPage.getByTestId('share-dropdown-button').click();
+      await expect(ownerPage.getByRole('menuitem', { name: /Compartilhar Resumo|Share Summary/i })).toBeVisible();
+      await expect(ownerPage.getByRole('menuitem', { name: /Escalação \(Sem Notas\)|Lineup \(No Grades\)/i })).toBeVisible();
+      await expect(ownerPage.getByRole('menuitem', { name: /Escalação \(Com Notas\)|Lineup \(With Grades\)/i })).toBeVisible();
+      
+      // Close menu
+      await ownerPage.keyboard.press('Escape');
+    });
+
+    // 6. Edit Finished Match
     await test.step('Edit Match', async () => {
+      // Ensure Dashboard tab is selected (history drawer toggle is there)
+      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
+
       // Re-select match 1 from history
       await ownerPage.getByTestId('toggle-history-drawer').click();
       const drawer = ownerPage.getByTestId('history-drawer');
@@ -244,7 +272,7 @@ test.describe('Pelada Lifecycle', () => {
       await expect(editPlayerRowUpdated.getByTestId('stat-goals-value')).toHaveText(expectedGoals, { timeout: 15000 });
     });
 
-    // 6. Close Pelada & Voting
+    // 7. Close Pelada & Voting
     await test.step('Close Pelada and Vote', async () => {
       await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
 
@@ -254,6 +282,10 @@ test.describe('Pelada Lifecycle', () => {
 
       await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+
+      // Verify Performance Highlights (Destaques) now visible in Performance tab
+      await ownerPage.getByRole('tab', { name: /Desempenho|Performance/i }).click();
+      await expect(ownerPage.getByText(/Destaques|Highlights/i).first()).toBeVisible();
 
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
       await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
