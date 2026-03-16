@@ -26,6 +26,14 @@ test.describe('New Features and UI Improvements', () => {
     await page.getByTestId('org-name-input').fill(orgName);
     await page.getByTestId('org-submit-button').click();
     await page.getByTestId(`org-link-${orgName}`).click();
+    
+    // Admin goes to members and makes themselves mensalista
+    await page.getByTestId('org-management-button').click();
+    const memberRow = page.locator('li').filter({ hasText: owner.name });
+    await memberRow.getByRole('combobox').click();
+    await page.getByRole('option', { name: 'Mensalista' }).click();
+    await page.goto('/');
+    await page.getByTestId(`org-link-${orgName}`).click();
 
     // Create Pelada
     await page.getByTestId('create-pelada-submit').click();
@@ -105,5 +113,79 @@ test.describe('New Features and UI Improvements', () => {
     
     // Check if we are back on matches page (redirect logic in usePeladaDetail)
     await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+  });
+
+  test('should handle diarista vs mensalista attendance waitlist', async ({ browser }) => {
+    const ts = Date.now() + 2;
+    const admin = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const diarista = { name: `Diarista ${ts}`, username: `diarista_${ts}`, email: `diarista-${ts}@example.com`, password: 'p' };
+    
+    const adminContext = await browser.newContext();
+    const diaristaContext = await browser.newContext();
+    
+    const adminPage = await adminContext.newPage();
+    const diaristaPage = await diaristaContext.newPage();
+    
+    // Setup Admin
+    await adminPage.goto('/register');
+    await adminPage.getByTestId('register-name').fill(admin.name);
+    await adminPage.getByTestId('register-username').fill(admin.username);
+    await adminPage.getByTestId('register-email').fill(admin.email);
+    await adminPage.getByTestId('register-password').fill(admin.password);
+    await adminPage.getByLabel('Position').click();
+    await adminPage.getByRole('option', { name: 'Defender' }).click();
+    await adminPage.getByTestId('register-submit').click();
+    
+    // Create Org
+    await adminPage.getByTestId('create-org-open-dialog').click();
+    const oName = `Waitlist Org ${ts}`;
+    await adminPage.getByTestId('org-name-input').fill(oName);
+    await adminPage.getByTestId('org-submit-button').click();
+    await adminPage.getByTestId(`org-link-${oName}`).click();
+    
+    // Invite Diarista
+    await adminPage.getByTestId('org-management-button').click();
+    await adminPage.getByTestId('members-invite-button').click();
+    await adminPage.getByTestId('invite-email-input').fill(diarista.email);
+    await adminPage.getByTestId('send-invite-button').click();
+    const linkText = await adminPage.getByTestId('invitation-link-text').innerText();
+    const link = linkText.trim();
+    
+    // Setup Diarista via Invite Link
+    await diaristaPage.goto(link);
+    await diaristaPage.getByTestId('first-access-name').fill(diarista.name);
+    await diaristaPage.getByTestId('first-access-username').fill(diarista.username);
+    await diaristaPage.getByTestId('first-access-password').fill(diarista.password);
+    await diaristaPage.getByTestId('first-access-submit').click();
+    
+    await acceptPendingInvitation(diaristaPage, oName);
+    
+    // Create Pelada
+    await adminPage.goto('/');
+    await adminPage.getByTestId(`org-link-${oName}`).click();
+    await adminPage.getByTestId('create-pelada-submit').click();
+    await expect(adminPage).toHaveURL(/\/peladas\/\d+\/attendance/, { timeout: 10000 });
+    const peladaUrl = adminPage.url();
+    
+    // Diarista confirms attendance
+    await diaristaPage.goto(peladaUrl);
+    await diaristaPage.getByTestId('attendance-confirm-button').click();
+    
+    // Verify Diarista goes to waitlist
+    await expect(diaristaPage.getByText(/Lista de Espera|waitlist/i).first()).toBeVisible({ timeout: 10000 });
+    
+    // Admin checks waitlist and confirms the Diarista
+    await adminPage.reload();
+    await adminPage.getByRole('tab', { name: /Lista de Espera|Waitlist/i }).click();
+    const diaristaCard = adminPage.getByTestId(`attendance-card-${diarista.username}`);
+    await expect(diaristaCard).toBeVisible();
+    await diaristaCard.getByTestId('attendance-card-confirm').click();
+    
+    // Verify Diarista is now in Confirmed
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(adminPage.getByTestId(`attendance-card-${diarista.username}`)).toBeVisible();
+    
+    await adminContext.close();
+    await diaristaContext.close();
   });
 });

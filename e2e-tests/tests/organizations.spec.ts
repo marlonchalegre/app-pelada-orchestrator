@@ -90,9 +90,17 @@ test.describe('Organization Management', () => {
       await ownerPage.getByTestId('add-admin-button').click();
       await expect(ownerPage.locator(`text=${invitedUser.name}`).last()).toBeVisible();
       
-      // Refresh after promotion to ensure all contexts are updated and dialogs are GONE
+      // Navigate to Members tab and test Diarista x Mensalista
+      await ownerPage.getByTestId('mgmt-tab-members').click();
+      const memberRow = ownerPage.locator('li').filter({ hasText: invitedUser.name });
+      await memberRow.getByRole('combobox').click();
+      await ownerPage.getByRole('option', { name: 'Mensalista' }).click();
+      
+      // Refresh to confirm the state was saved
       await ownerPage.reload();
-
+      await ownerPage.getByTestId('mgmt-tab-members').click();
+      await expect(ownerPage.locator('li').filter({ hasText: invitedUser.name }).getByRole('combobox')).toHaveText('Mensalista');
+      
       // Navigate to Invitations tab
       await ownerPage.getByTestId('mgmt-tab-invitations').click();
       

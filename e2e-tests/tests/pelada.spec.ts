@@ -88,6 +88,14 @@ test.describe('Pelada Lifecycle', () => {
 
     // 2. Attendance
     await test.step('Attendance Phase', async () => {
+      // First make the owner a Mensalista so they go to Confirmed instead of Waitlist
+      await ownerPage.goto('/');
+      await ownerPage.getByTestId(`org-link-${orgName}`).click();
+      await ownerPage.getByTestId('org-management-button').click();
+      const memberRow = ownerPage.locator('li').filter({ hasText: owner.name });
+      await memberRow.getByRole('combobox').click();
+      await ownerPage.getByRole('option', { name: 'Mensalista' }).click();
+      
       await ownerPage.goto('/');
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       await ownerPage.getByTestId('create-pelada-submit').click();
