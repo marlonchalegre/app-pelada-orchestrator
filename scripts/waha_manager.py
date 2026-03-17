@@ -7,7 +7,6 @@ import urllib.error
 
 def get_config():
     api_key = os.environ.get("WAHA_API_KEY")
-    # Note: Ensure this URL includes the /waha subpath if using the proxy
     base_url = os.environ.get("WAHA_API_URL", "http://localhost:8080/waha")
     
     if not api_key:
@@ -39,6 +38,9 @@ def make_request(url, method="GET", payload=None, headers=None):
 
 def print_result(status, body):
     print(f"Status: {status}")
+    if not body:
+        print("(Empty response body)")
+        return
     try:
         parsed = json.loads(body)
         print(json.dumps(parsed, indent=2))
@@ -72,10 +74,11 @@ def main():
 
     elif command == "start":
         print(f"Starting session '{session_name}'...")
-        payload = {"name": session_name}
+        # Some versions prefer empty body or specific engine
+        payload = {"name": session_name, "config": {"proxy": None}}
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
         if status == 422:
-            print(f"Session '{session_name}' already exists. Try 'python scripts/waha_manager.py status {session_name}' or 'restart'.")
+            print(f"Session '{session_name}' already exists.")
         else:
             print_result(status, body)
 
@@ -90,16 +93,21 @@ def main():
     elif command == "restart":
         print(f"Restarting session '{session_name}'...")
         print(f"1. Stopping '{session_name}'...")
-        stop_status, stop_body = make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
-        print(f"Stop Status: {stop_status}")
+        make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
         
-        print("Waiting 3 seconds for WAHA to clean up...")
-        time.sleep(3)
+        print("Waiting 5 seconds for cleanup...")
+        time.sleep(5)
         
         print(f"2. Starting '{session_name}'...")
         payload = {"name": session_name}
-        start_status, start_body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
-        print_result(start_status, start_body)
+        status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
+        print_result(status, body)
+        
+        print("\nWaiting 5 seconds for initialization...")
+        time.sleep(5)
+        status, body = make_request(f"{base_url}/api/sessions/{session_name}", headers=headers)
+        print(f"Initial Status after 5s:")
+        print_result(status, body)
 
     elif command == "status":
         print(f"Checking status for '{session_name}'...")
@@ -110,7 +118,6 @@ def main():
         print(f"Fetching QR code for '{session_name}'...")
         status, body = make_request(f"{base_url}/api/{session_name}/auth/qr", headers=headers)
         print_result(status, body)
-        print(f"\nTip: To see the image directly, open {base_url}/api/{session_name}/auth/qr?format=image in your browser.")
 
     elif command == "screenshot":
         print(f"Taking screenshot for '{session_name}'...")
