@@ -46,7 +46,7 @@ def print_result(status, body):
 def main():
     if len(sys.argv) < 2:
         print("Usage: python scripts/waha_manager.py [command] [session_name]")
-        print("Commands: start, stop, status, qr, sessions")
+        print("Commands: start, stop, restart, status, qr, screenshot, sessions")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -67,15 +67,27 @@ def main():
         print(f"Starting session '{session_name}'...")
         payload = {"name": session_name}
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
-        print_result(status, body)
+        if status == 422:
+            print(f"Session '{session_name}' already exists. Try 'python scripts/waha_manager.py status {session_name}' or 'restart'.")
+        else:
+            print_result(status, body)
 
     elif command == "stop":
         print(f"Stopping session '{session_name}'...")
         status, body = make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
         if status in [200, 204]:
-            print("Successfully stopped.")
+            print("Successfully stopped/deleted.")
         else:
             print_result(status, body)
+
+    elif command == "restart":
+        print(f"Restarting session '{session_name}'...")
+        print(f"1. Stopping '{session_name}'...")
+        make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
+        print(f"2. Starting '{session_name}'...")
+        payload = {"name": session_name}
+        status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
+        print_result(status, body)
 
     elif command == "status":
         print(f"Checking status for '{session_name}'...")
@@ -87,6 +99,11 @@ def main():
         status, body = make_request(f"{base_url}/api/{session_name}/auth/qr", headers=headers)
         print_result(status, body)
         print(f"\nTip: To see the image directly, open {base_url}/api/{session_name}/auth/qr?format=image in your browser.")
+
+    elif command == "screenshot":
+        print(f"Taking screenshot for '{session_name}'...")
+        status, body = make_request(f"{base_url}/api/{session_name}/auth/screenshot", headers=headers)
+        print_result(status, body)
 
     else:
         print(f"Unknown command: {command}")
