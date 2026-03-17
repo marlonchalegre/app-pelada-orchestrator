@@ -39,9 +39,10 @@ services:
       - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
       - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
       - WAHA_SWAGGER_ENABLED=true
-      - WHATSAPP_API_BASE_URL=https://pelada.mcp.dev.br/waha/
       - WAHA_DASHBOARD_ENABLED=false
+      - WHATSAPP_DEFAULT_ENGINE=NOWEB
     ports:
       - 3000:3000
     volumes:
       - ./waha_data:/app/.waha/sessions
+
