@@ -7,6 +7,7 @@ services:
       target: prod
       args:
         - VITE_APP_VERSION=${TAG:-prod}
+        - VITE_GOOGLE_ANALYTICS_ID=${VITE_GOOGLE_ANALYTICS_ID}
     image: peladaapp-frontend:${TAG:-prod}
     ports:
       - 80:80

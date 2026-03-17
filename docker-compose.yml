@@ -5,6 +5,7 @@ services:
     environment:
       - PORT=8080
       - LANG=en_US.UTF-8
+      - VITE_GOOGLE_ANALYTICS_ID=${VITE_GOOGLE_ANALYTICS_ID}
     build:
       context: ./web-peladaapp
       dockerfile: Dockerfile
