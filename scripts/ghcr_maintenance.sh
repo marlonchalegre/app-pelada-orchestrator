@@ -73,6 +73,9 @@ update_code_and_get_tag() {
     git fetch origin main --tags --quiet
     git reset --hard origin/main
     
+    # Use SHA for precise change detection
+    local current_sha=$(git rev-parse HEAD)
+    
     # 1. Try to find a semver tag on this commit (e.g., v1.0.5)
     local exact_tag=$(git describe --tags --exact-match 2>/dev/null || true)
     
@@ -83,15 +86,23 @@ update_code_and_get_tag() {
         TAG="latest"
     fi
     
-    log "Identified version tag: $TAG"
+    log "Identified version tag: $TAG (SHA: ${current_sha:0:7})"
     
-    # Check if we are already running this version
-    if [ "$FORCE_RUN" = false ] && [ -f "$TAG_FILE" ] && [ "$(cat "$TAG_FILE")" == "$TAG" ]; then
-        if docker compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-            log "Version $TAG is already deployed and running. Use -f to force."
-            return 1 # No change needed
+    # Check if we are already running this exact commit
+    # Format in TAG_FILE: current_sha:tag
+    if [ "$FORCE_RUN" = false ] && [ -f "$TAG_FILE" ]; then
+        local last_state=$(cat "$TAG_FILE")
+        local last_sha="${last_state%%:*}"
+        if [ "$last_sha" == "$current_sha" ]; then
+            if docker compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
+                log "Commit ${current_sha:0:7} is already deployed and running. Use -f to force."
+                return 1 # No change needed
+            fi
         fi
     fi
+    
+    # Store the new state to be saved on success
+    NEW_STATE="$current_sha:$TAG"
     return 0 # Change detected
 }
 
@@ -157,15 +168,16 @@ perform_health_check() {
 
 save_success_state() {
     [ -f "$TAG_FILE" ] && cp "$TAG_FILE" "$TAG_FILE.prev"
-    echo "$TAG" > "$TAG_FILE"
+    echo "$NEW_STATE" > "$TAG_FILE"
     [ -f .env.deploy ] && rm -f .env.deploy
 }
 
 perform_rollback() {
     log "Rolling back..."
     if [ -f "$TAG_FILE.prev" ]; then
-        local prev_tag=$(cat "$TAG_FILE.prev")
-        log "Attempting rollback to $prev_tag"
+        local last_state=$(cat "$TAG_FILE.prev")
+        local prev_tag="${last_state#*:}"
+        log "Attempting rollback to tag: $prev_tag"
         TAG=$prev_tag docker compose -f "$COMPOSE_FILE" up -d --force-recreate
     fi
 }
