@@ -41,6 +41,8 @@ services:
       - WAHA_SWAGGER_ENABLED=true
       - WAHA_DASHBOARD_ENABLED=false
       - WHATSAPP_DEFAULT_ENGINE=GOWS
+      - WAHA_RESTART_ALL_SESSIONS=True
+      - WAHA_AUTO_START_DELAY_SECONDS=5
     ports:
       - 3000:3000
     volumes:
