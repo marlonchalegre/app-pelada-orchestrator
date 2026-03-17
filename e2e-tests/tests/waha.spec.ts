@@ -41,7 +41,7 @@ test.describe('WAHA Integration', () => {
     await expect(testBtn).toBeDisabled();
 
     // 4. Fill configuration
-    await page.locator('input[name="waha_api_url"]').fill('http://waha:3000/waha');
+    await page.locator('input[name="waha_api_url"]').fill('http://waha:3000');
     await page.locator('input[name="waha_instance"]').fill('default');
     await page.locator('input[name="waha_group_id"]').fill('123456789@g.us');
     
@@ -67,7 +67,7 @@ test.describe('WAHA Integration', () => {
     await page.reload();
     await page.getByTestId('mgmt-tab-waha').click();
     await expect(enabledSwitch).toBeChecked();
-    await expect(page.locator('input[name="waha_api_url"]')).toHaveValue('http://waha:3000/waha');
+    await expect(page.locator('input[name="waha_api_url"]')).toHaveValue('http://waha:3000');
     await expect(page.locator('input[name="waha_instance"]')).toHaveValue('default');
     await expect(page.locator('input[name="waha_group_id"]')).toHaveValue('123456789@g.us');
     await expect(page.locator('input[name="waha_start_msg_enabled"]')).toBeChecked();

@@ -46,6 +46,7 @@ services:
       - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
       - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
       - WAHA_SWAGGER_ENABLED=false
-      - WAHA_BASE_PATH=/waha
+      - WHATSAPP_API_BASE_URL=/waha/
+      - WAHA_DASHBOARD_ENABLED=true
     volumes:
       - ./waha_data:/app/.waha/sessions
