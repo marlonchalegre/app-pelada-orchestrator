@@ -63,8 +63,7 @@ jobs:
           else
             echo "context=./web-peladaapp" >> $GITHUB_OUTPUT
             echo "image=pelada-web" >> $GITHUB_OUTPUT
-            echo "build_args=VITE_APP_VERSION=$VERSION
-            VITE_GOOGLE_ANALYTICS_ID=${{ secrets.VITE_GOOGLE_ANALYTICS_ID }}" >> $GITHUB_OUTPUT
+            echo "build_args=VITE_APP_VERSION=${VERSION},VITE_GOOGLE_ANALYTICS_ID=${{ secrets.VITE_GOOGLE_ANALYTICS_ID }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout
