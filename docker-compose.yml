@@ -39,7 +39,7 @@ services:
       - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
       - WAHA_DASHBOARD_PASSWORD=ee54354c72854f2283a373c064c7eeb8
       - WHATSAPP_SWAGGER_PASSWORD=ee54354c72854f2283a373c064c7eeb8
-      - WHATSAPP_API_BASE_URL=https://pelada.mcp.dev.br/waha/
+      - WHATSAPP_API_BASE_URL=http://localhost:3000/waha/
       - WAHA_DASHBOARD_ENABLED=false
       - WAHA_SWAGGER_ENABLED=true
     ports:
