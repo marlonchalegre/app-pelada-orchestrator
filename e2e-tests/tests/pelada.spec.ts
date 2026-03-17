@@ -56,14 +56,14 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.getByTestId('invite-email-input').fill(player2.email);
       await ownerPage.getByTestId('send-invite-button').click();
       const p2Invite = await ownerPage.getByTestId('invitation-link-text').innerText();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId('invite-dialog-close-button').click();
 
       // Invite P3
       await ownerPage.getByTestId('members-invite-button').click();
       await ownerPage.getByTestId('invite-email-input').fill(player3.email);
       await ownerPage.getByTestId('send-invite-button').click();
       const p3Invite = await ownerPage.getByTestId('invitation-link-text').innerText();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId('invite-dialog-close-button').click();
 
       const p2Context = await browser.newContext(videoOptions);
       const p2Page = await p2Context.newPage();
@@ -115,7 +115,7 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.reload();
       await ownerPage.waitForTimeout(2000);
 
-      await ownerPage.getByTestId('invite-player-button').or(ownerPage.getByRole('button', { name: /\+ Adicionar jogadores|\+ Add players/i })).click();
+      await ownerPage.getByTestId('invite-player-button').or(ownerPage.getByRole('button', { name: /Adicionar jogadores|Add players/i })).click();
       await ownerPage.getByRole('dialog').getByText(player2.name).click();
       await ownerPage.getByRole('dialog').getByText(player3.name).click();
       await ownerPage.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
