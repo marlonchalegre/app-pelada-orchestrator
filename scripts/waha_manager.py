@@ -1,11 +1,13 @@
 import os
 import sys
 import json
+import time
 import urllib.request
 import urllib.error
 
 def get_config():
     api_key = os.environ.get("WAHA_API_KEY")
+    # Note: Ensure this URL includes the /waha subpath if using the proxy
     base_url = os.environ.get("WAHA_API_URL", "http://localhost:8080/waha")
     
     if not api_key:
@@ -46,7 +48,7 @@ def print_result(status, body):
 def main():
     if len(sys.argv) < 2:
         print("Usage: python scripts/waha_manager.py [command] [session_name]")
-        print("Commands: start, stop, restart, status, qr, screenshot, sessions")
+        print("Commands: ping, start, stop, restart, status, qr, screenshot, sessions")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -58,7 +60,12 @@ def main():
         "Accept": "application/json"
     }
 
-    if command == "sessions":
+    if command == "ping":
+        print(f"Pinging {base_url}/api/server/version ...")
+        status, body = make_request(f"{base_url}/api/server/version", headers=headers)
+        print_result(status, body)
+
+    elif command == "sessions":
         print(f"Listing all sessions on {base_url}...")
         status, body = make_request(f"{base_url}/api/sessions", headers=headers)
         print_result(status, body)
@@ -83,11 +90,16 @@ def main():
     elif command == "restart":
         print(f"Restarting session '{session_name}'...")
         print(f"1. Stopping '{session_name}'...")
-        make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
+        stop_status, stop_body = make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
+        print(f"Stop Status: {stop_status}")
+        
+        print("Waiting 3 seconds for WAHA to clean up...")
+        time.sleep(3)
+        
         print(f"2. Starting '{session_name}'...")
         payload = {"name": session_name}
-        status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
-        print_result(status, body)
+        start_status, start_body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
+        print_result(start_status, start_body)
 
     elif command == "status":
         print(f"Checking status for '{session_name}'...")
