@@ -74,12 +74,21 @@ def main():
 
     elif command == "start":
         print(f"Starting session '{session_name}'...")
-        # Some versions prefer empty body or specific engine
-        payload = {"name": session_name, "config": {"proxy": None}}
+        # Explicitly define engine and start=true for better reliability on ARM
+        payload = {
+            "name": session_name,
+            "engine": "WEBJS",
+            "start": True
+        }
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
         if status == 422:
             print(f"Session '{session_name}' already exists.")
         else:
+            print_result(status, body)
+            print("\nWaiting 10 seconds for initialization (ARM takes time)...")
+            time.sleep(10)
+            status, body = make_request(f"{base_url}/api/sessions/{session_name}", headers=headers)
+            print("Current status:")
             print_result(status, body)
 
     elif command == "stop":
@@ -99,14 +108,18 @@ def main():
         time.sleep(5)
         
         print(f"2. Starting '{session_name}'...")
-        payload = {"name": session_name}
+        payload = {
+            "name": session_name,
+            "engine": "WEBJS",
+            "start": True
+        }
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
         print_result(status, body)
         
-        print("\nWaiting 5 seconds for initialization...")
-        time.sleep(5)
+        print("\nWaiting 10 seconds for initialization...")
+        time.sleep(10)
         status, body = make_request(f"{base_url}/api/sessions/{session_name}", headers=headers)
-        print(f"Initial Status after 5s:")
+        print(f"Final Status:")
         print_result(status, body)
 
     elif command == "status":
