@@ -50,7 +50,7 @@ def print_result(status, body):
 def main():
     if len(sys.argv) < 2:
         print("Usage: python scripts/waha_manager.py [command] [session_name]")
-        print("Commands: ping, start, stop, restart, status, qr, screenshot, sessions")
+        print("Commands: ping, start, stop, restart, resume, status, qr, screenshot, sessions")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -73,8 +73,7 @@ def main():
         print_result(status, body)
 
     elif command == "start":
-        print(f"Starting session '{session_name}'...")
-        # Explicitly define engine and start=true for better reliability on ARM
+        print(f"Creating and starting session '{session_name}'...")
         payload = {
             "name": session_name,
             "engine": "WEBJS",
@@ -82,17 +81,17 @@ def main():
         }
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
         if status == 422:
-            print(f"Session '{session_name}' already exists.")
+            print(f"Session '{session_name}' already exists. Use 'resume' to start it.")
         else:
             print_result(status, body)
-            print("\nWaiting 10 seconds for initialization (ARM takes time)...")
-            time.sleep(10)
-            status, body = make_request(f"{base_url}/api/sessions/{session_name}", headers=headers)
-            print("Current status:")
-            print_result(status, body)
+
+    elif command == "resume":
+        print(f"Starting existing session '{session_name}'...")
+        status, body = make_request(f"{base_url}/api/sessions/{session_name}/start", method="POST", headers=headers)
+        print_result(status, body)
 
     elif command == "stop":
-        print(f"Stopping session '{session_name}'...")
+        print(f"Stopping/Deleting session '{session_name}'...")
         status, body = make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
         if status in [200, 204]:
             print("Successfully stopped/deleted.")
@@ -103,23 +102,11 @@ def main():
         print(f"Restarting session '{session_name}'...")
         print(f"1. Stopping '{session_name}'...")
         make_request(f"{base_url}/api/sessions/{session_name}", method="DELETE", headers=headers)
-        
         print("Waiting 5 seconds for cleanup...")
         time.sleep(5)
-        
         print(f"2. Starting '{session_name}'...")
-        payload = {
-            "name": session_name,
-            "engine": "WEBJS",
-            "start": True
-        }
+        payload = {"name": session_name, "engine": "WEBJS", "start": True}
         status, body = make_request(f"{base_url}/api/sessions", method="POST", headers=headers, payload=payload)
-        print_result(status, body)
-        
-        print("\nWaiting 10 seconds for initialization...")
-        time.sleep(10)
-        status, body = make_request(f"{base_url}/api/sessions/{session_name}", headers=headers)
-        print(f"Final Status:")
         print_result(status, body)
 
     elif command == "status":
