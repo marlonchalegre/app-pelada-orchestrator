@@ -27,6 +27,7 @@ services:
       - SKIP_MIGRATIONS=false
       - APP_VERSION=${TAG:-prod}
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY}
+      - WAHA_API_KEY=${WAHA_API_KEY}
       - LITESTREAM_ACCESS_KEY_ID=${LITESTREAM_ACCESS_KEY_ID}
       - LITESTREAM_SECRET_ACCESS_KEY=${LITESTREAM_SECRET_ACCESS_KEY}
       - LITESTREAM_BUCKET=${LITESTREAM_BUCKET}
@@ -34,3 +35,15 @@ services:
     volumes:
       - ./data:/app/data
       - ./api-peladaapp/litestream.yml:/etc/litestream.yml:ro
+
+  waha:
+    image: ${WAHA_IMAGE:-devlikeapro/waha:arm}
+    restart: always
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+    volumes:
+      - ./waha_data:/app/.waha/sessions

@@ -23,6 +23,7 @@ services:
       - APP_VERSION=development
       - LANG=en_US.UTF-8
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY:-dev-secret-key-change-me-in-prod}
+      - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev
@@ -31,6 +32,15 @@ services:
     volumes:
       - ./api-peladaapp:/app
 
+  waha:
+    image: ${WAHA_IMAGE:-devlikeapro/waha:arm}
+    restart: always
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
+      - WAHA_DASHBOARD_PASSWORD=ee54354c72854f2283a373c064c7eeb8
+      - WHATSAPP_SWAGGER_PASSWORD=ee54354c72854f2283a373c064c7eeb8
+    ports:
+      - 3000:3000
 
   nginx:
     restart: always
