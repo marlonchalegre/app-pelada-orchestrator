@@ -37,7 +37,7 @@ tmp/
 .lsp/
 
 # Scripts
-scripts/
+# scripts/
 # E2E Test Results
 e2e-tests/test-results/
 
