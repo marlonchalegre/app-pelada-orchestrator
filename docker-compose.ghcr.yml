@@ -41,5 +41,7 @@ services:
       - WAHA_SWAGGER_ENABLED=true
       - WHATSAPP_API_BASE_URL=https://pelada.mcp.dev.br/waha/
       - WAHA_DASHBOARD_ENABLED=false
+    ports:
+      - 3000:3000
     volumes:
       - ./waha_data:/app/.waha/sessions
