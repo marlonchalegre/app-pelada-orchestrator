@@ -10,32 +10,32 @@ import time
 DEFAULT_BASE_URL = "http://localhost:8000"
 
 users = [
-    {"name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "position": "midfielder", "score": 9.5},
-    {"name": "Frodo Baggins", "username": "frodo", "email": "frodo@fantasy.com", "position": "midfielder", "score": 7.0},
-    {"name": "Samwise Gamgee", "username": "samwise", "email": "samwise@fantasy.com", "position": "defender", "score": 7.5},
-    {"name": "Aragorn", "username": "aragorn", "email": "aragorn@fantasy.com", "position": "striker", "score": 9.0},
-    {"name": "Legolas", "username": "legolas", "email": "legolas@fantasy.com", "position": "striker", "score": 8.8},
-    {"name": "Gimli", "username": "gimli", "email": "gimli@fantasy.com", "position": "defender", "score": 8.5},
-    {"name": "Boromir", "username": "boromir", "email": "boromir@fantasy.com", "position": "defender", "score": 8.2},
-    {"name": "Saruman", "username": "saruman", "email": "saruman@fantasy.com", "position": "goalkeeper", "score": 8.8},
-    {"name": "Galadriel", "username": "galadriel", "email": "galadriel@fantasy.com", "position": "midfielder", "score": 9.2},
-    {"name": "Elrond", "username": "elrond", "email": "elrond@fantasy.com", "position": "midfielder", "score": 9.0},
-    {"name": "Bilbo Baggins", "username": "bilbo", "email": "bilbo@fantasy.com", "position": "goalkeeper", "score": 7.0},
-    {"name": "Gollum", "username": "gollum", "email": "gollum@fantasy.com", "position": "striker", "score": 6.5},
-    {"name": "Sauron", "username": "sauron", "email": "sauron@fantasy.com", "position": "defender", "score": 9.5},
-    {"name": "Arwen", "username": "arwen", "email": "arwen@fantasy.com", "position": "midfielder", "score": 8.0},
-    {"name": "Eowyn", "username": "eowyn", "email": "eowyn@fantasy.com", "position": "striker", "score": 8.2},
-    {"name": "Faramir", "username": "faramir", "email": "faramir@fantasy.com", "position": "midfielder", "score": 7.8},
-    {"name": "Theoden", "username": "theoden", "email": "theoden@fantasy.com", "position": "defender", "score": 8.0},
-    {"name": "Eomer", "username": "eomer", "email": "eomer@fantasy.com", "position": "striker", "score": 8.5},
-    {"name": "Treebeard", "username": "treebeard", "email": "treebeard@fantasy.com", "position": "defender", "score": 8.8},
-    {"name": "Radagast", "username": "radagast", "email": "radagast@fantasy.com", "position": "midfielder", "score": 7.5},
-    {"name": "Witch King", "username": "witchking", "email": "witchking@fantasy.com", "position": "defender", "score": 9.0},
-    {"name": "Smaug", "username": "smaug", "email": "smaug@fantasy.com", "position": "striker", "score": 9.5},
-    {"name": "Thorin Oakenshield", "username": "thorin", "email": "thorin@fantasy.com", "position": "defender", "score": 8.5},
-    {"name": "Balrog", "username": "balrog", "email": "balrog@fantasy.com", "position": "striker", "score": 9.2},
-    {"name": "Isildur", "username": "isildur", "email": "isildur@fantasy.com", "position": "midfielder", "score": 8.5},
-    {"name": "Celeborn", "username": "celeborn", "email": "celeborn@fantasy.com", "position": "midfielder", "score": 8.2}
+    {"name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "position": "midfielder", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Frodo Baggins", "username": "frodo", "email": "frodo@fantasy.com", "position": "midfielder", "score": 7.0, "member_type": "diarista"},
+    {"name": "Samwise Gamgee", "username": "samwise", "email": "samwise@fantasy.com", "position": "defender", "score": 7.5, "member_type": "mensalista"},
+    {"name": "Aragorn", "username": "aragorn", "email": "aragorn@fantasy.com", "position": "striker", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Legolas", "username": "legolas", "email": "legolas@fantasy.com", "position": "striker", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Gimli", "username": "gimli", "email": "gimli@fantasy.com", "position": "defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Boromir", "username": "boromir", "email": "boromir@fantasy.com", "position": "defender", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Saruman", "username": "saruman", "email": "saruman@fantasy.com", "position": "goalkeeper", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Galadriel", "username": "galadriel", "email": "galadriel@fantasy.com", "position": "midfielder", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Elrond", "username": "elrond", "email": "elrond@fantasy.com", "position": "midfielder", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Bilbo Baggins", "username": "bilbo", "email": "bilbo@fantasy.com", "position": "goalkeeper", "score": 7.0, "member_type": "diarista"},
+    {"name": "Gollum", "username": "gollum", "email": "gollum@fantasy.com", "position": "striker", "score": 6.5, "member_type": "diarista"},
+    {"name": "Sauron", "username": "sauron", "email": "sauron@fantasy.com", "position": "defender", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Arwen", "username": "arwen", "email": "arwen@fantasy.com", "position": "midfielder", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eowyn", "username": "eowyn", "email": "eowyn@fantasy.com", "position": "striker", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Faramir", "username": "faramir", "email": "faramir@fantasy.com", "position": "midfielder", "score": 7.8, "member_type": "mensalista"},
+    {"name": "Theoden", "username": "theoden", "email": "theoden@fantasy.com", "position": "defender", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eomer", "username": "eomer", "email": "eomer@fantasy.com", "position": "striker", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Treebeard", "username": "treebeard", "email": "treebeard@fantasy.com", "position": "defender", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Radagast", "username": "radagast", "email": "radagast@fantasy.com", "position": "midfielder", "score": 7.5, "member_type": "diarista"},
+    {"name": "Witch King", "username": "witchking", "email": "witchking@fantasy.com", "position": "defender", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Smaug", "username": "smaug", "email": "smaug@fantasy.com", "position": "striker", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Thorin Oakenshield", "username": "thorin", "email": "thorin@fantasy.com", "position": "defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Balrog", "username": "balrog", "email": "balrog@fantasy.com", "position": "striker", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Isildur", "username": "isildur", "email": "isildur@fantasy.com", "position": "midfielder", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Celeborn", "username": "celeborn", "email": "celeborn@fantasy.com", "position": "midfielder", "score": 8.2, "member_type": "mensalista"}
 ]
 
 def make_request(base_url, path, method="GET", data=None, headers=None):
@@ -164,8 +164,6 @@ def seed(base_url):
     except Exception as e:
         print(f"  (Warning: Could not fetch existing members: {e})")
 
-    existing_user_ids = {m["user_id"] for m in existing_members}
-
     for u in users:
         print(f"  > {u['name']}...", end=" ", flush=True)
         user_id = None
@@ -187,8 +185,19 @@ def seed(base_url):
                 pass
 
         if user_id:
-            if user_id in existing_user_ids:
-                print("Already in org (skipped).")
+            # Check if already in org
+            existing_player = next((m for m in existing_members if m["user_id"] == user_id), None)
+            
+            if existing_player:
+                # Update existing player to ensure score and member_type are correct
+                try:
+                    make_request(base_url, f"/api/players/{existing_player['id']}", method="PUT", data={
+                        "grade": u["score"],
+                        "member_type": u["member_type"]
+                    }, headers=headers)
+                    print("Updated in org.")
+                except Exception as e:
+                    print(f"Error updating in org: {e}")
                 continue
 
             # Add to org as player
@@ -196,7 +205,8 @@ def seed(base_url):
                 make_request(base_url, "/api/players", method="POST", data={
                     "user_id": user_id,
                     "organization_id": org_id,
-                    "grade": u["score"]
+                    "grade": u["score"],
+                    "member_type": u["member_type"]
                 }, headers=headers)
                 print("Added to org.")
             except Exception as e:

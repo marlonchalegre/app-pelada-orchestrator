@@ -15,6 +15,16 @@ COMPOSE_FILE="docker-compose.ghcr.yml"
 LOCK_FILE="/tmp/peladaapp_maintenance.lock"
 TURSO_DB_NAME="peladaapp"
 
+FORCE_RUN=false
+
+# Argument parsing
+while getopts "f" opt; do
+  case $opt in
+    f) FORCE_RUN=true ;;
+    *) echo "Usage: $0 [-f]" >&2; exit 1 ;;
+  esac
+done
+
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
@@ -69,17 +79,16 @@ update_code_and_get_tag() {
     if [ -n "$exact_tag" ]; then
         TAG="$exact_tag"
     else
-        # 2. Use the timestamp format matching GitHub Actions (BRT)
-        # We assume the server environment is set correctly or we force TZ
-        TAG=$(TZ="America/Sao_Paulo" date +'%d%m%Y-%H%M')
+        # 2. Use 'latest' tag for general deployments
+        TAG="latest"
     fi
     
     log "Identified version tag: $TAG"
     
-    # Check if we are already running this version (unlikely with timestamp, but good for semver)
-    if [ -f "$TAG_FILE" ] && [ "$(cat "$TAG_FILE")" == "$TAG" ]; then
+    # Check if we are already running this version
+    if [ "$FORCE_RUN" = false ] && [ -f "$TAG_FILE" ] && [ "$(cat "$TAG_FILE")" == "$TAG" ]; then
         if docker compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-            log "Version $TAG is already deployed and running."
+            log "Version $TAG is already deployed and running. Use -f to force."
             return 1 # No change needed
         fi
     fi
@@ -109,8 +118,8 @@ pull_images() {
     # Create deployment-specific env file
     echo "TAG=$TAG" > .env.deploy
     
-    # Pass necessary runtime secrets to the backend
-    vars=("PELADA_API_SECURITY_SIGNING_KEY" "LITESTREAM_ACCESS_KEY_ID" "LITESTREAM_SECRET_ACCESS_KEY" "LITESTREAM_BUCKET" "LITESTREAM_ENDPOINT")
+    # Pass necessary runtime secrets to the backend and waha
+    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD" "LITESTREAM_ACCESS_KEY_ID" "LITESTREAM_SECRET_ACCESS_KEY" "LITESTREAM_BUCKET" "LITESTREAM_ENDPOINT")
     for v in "${vars[@]}"; do
         [ -n "${!v}" ] && echo "$v=${!v}" >> .env.deploy
     done
