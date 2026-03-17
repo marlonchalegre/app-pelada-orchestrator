@@ -128,7 +128,14 @@ test.describe('Organization Management', () => {
       // Navigate back to members tab
       await ownerPage.getByTestId('mgmt-tab-members').click();
       await ownerPage.getByTestId('members-invite-button').click();
-      await ownerPage.getByTestId('generate-public-link-button').click();
+      
+      // The link should be fetched automatically now, but if button exists click it
+      const genBtn = ownerPage.getByTestId('generate-public-link-button');
+      if (await genBtn.isVisible({ timeout: 5000 })) {
+        await genBtn.click();
+      }
+      
+      await expect(ownerPage.getByTestId('public-invite-link-text')).toBeVisible({ timeout: 15000 });
       const publicLinkText = await ownerPage.getByTestId('public-invite-link-text').innerText();
       const publicLink = publicLinkText.trim();
       
@@ -160,11 +167,39 @@ test.describe('Organization Management', () => {
 
       // Close the invite dialog on ownerPage
       await ownerPage.getByTestId('invite-dialog-close-button').click({ force: true });
-      await expect(ownerPage.getByRole('dialog')).toBeHidden({ timeout: 15000 });
+      await expect(ownerPage.getByRole('dialog', { name: /invite/i })).toBeHidden({ timeout: 15000 });
       await ownerPage.waitForTimeout(2000);
     });
 
-    await test.step('5. Player Ratings Management', async () => {
+    await test.step('5. Public Link Reset and List Filtering', async () => {
+      // Navigate to Invitations tab
+      await ownerPage.getByTestId('mgmt-tab-invitations').click();
+      
+      // Verify public link is shown in the highlight box
+      const publicLinkText = await ownerPage.getByTestId('public-invite-link-text').innerText();
+      expect(publicLinkText).toContain('/join/');
+      
+      // Verify public link IS NOT shown in the pending invitations list
+      // The pending list should be empty (since we revoked the dummy invite earlier)
+      await expect(ownerPage.locator('li').filter({ hasText: /convite público|public invite/i })).toBeHidden();
+      
+      // Test Reset Link functionality
+      await ownerPage.getByTestId('reset-public-link-button').click();
+      
+      // Verify PrettyConfirmDialog is shown
+      await expect(ownerPage.getByRole('dialog')).toBeVisible();
+      await expect(ownerPage.getByText(/tem certeza|are you sure/i)).toBeVisible();
+      
+      // Confirm reset
+      await ownerPage.getByRole('button', { name: /redefinir|reset/i }).click();
+      
+      // Verify link changed
+      const newPublicLinkText = await ownerPage.getByTestId('public-invite-link-text').innerText();
+      expect(newPublicLinkText).toContain('/join/');
+      expect(newPublicLinkText).not.toBe(publicLinkText);
+    });
+
+    await test.step('6. Player Ratings Management', async () => {
       // Navigate to Ratings tab
       await ownerPage.getByTestId('mgmt-tab-ratings').click();
       
