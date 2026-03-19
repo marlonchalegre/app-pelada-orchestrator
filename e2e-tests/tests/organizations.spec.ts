@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { saveVideo, acceptPendingInvitation } from './utils';
+import { saveVideo, acceptPendingInvitation, registerUser, createOrganization, invitePlayerByEmail } from './utils';
 
 test.describe('Organization Management', () => {
   const timestamp = Date.now();
@@ -29,32 +29,13 @@ test.describe('Organization Management', () => {
     ownerPage.on('dialog', dialog => dialog.accept());
 
     await test.step('1. Owner Registration & Org Creation', async () => {
-      await ownerPage.goto('/register');
-      await ownerPage.getByTestId('register-name').fill(owner.name);
-      await ownerPage.getByTestId('register-username').fill(owner.username);
-      await ownerPage.getByTestId('register-email').fill(owner.email);
-      await ownerPage.getByTestId('register-password').fill(owner.password);
-      await ownerPage.getByLabel('Position').click();
-      await ownerPage.getByRole('option', { name: owner.position }).click();
-      await ownerPage.getByTestId('register-submit').click();
-      await expect(ownerPage).toHaveURL('/', { timeout: 10000 });
-
-      await ownerPage.getByTestId('create-org-open-dialog').click();
-      await ownerPage.getByTestId('org-name-input').fill(orgName);
-      await ownerPage.getByTestId('org-submit-button').click();
-      
-      await expect(ownerPage.getByTestId(`org-link-${orgName}`)).toBeVisible();
-      await ownerPage.getByTestId(`org-link-${orgName}`).click();
+      await registerUser(ownerPage, owner);
+      await createOrganization(ownerPage, orgName);
+      await ownerPage.reload();
     });
 
     await test.step('2. Personal Invitation & First Access Flow', async () => {
-      await ownerPage.getByTestId('org-management-button').click();
-      await ownerPage.getByTestId('members-invite-button').click();
-      await ownerPage.getByTestId('invite-email-input').fill(invitedUser.email);
-      await ownerPage.getByTestId('send-invite-button').click();
-      
-      await expect(ownerPage.getByTestId('invite-success-alert')).toBeVisible({ timeout: 15000 });
-      const invitationLinkText = await ownerPage.getByTestId('invitation-link-text').innerText();
+      const invitationLinkText = await invitePlayerByEmail(ownerPage, invitedUser.email);
       expect(invitationLinkText).toContain('/first-access');
 
       // Invited User Flow

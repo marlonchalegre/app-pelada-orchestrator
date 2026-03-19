@@ -4,7 +4,6 @@ import * as path from 'path';
 
 /**
  * Saves the video recorded for a page/context to a descriptive filename.
- * Should be called AFTER the context/page is closed to ensure the video file is flushed.
  */
 export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
   if (!process.env.VIDEO) return;
@@ -19,19 +18,15 @@ export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
       fs.mkdirSync(dir, { recursive: true });
     }
     
-    // saveAs is a promise that waits for the video to be saved.
-    // It works even if the context is already closed (and it SHOULD be closed).
     await video.saveAs(newPath);
 
-    // Playwright keeps the original video file even after saveAs.
-    // We try to delete the original one to avoid duplicates in the raw-videos folder.
     try {
       const originalPath = await video.path();
       if (originalPath && fs.existsSync(originalPath)) {
         fs.unlinkSync(originalPath);
       }
     } catch (unlinkErr) {
-      // Ignore errors deleting the original file
+      // Ignore errors
     }
   } catch (err) {
     console.error(`Failed to save video ${name}:`, err);
@@ -39,14 +34,57 @@ export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
 }
 
 /**
+ * Registers a new user.
+ */
+export async function registerUser(page: Page, user: { name: string, username: string, email: string, password: string, position?: string }) {
+  await page.goto('/register');
+  await page.getByTestId('register-name').fill(user.name);
+  await page.getByTestId('register-username').fill(user.username);
+  await page.getByTestId('register-email').fill(user.email);
+  await page.getByTestId('register-password').fill(user.password);
+  
+  if (user.position) {
+    const posSelect = page.getByRole('combobox').filter({ hasText: /Position|Posição/i }).or(page.getByTestId('register-position-select').getByRole('combobox'));
+    await posSelect.click();
+    await page.getByRole('option', { name: user.position }).click();
+  }
+  
+  await page.getByTestId('register-submit').click();
+  await expect(page).toHaveURL('/', { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
+}
+
+/**
+ * Creates a new organization.
+ */
+export async function createOrganization(page: Page, orgName: string) {
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.getByTestId('create-org-open-dialog').or(page.getByTestId('create-org-button')).or(page.getByRole('button', { name: /Criar Organização|Create Organization/i })).click();
+  
+  const orgInput = page.getByTestId('org-name-input').or(page.locator('input[name="name"]'));
+  await orgInput.fill(orgName);
+  
+  const submitBtn = page.getByTestId('org-submit-button').or(page.getByTestId('create-org-submit')).or(page.getByRole('button', { name: /Criar|Create/i }));
+  await submitBtn.click();
+  
+  await expect(page.getByTestId(`org-link-${orgName}`).or(page.getByText(orgName).first())).toBeVisible({ timeout: 15000 });
+  
+  const orgLink = page.getByTestId(`org-link-${orgName}`).or(page.getByText(orgName).first());
+  await orgLink.click();
+  
+  // Wait specifically for the URL to change to the organization page
+  await expect(page).toHaveURL(/\/organizations\/\d+/, { timeout: 15000 });
+  await page.waitForLoadState('networkidle');
+}
+
+/**
  * Helper to accept a pending invitation on the home page.
  */
 export async function acceptPendingInvitation(page: Page, orgName: string) {
-  // Give the backend a moment to process everything
   await page.waitForTimeout(2000);
   await page.goto('/');
   
-  // Wait and reload until the invitation card appears
   const inviteCard = page.getByTestId(`invitation-card-${orgName}`);
   
   await expect(async () => {
@@ -57,24 +95,66 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
     await expect(inviteCard).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 10000 });
   
-  // Click the accept button for THIS specific organization
   const acceptBtn = page.getByTestId(`accept-invitation-${orgName}`);
   await acceptBtn.click();
   
-  // After accepting, the frontend refreshes the list on the home page.
-  // We verify that the organization now appears in the Member Organizations list.
   await expect(async () => {
     const orgLink = page.getByTestId(`org-link-${orgName}`);
     if (!await orgLink.isVisible()) {
-      await page.goto('/'); // Hard navigate to home to refresh
+      await page.goto('/'); 
       await page.waitForLoadState('networkidle');
     }
     await expect(orgLink).toBeVisible({ timeout: 5000 });
   }).toPass({ timeout: 15000 });
   
-  // Click the link to proceed to the organization page
   await page.getByTestId(`org-link-${orgName}`).click();
-  await expect(page).toHaveURL(/\/organizations\/\d+/, { timeout: 10000 });
+}
+
+/**
+ * Navigates to organization management and invites a player by email.
+ * Returns the invitation link.
+ */
+export async function invitePlayerByEmail(page: Page, email: string): Promise<string> {
+  const mgmtBtn = page.getByTestId('org-management-button');
+  const mgmtLink = page.getByRole('link', { name: /MANAGEMENT|GERENCIAMENTO/i });
+  
+  // Try to find it, if not, reload and try again
+  if (!await mgmtBtn.isVisible() && !await mgmtLink.isVisible()) {
+    await page.waitForTimeout(3000);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+  }
+
+  const target = mgmtBtn.or(mgmtLink);
+  await expect(target).toBeVisible({ timeout: 15000 });
+  await target.click();
+  await page.getByTestId('members-invite-button').click();
+  
+  const emailInput = page.getByTestId('invite-email-input').or(page.locator('input[placeholder="Name / Email"]'));
+  await emailInput.fill(email);
+  
+  await page.getByTestId('send-invite-button').click();
+  await expect(page.getByTestId('invite-success-alert')).toBeVisible({ timeout: 15000 });
+  const link = await page.getByTestId('invitation-link-text').innerText();
+  await page.getByTestId('invite-dialog-close-button').click();
+  return link;
+}
+
+/**
+ * Navigates to organization management and adds a player by searching for them.
+ */
+export async function addPlayerBySearch(page: Page, query: string) {
+  const mgmtBtn = page.getByTestId('org-management-button').or(page.getByRole('link', { name: /MANAGEMENT|GERENCIAMENTO/i }));
+  await expect(mgmtBtn).toBeVisible({ timeout: 10000 });
+  await mgmtBtn.click();
+  await page.getByTestId('members-add-button').click();
+  
+  const searchInput = page.locator('input[placeholder="Name / Email"]');
+  await searchInput.fill(query);
+  
+  await page.waitForTimeout(1000); // Debounce
+  await page.getByRole('checkbox').first().click();
+  await page.getByRole('button', { name: /Add selected|Adicionar selecionados/i }).click();
 }
 
 
