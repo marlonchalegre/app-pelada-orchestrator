@@ -291,9 +291,19 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
 
-      // Verify Performance Highlights (Destaques) now visible in Performance tab
-      await ownerPage.getByRole('tab', { name: /Desempenho|Performance/i }).click();
+      // 1. Verify automatic tab switch to Performance (index 2)
+      // The Performance tab should have the aria-selected="true" attribute
+      const performanceTab = ownerPage.getByRole('tab', { name: /Desempenho|Performance/i });
+      await expect(performanceTab).toHaveAttribute('aria-selected', 'true');
+
+      // 2. Verify Performance Highlights (Destaques) now visible
       await expect(ownerPage.getByText(/Destaques|Highlights/i).first()).toBeVisible();
+
+      // 3. Verify Champion Highlight in Standings tab
+      await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
+      await expect(ownerPage.getByText(/Campeão|Champion/i)).toBeVisible();
+      // Should show one of the teams as champion
+      await expect(ownerPage.getByTestId('standings-table').or(ownerPage.locator('table'))).toBeVisible();
 
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
       await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
