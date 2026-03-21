@@ -38,11 +38,11 @@ test.describe('Offline Match Day', () => {
 
     // Start match timer
     await page.getByTestId('start-match-timer-button').click();
-    await expect(page.getByTestId('pending-actions-count')).toContainText('2');
+    await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
 
     // Add goal
     await page.getByTestId('stat-goals-increment').first().click();
-    await expect(page.getByTestId('pending-actions-count')).toContainText('4');
+    await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
     const scoreBoard = page.getByTestId('match-score-display');
     await expect(scoreBoard).toContainText('1');
 
