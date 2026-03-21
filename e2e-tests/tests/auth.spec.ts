@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { saveVideo } from './utils';
+import { saveVideo, registerUser } from './utils';
 
 test.describe('Auth & Profile', () => {
   const timestamp = Date.now();
@@ -17,24 +17,15 @@ test.describe('Auth & Profile', () => {
     const page = await context.newPage();
 
     await test.step('Registration', async () => {
-      await page.goto('/register');
-      await page.getByTestId('register-name').fill(user.name);
-      await page.getByTestId('register-username').fill(user.username);
-      await page.getByTestId('register-email').fill(user.email);
-      await page.getByTestId('register-password').fill(user.password);
-      await page.getByLabel('Position').click();
-      await page.getByRole('option', { name: user.position }).click();
-      await page.getByTestId('register-submit').click();
-      await expect(page).toHaveURL('/', { timeout: 10000 });
+      await registerUser(page, user);
     });
 
     await test.step('Update Profile', async () => {
       await page.getByTestId('user-settings-button').click();
       await page.getByTestId('profile-menu-item').click();
       await expect(page).toHaveURL('/profile');
-      
-      const updatedName = `${user.name} Updated`;
-      await page.getByTestId('profile-name').fill(updatedName);
+
+      await page.getByTestId('profile-name').fill(`${user.name} Updated`);
       await page.getByTestId('profile-save-button').click();
       await expect(page.getByText(/Profile updated successfully|Perfil atualizado com sucesso/i)).toBeVisible();
     });
