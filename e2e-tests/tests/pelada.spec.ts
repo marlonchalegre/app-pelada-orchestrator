@@ -4,6 +4,7 @@ import {
   registerAndCreateOrg,
   invitePlayerByEmail,
   setupInvitedPlayer,
+  loginUser,
   makeMensalista,
   createPelada,
   confirmAndCloseAttendance,
@@ -212,5 +213,86 @@ test.describe('Pelada Lifecycle', () => {
 
     await ownerContext.close();
     await saveVideo(ownerPage, 'full-pelada-lifecycle', testInfo);
+  });
+
+  test('should sort attendance by time (FIFO)', async ({ browser }) => {
+    const ts = Date.now() + 4;
+    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const zebraUser = { name: `Zebra ${ts}`, username: `zebra_${ts}`, email: `zebra-${ts}@example.com`, password: 'p', position: 'Striker' };
+    const albatrossUser = { name: `Albatross ${ts}`, username: `albatross_${ts}`, email: `albatross-${ts}@example.com`, password: 'p', position: 'Goalkeeper' };
+    const orgName = `FIFO Org ${ts}`;
+
+    const adminContext = await browser.newContext();
+    const zebraContext = await browser.newContext();
+    const albatrossContext = await browser.newContext();
+
+    const adminPage = await adminContext.newPage();
+    const zebraPage = await zebraContext.newPage();
+    const albatrossPage = await albatrossContext.newPage();
+
+    await registerAndCreateOrg(adminPage, adminUser, orgName);
+    const zInvite = await invitePlayerByEmail(adminPage, zebraUser.email);
+    const aInvite = await invitePlayerByEmail(adminPage, albatrossUser.email);
+
+    await setupInvitedPlayer(browser, zInvite, zebraUser, orgName);
+    await setupInvitedPlayer(browser, aInvite, albatrossUser, orgName);
+
+    // Create pelada
+    await adminPage.goto('/');
+    await adminPage.getByTestId(`org-link-${orgName}`).click();
+    await createPelada(adminPage);
+    const peladaUrl = adminPage.url();
+
+    // 1. Admin confirms (first)
+    await adminPage.getByTestId('attendance-confirm-button').click();
+
+    // 2. Zebra confirms (second)
+    await loginUser(zebraPage, zebraUser);
+    await zebraPage.goto(peladaUrl);
+    await expect(zebraPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
+    await zebraPage.getByTestId('attendance-confirm-button').click();
+
+    // 3. Albatross confirms (third)
+    await loginUser(albatrossPage, albatrossUser);
+    await albatrossPage.goto(peladaUrl);
+    await expect(albatrossPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
+    await albatrossPage.getByTestId('attendance-confirm-button').click();
+
+    // Verify order on admin page (Waitlist tab since diaristas go there by default)
+    await adminPage.reload();
+    await expect(adminPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
+    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
+
+    const names = adminPage.getByTestId('attendance-card-name');
+    await expect(names).toHaveCount(3, { timeout: 15000 });
+    await expect(names.nth(0)).toHaveText(adminUser.name);
+    await expect(names.nth(1)).toHaveText(zebraUser.name);
+    await expect(names.nth(2)).toHaveText(albatrossUser.name);
+
+    // Move them all to Confirmed to check sorting there
+    await adminPage.getByTestId(`attendance-card-${adminUser.username}`).getByTestId('attendance-card-confirm').click();
+    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
+    await adminPage.getByTestId(`attendance-card-${albatrossUser.username}`).getByTestId('attendance-card-confirm').click();
+
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(names).toHaveCount(3, { timeout: 15000 });
+    await expect(names.nth(0)).toHaveText(adminUser.name);
+    await expect(names.nth(1)).toHaveText(zebraUser.name);
+    await expect(names.nth(2)).toHaveText(albatrossUser.name);
+
+    // Move Zebra to waitlist and back to confirmed - should now be last
+    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-waitlist').click();
+    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
+    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
+
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(names).toHaveCount(3, { timeout: 15000 });
+    await expect(names.nth(0)).toHaveText(adminUser.name);
+    await expect(names.nth(1)).toHaveText(albatrossUser.name);
+    await expect(names.nth(2)).toHaveText(zebraUser.name);
+
+    await adminContext.close();
+    await zebraContext.close();
+    await albatrossContext.close();
   });
 });

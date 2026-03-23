@@ -140,4 +140,48 @@ test.describe('New Features and UI Improvements', () => {
     await adminContext.close();
     await diaristaContext.close();
   });
+
+  test('should allow admin to move confirmed player to waitlist', async ({ browser }) => {
+    const ts = Date.now() + 3;
+    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const playerUser = { name: `Player ${ts}`, username: `player_${ts}`, email: `player-${ts}@example.com`, password: 'p' };
+    const orgName = `Admin Tools Org ${ts}`;
+
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+
+    await registerAndCreateOrg(adminPage, adminUser, orgName);
+
+    // Invite and setup player
+    const inviteLink = await invitePlayerByEmail(adminPage, playerUser.email);
+    await setupInvitedPlayer(browser, inviteLink, playerUser, orgName);
+
+    // Create pelada
+    await adminPage.goto('/');
+    await adminPage.getByTestId(`org-link-${orgName}`).click();
+    await createPelada(adminPage);
+
+    // Player should be in pending, confirm them as admin
+    await adminPage.getByRole('tab', { name: /Pendente|Pending/i }).click();
+    const playerCard = adminPage.getByTestId(`attendance-card-${playerUser.username}`);
+    await playerCard.getByTestId('attendance-card-confirm').click();
+
+    // Verify in confirmed
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+
+    // Move to waitlist
+    await adminPage.getByTestId('attendance-card-waitlist').click();
+
+    // Verify in waitlist tab
+    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
+    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+
+    // Move back to confirmed
+    await adminPage.getByTestId('attendance-card-confirm').click();
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+
+    await adminContext.close();
+  });
 });

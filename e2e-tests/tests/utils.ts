@@ -40,6 +40,15 @@ export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
 
 // ─── Auth & Registration ─────────────────────────────────────────────────────
 
+export async function loginUser(page: Page, user: UserData) {
+  await page.goto('/login');
+  await page.getByTestId('login-email').fill(user.username);
+  await page.getByTestId('login-password').fill(user.password);
+  await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL('/', { timeout: 10000 });
+  await page.waitForLoadState('networkidle');
+}
+
 export async function registerUser(page: Page, user: UserData) {
   await page.goto('/register');
   await page.getByTestId('register-name').fill(user.name);
