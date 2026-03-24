@@ -149,9 +149,25 @@ pull_images() {
     fi
 }
 
+WAHA_RECREATED=false
+
 replace_containers() {
     log "Replacing containers with version $TAG..."
-    TAG=$TAG docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up -d --force-recreate
+    
+    # Get current waha container ID to check if it changes
+    OLD_WAHA_ID=$(docker compose -f "$COMPOSE_FILE" ps -q waha || true)
+    
+    # Removed --force-recreate to avoid unnecessary restarts
+    # This will only recreate containers whose configuration or image has changed
+    TAG=$TAG docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up -d
+    
+    # Get new waha container ID
+    NEW_WAHA_ID=$(docker compose -f "$COMPOSE_FILE" ps -q waha || true)
+    
+    if [ "$OLD_WAHA_ID" != "$NEW_WAHA_ID" ]; then
+        WAHA_RECREATED=true
+        log "Waha container was recreated/restarted."
+    fi
 }
 
 perform_health_check() {
@@ -208,6 +224,12 @@ main() {
     migrate_turso
     
     if pull_images && replace_containers && perform_health_check; then
+        if [ "$WAHA_RECREATED" = true ]; then
+            log "Waha was recreated, waiting for it to be ready and resuming sessions..."
+            # Wait for waha to initialize (GOWS engine can take a few seconds)
+            sleep 15
+            WAHA_API_URL="http://localhost:3000" WAHA_API_KEY=$WAHA_API_KEY python3 scripts/waha_manager.py resume || log "Warning: Failed to resume waha sessions"
+        fi
         save_success_state
         log "Deployment successful!"
         cleanup_old_system
