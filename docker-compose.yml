@@ -24,6 +24,11 @@ services:
       - LANG=en_US.UTF-8
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY:-dev-secret-key-change-me-in-prod}
       - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev

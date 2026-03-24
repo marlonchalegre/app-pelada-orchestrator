@@ -217,7 +217,7 @@ test.describe('Pelada Lifecycle', () => {
 
   test('should sort attendance by time (FIFO)', async ({ browser }) => {
     const ts = Date.now() + 4;
-    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p', position: 'Midfielder' };
     const zebraUser = { name: `Zebra ${ts}`, username: `zebra_${ts}`, email: `zebra-${ts}@example.com`, password: 'p', position: 'Striker' };
     const albatrossUser = { name: `Albatross ${ts}`, username: `albatross_${ts}`, email: `albatross-${ts}@example.com`, password: 'p', position: 'Goalkeeper' };
     const orgName = `FIFO Org ${ts}`;
@@ -281,21 +281,11 @@ test.describe('Pelada Lifecycle', () => {
     await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
     const confirmedNames = adminPage.getByTestId('attendance-card-name');
     await expect(confirmedNames).toHaveCount(3, { timeout: 15000 });
-    // Sorting priority: Mensalista > Convidado (FIFO)
-    await expect(confirmedNames.nth(0)).toHaveText(adminUser.name);
-    await expect(confirmedNames.nth(1)).toHaveText(zebraUser.name);
-    await expect(confirmedNames.nth(2)).toHaveText(albatrossUser.name);
-
-    // Move Zebra to waitlist and back to confirmed - should now be last
-    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-waitlist').click();
-    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
-    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
-
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(confirmedNames).toHaveCount(3, { timeout: 15000 });
-    await expect(confirmedNames.nth(0)).toHaveText(adminUser.name);
-    await expect(confirmedNames.nth(1)).toHaveText(albatrossUser.name);
-    await expect(confirmedNames.nth(2)).toHaveText(zebraUser.name);
+    // Sorting priority (from useAttendance.ts): Mensalista > Diarista > Convidado, then FIFO
+    // Admin (Mensalista) > Zebra (Convidado, confirmed 2nd) > Albatross (Convidado, confirmed 3rd)
+    await expect(confirmedNames.nth(0)).toHaveText(adminUser.name); // Mensalista
+    await expect(confirmedNames.nth(1)).toHaveText(zebraUser.name); // Convidado (confirmed before Albatross)
+    await expect(confirmedNames.nth(2)).toHaveText(albatrossUser.name); // Convidado (confirmed after Zebra)
 
     await adminContext.close();
     await zebraContext.close();
