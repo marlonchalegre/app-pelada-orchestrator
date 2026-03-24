@@ -258,27 +258,33 @@ test.describe('Pelada Lifecycle', () => {
     await expect(albatrossPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
     await albatrossPage.getByTestId('attendance-confirm-button').click();
 
-    // Verify order on admin page (Waitlist tab since diaristas go there by default)
+    // Verify order on admin page (Waitlist tab since convidados go there by default)
     await adminPage.reload();
     await expect(adminPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
-    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
 
-    const names = adminPage.getByTestId('attendance-card-name');
-    await expect(names).toHaveCount(3, { timeout: 15000 });
-    await expect(names.nth(0)).toHaveText(adminUser.name);
-    await expect(names.nth(1)).toHaveText(zebraUser.name);
-    await expect(names.nth(2)).toHaveText(albatrossUser.name);
+    // Admin (mensalista) should be in Confirmed tab
+    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
+    await expect(adminPage.getByTestId('attendance-card-name')).toHaveCount(1);
+    await expect(adminPage.getByTestId('attendance-card-name')).toHaveText(adminUser.name);
+
+    // Zebra and Albatross (convidados) should be in Waitlist tab
+    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
+    const waitlistNames = adminPage.getByTestId('attendance-card-name');
+    await expect(waitlistNames).toHaveCount(2, { timeout: 15000 });
+    await expect(waitlistNames.nth(0)).toHaveText(zebraUser.name);
+    await expect(waitlistNames.nth(1)).toHaveText(albatrossUser.name);
 
     // Move them all to Confirmed to check sorting there
-    await adminPage.getByTestId(`attendance-card-${adminUser.username}`).getByTestId('attendance-card-confirm').click();
     await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
     await adminPage.getByTestId(`attendance-card-${albatrossUser.username}`).getByTestId('attendance-card-confirm').click();
 
     await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(names).toHaveCount(3, { timeout: 15000 });
-    await expect(names.nth(0)).toHaveText(adminUser.name);
-    await expect(names.nth(1)).toHaveText(zebraUser.name);
-    await expect(names.nth(2)).toHaveText(albatrossUser.name);
+    const confirmedNames = adminPage.getByTestId('attendance-card-name');
+    await expect(confirmedNames).toHaveCount(3, { timeout: 15000 });
+    // Sorting priority: Mensalista > Convidado (FIFO)
+    await expect(confirmedNames.nth(0)).toHaveText(adminUser.name);
+    await expect(confirmedNames.nth(1)).toHaveText(zebraUser.name);
+    await expect(confirmedNames.nth(2)).toHaveText(albatrossUser.name);
 
     // Move Zebra to waitlist and back to confirmed - should now be last
     await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-waitlist').click();
@@ -286,10 +292,10 @@ test.describe('Pelada Lifecycle', () => {
     await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
 
     await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(names).toHaveCount(3, { timeout: 15000 });
-    await expect(names.nth(0)).toHaveText(adminUser.name);
-    await expect(names.nth(1)).toHaveText(albatrossUser.name);
-    await expect(names.nth(2)).toHaveText(zebraUser.name);
+    await expect(confirmedNames).toHaveCount(3, { timeout: 15000 });
+    await expect(confirmedNames.nth(0)).toHaveText(adminUser.name);
+    await expect(confirmedNames.nth(1)).toHaveText(albatrossUser.name);
+    await expect(confirmedNames.nth(2)).toHaveText(zebraUser.name);
 
     await adminContext.close();
     await zebraContext.close();
