@@ -44,4 +44,9 @@ e2e-tests/test-results/
 # Local Documentation
 local-docs/
 peladaapp.db*
+*.db
+*.db-wal
+*.db-shm
+*.wal
+*.shm
 waha_data/
