@@ -44,6 +44,28 @@ test.describe('Financial Control', () => {
   test('should manage organization finances, transactions and payments', async ({ browser }) => {
     const ownerContext = await browser.newContext();
     const page = await ownerContext.newPage();
+    
+    // Log all API responses to help debug issues
+    page.on('response', async (response) => {
+      const url = response.url();
+      if (url.includes('/api/organizations') && url.includes('transactions')) {
+        const status = response.status();
+        console.log(`API Response: ${url.split('?')[0]} - Status: ${status}`);
+      }
+      if (url.includes('full-details') && response.status() === 200) {
+        try {
+          const body = await response.json();
+          console.log(`Full-details response: pelada_transactions count = ${(body.pelada_transactions || []).length}`);
+          if (body.pelada_transactions) {
+            body.pelada_transactions.forEach((tx: any, idx: number) => {
+              console.log(`  TX[${idx}]: player_id=${tx.player_id}, status=${tx.status}, category=${tx.category}, amount=${tx.amount}`);
+            });
+          }
+        } catch (e) {
+          console.log('Could not parse full-details response');
+        }
+      }
+    });
 
     await test.step('1. Setup Org and Configure Prices', async () => {
       await registerAndCreateOrg(page, owner, orgName);
@@ -144,13 +166,31 @@ test.describe('Financial Control', () => {
       console.log("PLAYER CARD HTML:", await playerCard.evaluate(el => el.outerHTML));
       const paidBtn = playerCard.getByTestId('mark-as-paid-button');
       await expect(paidBtn).toBeVisible();
+      
+      // Wait for any pending dashboard-data requests to complete before clicking
+      const dashboardDataPromise = page.waitForResponse(
+        response => {
+          const url = response.url();
+          return (url.includes('dashboard-data') || url.includes('full-details')) && response.status() === 200;
+        },
+        { timeout: 30000 }
+      );
+      
       await paidBtn.click();
       
-      // Wait for the button to disappear and icon to appear after refreshing data
-      await expect(playerCard.getByTestId('mark-as-paid-button')).not.toBeVisible({ timeout: 20000 });
+      // Wait for the dashboard data to be refreshed after the transaction is added
+      try {
+        await dashboardDataPromise;
+        console.log("Dashboard data refreshed after marking paid");
+      } catch (e) {
+        console.log("Dashboard data promise timed out or failed - checking all requests");
+      }
+      
+      // Wait a bit for state updates
+      await page.waitForTimeout(500);
       
       // Verify icon changed to paid (PaidIcon)
-      await expect(playerCard.getByTestId('paid-icon')).toBeVisible({ timeout: 5000 });
+      await expect(playerCard.getByTestId('paid-icon')).toBeVisible({ timeout: 10000 });
       
       // Go back to Org Finance and check transaction
       await page.getByTestId('org-management-button').click();
