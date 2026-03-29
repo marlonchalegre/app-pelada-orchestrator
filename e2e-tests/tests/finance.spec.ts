@@ -44,6 +44,7 @@ test.describe('Financial Control', () => {
   test('should manage organization finances, transactions and payments', async ({ browser }) => {
     const ownerContext = await browser.newContext();
     const page = await ownerContext.newPage();
+    let peladaId: number;
 
     await test.step('1. Setup Org and Configure Prices', async () => {
       await registerAndCreateOrg(page, owner, orgName);
@@ -107,7 +108,7 @@ test.describe('Financial Control', () => {
       
       await page.goto('/');
       await page.getByTestId(`org-link-${orgName}`).click();
-      const peladaId = await createPelada(page);
+      peladaId = await createPelada(page);
       
       // Attendance page
       const confirmBtn = page.getByTestId('attendance-confirm-button');
@@ -212,6 +213,47 @@ test.describe('Financial Control', () => {
       
       // Verify balance back to 175
       await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '175');
+    });
+
+    await test.step('6. Diarista Fee Reversal Flow', async () => {
+      // Must be diarista to see the payment icons
+      await makeDiarista(page, orgName, owner.name);
+
+      // Go directly to pelada attendance
+      await page.goto(`/peladas/${peladaId}/attendance`);
+
+      // Check if players are visible, try Waitlist tab if not found in first tab
+      let playerCard = page.getByTestId(`attendance-card-${owner.username}`);
+      if (!await playerCard.isVisible()) {
+        await page.getByRole('tab', { name: /Waitlist|Lista de Espera/i }).click();
+        await page.waitForTimeout(1000);
+      }
+
+      await expect(playerCard).toBeVisible();
+      
+      // Should have paid icon
+      await expect(playerCard.getByTestId('paid-icon')).toBeVisible();
+      
+      // Click reverse button
+      await playerCard.getByTestId('reverse-payment-button').click();
+      
+      // Wait for confirmation dialog
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      
+      // Confirm reversal
+      await dialog.getByRole('button', { name: /estornar|reverse/i }).click();
+      
+      // Verify icon changed back to "mark as paid" ($ icon)
+      await expect(playerCard.getByTestId('mark-as-paid-button')).toBeVisible();
+      
+      // Go back to Org Finance and check balance
+      await navigateToOrgManagement(page, orgName);
+      await page.getByTestId('mgmt-tab-finance').click();
+      
+      // Balance was 175 (after monthly reversal) -> should stay 150 (if we reverse the 25 diarista fee)
+      // Actually after step 5 it was 175. If we reverse diarista (25), it should be 150.
+      await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '150');
     });
 
     await ownerContext.close();
