@@ -191,6 +191,29 @@ test.describe('Financial Control', () => {
       await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '275');
     });
 
+    await test.step('5. Mensalista Monthly Fee Reversal', async () => {
+      await page.getByTestId('finance-tab-monthly').click();
+      
+      const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+      await expect(playerRow.getByTestId('status-paid')).toBeVisible();
+      
+      // Click reverse button
+      await playerRow.getByTestId('mark-payment-button').click();
+      
+      // Wait for confirmation dialog
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      
+      // Confirm reversal - use button inside dialog
+      await dialog.getByRole('button', { name: /estornar|reverse/i }).click();
+      
+      // Verify status change back to pending
+      await expect(playerRow.getByTestId('status-pending')).toBeVisible();
+      
+      // Verify balance back to 175
+      await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '175');
+    });
+
     await ownerContext.close();
   });
 });
