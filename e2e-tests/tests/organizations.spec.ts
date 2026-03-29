@@ -144,6 +144,9 @@ test.describe('Organization Management', () => {
       await expect(ownerPage.getByText(/tem certeza|are you sure/i)).toBeVisible();
       await ownerPage.getByRole('button', { name: /redefinir|reset/i }).click();
 
+      // Wait for the text to change from the old value
+      await expect(ownerPage.getByTestId('public-invite-link-text')).not.toHaveText(publicLinkText, { timeout: 10000 });
+
       const newPublicLinkText = await ownerPage.getByTestId('public-invite-link-text').innerText();
       expect(newPublicLinkText).toContain('/join/');
       expect(newPublicLinkText).not.toBe(publicLinkText);

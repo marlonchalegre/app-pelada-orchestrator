@@ -44,28 +44,6 @@ test.describe('Financial Control', () => {
   test('should manage organization finances, transactions and payments', async ({ browser }) => {
     const ownerContext = await browser.newContext();
     const page = await ownerContext.newPage();
-    
-    // Log all API responses to help debug issues
-    page.on('response', async (response) => {
-      const url = response.url();
-      if (url.includes('/api/organizations') && url.includes('transactions')) {
-        const status = response.status();
-        console.log(`API Response: ${url.split('?')[0]} - Status: ${status}`);
-      }
-      if (url.includes('full-details') && response.status() === 200) {
-        try {
-          const body = await response.json();
-          console.log(`Full-details response: pelada_transactions count = ${(body.pelada_transactions || []).length}`);
-          if (body.pelada_transactions) {
-            body.pelada_transactions.forEach((tx: any, idx: number) => {
-              console.log(`  TX[${idx}]: player_id=${tx.player_id}, status=${tx.status}, category=${tx.category}, amount=${tx.amount}`);
-            });
-          }
-        } catch (e) {
-          console.log('Could not parse full-details response');
-        }
-      }
-    });
 
     await test.step('1. Setup Org and Configure Prices', async () => {
       await registerAndCreateOrg(page, owner, orgName);
@@ -131,8 +109,6 @@ test.describe('Financial Control', () => {
       await page.getByTestId(`org-link-${orgName}`).click();
       const peladaId = await createPelada(page);
       
-      console.log("ON ATTENDANCE PAGE:", page.url());
-      
       // Attendance page
       const confirmBtn = page.getByTestId('attendance-confirm-button');
       await expect(confirmBtn).toBeVisible();
@@ -141,29 +117,17 @@ test.describe('Financial Control', () => {
       // Wait for the card to move to confirmed tab
       await page.waitForTimeout(3000);
       
-      // Log tabs to see where we are
-      const tabs = await page.getByRole('tab').allInnerTexts();
-      console.log("TABS:", tabs);
-      
-      // Log all player names visible on page to see where they are
+      // Check if players are visible, try Waitlist tab if Confirmed is empty
       let allPlayerNames = await page.locator('[data-testid^="attendance-card-"]').all();
       if (allPlayerNames.length === 0) {
-        // Try Waitlist tab
-        console.log("NO PLAYERS IN CONFIRMED, TRYING WAITLIST");
         await page.getByRole('tab', { name: /Waitlist|Lista de Espera/i }).click();
         await page.waitForTimeout(1000);
         allPlayerNames = await page.locator('[data-testid^="attendance-card-"]').all();
       }
       
-      console.log("VISIBLE PLAYERS COUNT:", allPlayerNames.length);
-      for (const p of allPlayerNames) {
-        console.log("PLAYER:", await p.innerText());
-      }
-      
       // Mark as paid in attendance list
       const playerCard = page.getByTestId(`attendance-card-${owner.username}`);
       await expect(playerCard).toBeVisible({ timeout: 15000 });
-      console.log("PLAYER CARD HTML:", await playerCard.evaluate(el => el.outerHTML));
       const paidBtn = playerCard.getByTestId('mark-as-paid-button');
       await expect(paidBtn).toBeVisible();
       
@@ -181,9 +145,8 @@ test.describe('Financial Control', () => {
       // Wait for the dashboard data to be refreshed after the transaction is added
       try {
         await dashboardDataPromise;
-        console.log("Dashboard data refreshed after marking paid");
       } catch (e) {
-        console.log("Dashboard data promise timed out or failed - checking all requests");
+        // Silently continue if promise fails
       }
       
       // Wait a bit for state updates
@@ -193,7 +156,7 @@ test.describe('Financial Control', () => {
       await expect(playerCard.getByTestId('paid-icon')).toBeVisible({ timeout: 10000 });
       
       // Go back to Org Finance and check transaction
-      await page.getByTestId('org-management-button').click();
+      await navigateToOrgManagement(page, orgName);
       await page.getByTestId('mgmt-tab-finance').click();
       await page.getByTestId('finance-tab-transactions').click();
       

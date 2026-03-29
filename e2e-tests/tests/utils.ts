@@ -206,8 +206,22 @@ export async function createPlayerViaApi(api: ApiContext, orgId: string, name: s
 // ─── Membership ──────────────────────────────────────────────────────────────
 
 export async function makeMensalista(page: Page, playerName: string) {
-  await page.getByTestId('org-management-button').click();
+  const mgmtBtn = page.getByTestId('org-management-button');
+  const mgmtContainer = page.getByTestId('org-mgmt-container');
+  
+  if (!await mgmtContainer.isVisible()) {
+    await mgmtBtn.click();
+    await expect(page.getByTestId('org-mgmt-container')).toBeVisible({ timeout: 10000 });
+  }
+  
+  // Make sure we are on the members tab (default)
+  const membersTab = page.getByTestId('mgmt-tab-members');
+  if (await membersTab.isVisible()) {
+    await membersTab.click();
+  }
+
   const memberRow = page.locator('li').filter({ hasText: playerName });
+  await expect(memberRow).toBeVisible({ timeout: 10000 });
   await memberRow.getByRole('combobox').click();
   await page.getByRole('option', { name: 'Mensalista' }).click();
 }

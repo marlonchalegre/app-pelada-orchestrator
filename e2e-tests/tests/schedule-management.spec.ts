@@ -35,7 +35,7 @@ test.describe('Schedule Management', () => {
 
       // Change matches per team
       await ownerPage.getByTestId('matches-per-team-select').click();
-      await ownerPage.getByRole('option', { name: '3' }).click();
+      await ownerPage.getByRole('option', { name: /^3/ }).click();
       await expect(ownerPage.getByRole('row')).toHaveCount(4); // Header + 3
 
       // Add manual match
