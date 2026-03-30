@@ -52,8 +52,6 @@ services:
       - WAHA_AUTO_START_DELAY_SECONDS=5
       - WAHA_LOCAL_STORE_BASE_DIR=/app/.waha/sessions
       - WAHA_SQLITE_ENGINE=sqlite3
-    ports:
-      - 3000:3000
     volumes:
       - ./waha_data:/app/.waha/sessions
 

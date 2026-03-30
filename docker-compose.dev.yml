@@ -41,8 +41,6 @@ services:
       - WHATSAPP_API_BASE_URL=http://localhost:3000/waha/
       - WAHA_DASHBOARD_ENABLED=false
       - WAHA_SWAGGER_ENABLED=true
-    ports:
-      - 3000:3000
 
   nginx:
     image: nginx:latest
