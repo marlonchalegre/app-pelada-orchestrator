@@ -60,6 +60,7 @@ This document outlines the principles and practices to be followed by an AI assi
     *   **Simplicity:** Prefer simple, elegant solutions over overly complex ones.
     *   **Documentation:** Add comments sparingly, focusing on *why* complex decisions were made, not *what* the code does (which should be self-evident). Update `README.md` and other documentation as necessary.
 *   **Version Control (Git):**
+    *   **Authorization:** NEVER push code to remote repositories without explicit authorization from the user.
     *   **Atomic Commits:** Make small, focused commits that represent a single logical change.
     *   **Descriptive Commit Messages:** Write clear, concise, and informative commit messages.
     *   **Branching Strategy:** Follow the project's branching strategy (e.g., Git Flow, Trunk-Based Development).
