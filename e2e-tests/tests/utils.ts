@@ -289,16 +289,30 @@ export async function confirmAndCloseAttendanceViaApi(
 export async function setupTeams(page: Page, options: { count?: number; playersPerTeam?: number; randomize?: boolean } = {}) {
   const { count = 2, playersPerTeam, randomize = false } = options;
 
+  // Use the placeholder button to create teams
   for (let i = 0; i < count; i++) {
-    await page.getByTestId('create-team-button').click();
+    await page.getByText(/Adicionar Time|Add Team/i).first().click();
     await page.waitForTimeout(300);
   }
 
   if (playersPerTeam) {
-    const input = page.getByTestId('players-per-team-input').locator('input');
-    await input.click();
-    await input.fill(String(playersPerTeam));
-    await page.keyboard.press('Enter');
+    const perTeamValueLoc = page.locator('text=/PER TEAM|POR TIME/i').locator('xpath=..').locator('h6');
+    let currentValueStr = await perTeamValueLoc.innerText();
+    let currentValue = parseInt(currentValueStr, 10);
+
+    const incrementBtn = page.getByTestId('players-per-team-increment');
+    const decrementBtn = page.getByTestId('players-per-team-decrement');
+
+    while (currentValue < playersPerTeam) {
+      await incrementBtn.click();
+      await page.waitForTimeout(200);
+      currentValue++;
+    }
+    while (currentValue > playersPerTeam) {
+      await decrementBtn.click();
+      await page.waitForTimeout(200);
+      currentValue--;
+    }
   }
 
   if (randomize) {
