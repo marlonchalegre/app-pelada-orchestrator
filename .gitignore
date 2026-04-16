@@ -50,3 +50,4 @@ peladaapp.db*
 *.wal
 *.shm
 waha_data/
+\n# User Uploads\napi-peladaapp/uploads/\nuploads/
