@@ -30,6 +30,7 @@ services:
       - 8000:8000
     volumes:
       - ./api-peladaapp:/app
+      - ./uploads:/app/uploads
 
   waha:
     image: ${WAHA_IMAGE:-devlikeapro/waha:arm}

@@ -31,6 +31,7 @@ services:
       - LITESTREAM_ENDPOINT=${LITESTREAM_ENDPOINT}
     volumes:
       - ./data:/app/data
+      - ./uploads:/app/uploads
       - ./api-peladaapp/litestream.yml:/etc/litestream.yml:ro
     depends_on:
       - waha
