@@ -37,6 +37,9 @@ test.describe('WAHA Integration', () => {
     // Enable notifications
     await page.getByLabel(/(Notify when pelada starts|Notificar quando a pelada iniciar)/i).click();
     await page.getByLabel(/(Notify when pelada ends|Notificar quando a pelada encerrar)/i).click();
+    
+    // Disable @all fallback mention
+    await page.locator('input[name="waha_use_all_mention_fallback"]').click();
 
     // Save
     await page.getByTestId('waha-save-button').click();
@@ -52,6 +55,7 @@ test.describe('WAHA Integration', () => {
     await expect(page.locator('input[name="waha_group_id"]')).toHaveValue('123456789@g.us');
     await expect(page.locator('input[name="waha_start_msg_enabled"]')).toBeChecked();
     await expect(page.locator('input[name="waha_end_msg_enabled"]')).toBeChecked();
+    await expect(page.locator('input[name="waha_use_all_mention_fallback"]')).not.toBeChecked();
 
     await saveVideo(page, 'waha-configuration', testInfo);
   });
