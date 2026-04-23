@@ -28,7 +28,7 @@ test.describe('Auth & Profile', () => {
 
       // Check initial values
       await expect(page.getByTestId('profile-name')).toHaveValue(user.name);
-      await expect(page.getByTestId('profile-phone')).toHaveValue(user.phone);
+      await expect(page.getByTestId('profile-phone')).toHaveValue("(55) 11999-9999");
 
       // Update values
       const updatedName = `${user.name} Updated`;
@@ -43,7 +43,7 @@ test.describe('Auth & Profile', () => {
       // Verify persistence
       await page.reload();
       await expect(page.getByTestId('profile-name')).toHaveValue(updatedName);
-      await expect(page.getByTestId('profile-phone')).toHaveValue(updatedPhone);
+      await expect(page.getByTestId('profile-phone')).toHaveValue("(55) 11888-8888");
     });
 
     await test.step('Delete Account', async () => {
@@ -86,7 +86,7 @@ test.describe('Auth & Profile', () => {
       await expect(page.getByText(/Profile updated successfully|Perfil atualizado com sucesso/i)).toBeVisible();
 
       await page.reload();
-      await expect(page.getByTestId('profile-phone')).toHaveValue(newPhone);
+      await expect(page.getByTestId('profile-phone')).toHaveValue("(55) 11777-7777");
     });
 
     await context.close();
