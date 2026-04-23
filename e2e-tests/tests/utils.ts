@@ -10,6 +10,7 @@ export interface UserData {
   email: string;
   password: string;
   position?: string;
+  phone?: string;
 }
 
 export interface ApiContext {
@@ -53,8 +54,13 @@ export async function registerUser(page: Page, user: UserData) {
   await page.goto('/register');
   await page.getByTestId('register-name').fill(user.name);
   await page.getByTestId('register-username').fill(user.username);
-  await page.getByTestId('register-email').fill(user.email);
-  await page.getByTestId('register-password').fill(user.password);
+  await page.getByTestId("register-email").fill(user.email);
+
+  if (user.phone) {
+    await page.getByTestId("register-phone").fill(user.phone);
+  }
+
+  await page.getByTestId("register-password").fill(user.password);
 
   if (user.position) {
     await page.getByLabel('Position').or(page.getByLabel('Posição')).click();

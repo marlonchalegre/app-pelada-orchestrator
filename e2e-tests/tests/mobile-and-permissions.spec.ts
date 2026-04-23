@@ -50,6 +50,7 @@ test.describe('Mobile UX and Permissions', () => {
     await playerPage.getByTestId('first-access-password').fill(player.password);
     await playerPage.getByTestId('first-access-submit').click();
     await expect(playerPage).toHaveURL('/', { timeout: 15000 });
+
     await acceptPendingInvitation(playerPage, orgName);
 
     // Create pelada
