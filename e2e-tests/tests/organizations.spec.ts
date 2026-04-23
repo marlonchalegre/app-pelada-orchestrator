@@ -54,7 +54,7 @@ test.describe('Organization Management', () => {
       await invitedPage.getByRole('option', { name: invitedUser.position }).click();
       await invitedPage.getByTestId('first-access-submit').click();
 
-      await expect(invitedPage).toHaveURL('/');
+      await expect(invitedPage).toHaveURL('/home');
       await acceptPendingInvitation(invitedPage, orgName);
 
       await invitedContext.close();
@@ -121,7 +121,7 @@ test.describe('Organization Management', () => {
       // Leave Organization
       await joinerPage.getByTestId('leave-org-button').click();
       await joinerPage.getByTestId('confirm-leave-org-button').click();
-      await expect(joinerPage).toHaveURL('/', { timeout: 10000 });
+      await expect(joinerPage).toHaveURL('/home', { timeout: 10000 });
       await expect(joinerPage.getByTestId(`org-link-${orgName}`)).not.toBeVisible();
 
       await joinerContext.close();
@@ -169,7 +169,7 @@ test.describe('Organization Management', () => {
       await ownerPage.getByTestId('delete-org-button').click();
       await ownerPage.getByTestId('confirm-org-name-input').fill(orgName);
       await ownerPage.getByTestId('confirm-delete-org-button').click();
-      await expect(ownerPage).toHaveURL('/', { timeout: 10000 });
+      await expect(ownerPage).toHaveURL('/home', { timeout: 10000 });
       await expect(ownerPage.getByTestId(`org-link-${orgName}`)).not.toBeVisible();
     });
 

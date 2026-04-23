@@ -46,7 +46,7 @@ export async function loginUser(page: Page, user: UserData) {
   await page.getByTestId('login-email').fill(user.username);
   await page.getByTestId('login-password').fill(user.password);
   await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL('/', { timeout: 10000 });
+  await expect(page).toHaveURL('/home', { timeout: 10000 });
   await page.waitForLoadState('networkidle');
 }
 
@@ -68,7 +68,7 @@ export async function registerUser(page: Page, user: UserData) {
   }
 
   await page.getByTestId('register-submit').click();
-  await expect(page).toHaveURL('/', { timeout: 10000 });
+  await expect(page).toHaveURL('/home', { timeout: 10000 });
   await page.waitForLoadState('networkidle');
 }
 
@@ -84,7 +84,7 @@ export async function getApiContext(page: Page, request: APIRequestContext): Pro
 // ─── Organization ────────────────────────────────────────────────────────────
 
 export async function createOrganization(page: Page, orgName: string) {
-  await page.goto('/');
+  await page.goto('/home');
   await page.waitForLoadState('networkidle');
   await page.getByTestId('create-org-open-dialog').or(page.getByTestId('create-org-button')).click();
   await page.getByTestId('org-name-input').fill(orgName);
@@ -159,13 +159,13 @@ export async function setupInvitedPlayer(
     await page.getByRole('option', { name: player.position }).click();
   }
   await page.getByTestId('first-access-submit').click();
-  await expect(page).toHaveURL('/', { timeout: 15000 });
+  await expect(page).toHaveURL('/home', { timeout: 15000 });
   await acceptPendingInvitation(page, orgName);
   await ctx.close();
 }
 
 export async function acceptPendingInvitation(page: Page, orgName: string) {
-  await page.goto('/');
+  await page.goto('/home');
   await page.waitForLoadState('networkidle');
 
   const inviteCard = page.getByTestId(`invitation-card-${orgName}`);
@@ -183,7 +183,7 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
   await expect(async () => {
     const orgLink = page.getByTestId(`org-link-${orgName}`);
     if (!await orgLink.isVisible()) {
-      await page.goto('/');
+      await page.goto('/home');
       await page.waitForLoadState('networkidle');
     }
     await expect(orgLink).toBeVisible({ timeout: 5000 });
@@ -355,7 +355,7 @@ export async function setupOrgAndPelada(page: Page, user: UserData, orgName: str
   const orgUrl = page.url();
 
   // Navigate to org detail to create pelada
-  await page.goto('/');
+  await page.goto('/home');
   await page.getByTestId(`org-link-${orgName}`).click();
   await page.waitForURL(/\/organizations\/\d+/, { timeout: 15000 });
 
@@ -376,7 +376,7 @@ export async function setupMatchDay(
   const p2Invite = await invitePlayerByEmail(page, player2.email);
   await setupInvitedPlayer(browser, p2Invite, player2, orgName);
 
-  await page.goto('/');
+  await page.goto('/home');
   await page.getByTestId(`org-link-${orgName}`).click();
   await page.waitForURL(/\/organizations\/\d+/, { timeout: 15000 });
 

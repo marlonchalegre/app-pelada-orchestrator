@@ -21,7 +21,7 @@ test.describe('Schedule Management', () => {
 
     await test.step('Setup Org and Pelada', async () => {
       await registerAndCreateOrg(ownerPage, owner, orgName);
-      await ownerPage.goto('/');
+      await ownerPage.goto('/home');
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       await createPelada(ownerPage);
       await closeAttendance(ownerPage);

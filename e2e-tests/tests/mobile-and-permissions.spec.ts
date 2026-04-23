@@ -37,7 +37,7 @@ test.describe('Mobile UX and Permissions', () => {
     await makeMensalista(page, admin.name);
 
     // Go back to org detail then invite player
-    await page.goto('/');
+    await page.goto('/home');
     await page.getByTestId(`org-link-${orgName}`).click();
     const inviteLink = await invitePlayerByEmail(page, player.email);
 
@@ -49,12 +49,12 @@ test.describe('Mobile UX and Permissions', () => {
     await playerPage.getByTestId('first-access-username').fill(player.username);
     await playerPage.getByTestId('first-access-password').fill(player.password);
     await playerPage.getByTestId('first-access-submit').click();
-    await expect(playerPage).toHaveURL('/', { timeout: 15000 });
+    await expect(playerPage).toHaveURL('/home', { timeout: 15000 });
 
     await acceptPendingInvitation(playerPage, orgName);
 
     // Create pelada
-    await page.goto('/');
+    await page.goto('/home');
     await page.waitForLoadState('networkidle');
     await page.getByTestId(`org-link-${orgName}`).click();
     await createPelada(page);
@@ -88,7 +88,7 @@ test.describe('Mobile UX and Permissions', () => {
     await expect(playerPage.getByTestId('share-dropdown-button')).not.toBeVisible();
 
     // Verify pelada row visible in list
-    await page.goto('/');
+    await page.goto('/home');
     await page.waitForLoadState('networkidle');
     await expect(page.getByTestId(/pelada-row-\d+/).first()).toBeVisible();
 
@@ -97,7 +97,7 @@ test.describe('Mobile UX and Permissions', () => {
 
   test('should verify mobile optimizations (hidden text)', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
-    await page.goto('/');
+    await page.goto('/home');
     await page.waitForLoadState('networkidle');
     await page.getByTestId(`org-link-${orgName}`).click();
 
@@ -109,7 +109,7 @@ test.describe('Mobile UX and Permissions', () => {
     await expect(textSpan).not.toBeVisible();
 
     // Check management tab labels are hidden on mobile
-    await page.goto('/');
+    await page.goto('/home');
     await page.waitForLoadState('networkidle');
     await page.getByTestId(`org-link-${orgName}`).click();
     await page.getByTestId('org-management-button').click();

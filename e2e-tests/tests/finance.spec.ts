@@ -6,7 +6,7 @@ import {
 } from './utils';
 
 async function navigateToOrgManagement(page: Page, orgName: string) {
-  await page.goto('/');
+  await page.goto('/home');
   await page.getByTestId(`org-link-${orgName}`).click();
   await expect(page.getByTestId('org-management-button')).toBeVisible();
   await page.getByTestId('org-management-button').click();
@@ -106,7 +106,7 @@ test.describe('Financial Control', () => {
       // Ensure owner is Diarista for this test
       await makeDiarista(page, orgName, owner.name);
       
-      await page.goto('/');
+      await page.goto('/home');
       await page.getByTestId(`org-link-${orgName}`).click();
       peladaId = await createPelada(page);
       

@@ -13,16 +13,16 @@ test.describe('Auth Redirection Bugs', () => {
     };
   };
 
-  test('unauthenticated user should be redirected from protected page to login', async ({ page }) => {
+  test('unauthenticated user should be redirected from protected page to welcome page', async ({ page }) => {
     // Clear any existing state
     await page.goto('/login');
     await page.evaluate(() => localStorage.clear());
     
-    // Try to access home page
-    await page.goto('/');
+    // Try to access /home (protected)
+    await page.goto('/home');
     
-    // Should be redirected to /login
-    await expect(page).toHaveURL(/\/login/);
+    // Should be redirected to / (Welcome)
+    await expect(page).toHaveURL(/\/$/);
   });
 
   test('authenticated user should be redirected from login page to home', async ({ browser }) => {
@@ -32,13 +32,13 @@ test.describe('Auth Redirection Bugs', () => {
 
     // Register/Login
     await registerUser(page, user);
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/home');
 
     // Try to access login page
     await page.goto('/login');
 
-    // Should be redirected back to /
-    await expect(page).toHaveURL('/', { timeout: 10000 });
+    // Should be redirected back to /home
+    await expect(page).toHaveURL('/home', { timeout: 10000 });
     
     await context.close();
   });
@@ -50,18 +50,18 @@ test.describe('Auth Redirection Bugs', () => {
 
     // Register/Login
     await registerUser(page, user);
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/home');
 
     // Try to access register page
     await page.goto('/register');
 
-    // Should be redirected back to /
-    await expect(page).toHaveURL('/', { timeout: 10000 });
+    // Should be redirected back to /home
+    await expect(page).toHaveURL('/home', { timeout: 10000 });
 
     await context.close();
   });
 
-  test('user with invalid token should be redirected to login', async ({ browser }) => {
+  test('user with invalid token should be redirected to welcome page', async ({ browser }) => {
     const context = await browser.newContext();
     const page = await context.newPage();
 
@@ -73,10 +73,10 @@ test.describe('Auth Redirection Bugs', () => {
     });
 
     // Try to access home page
-    await page.goto('/');
+    await page.goto('/home');
 
-    // Should be redirected to /login because AuthProvider should clear invalid token
-    await expect(page).toHaveURL(/\/login/);
+    // Should be redirected to / because AuthProvider should clear invalid token
+    await expect(page).toHaveURL(/\/$/);
 
     await context.close();
   });

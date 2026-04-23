@@ -18,7 +18,7 @@ test.describe('Password Reset Flow', () => {
     // Logout to test the forgot password link
     await page.getByTestId('user-settings-button').click();
     await page.getByTestId('logout-menu-item').click();
-    await expect(page).toHaveURL('/login');
+    await expect(page).toHaveURL('/');
 
     // 2. Go to Forgot Password page
     await page.goto('/login');

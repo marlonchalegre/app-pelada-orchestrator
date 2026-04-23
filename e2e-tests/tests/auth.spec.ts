@@ -49,7 +49,7 @@ test.describe('Auth & Profile', () => {
     await test.step('Delete Account', async () => {
       await page.getByTestId('profile-delete-account-button').click();
       await page.getByTestId('confirm-delete-account-button').click();
-      await expect(page).toHaveURL('/login', { timeout: 10000 });
+      await expect(page).toHaveURL('/', { timeout: 10000 });
     });
 
     await context.close();

@@ -59,11 +59,11 @@ test.describe('Pelada Lifecycle', () => {
 
     await test.step('Attendance Phase', async () => {
       // Make owner Mensalista so they go to Confirmed
-      await ownerPage.goto('/');
+      await ownerPage.goto('/home');
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       await makeMensalista(ownerPage, owner.name);
 
-      await ownerPage.goto('/');
+      await ownerPage.goto('/home');
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       peladaId = await createPelada(ownerPage);
       await confirmAndCloseAttendance(ownerPage);
@@ -238,7 +238,7 @@ test.describe('Pelada Lifecycle', () => {
     await setupInvitedPlayer(browser, aInvite, albatrossUser, orgName);
 
     // Create pelada
-    await adminPage.goto('/');
+    await adminPage.goto('/home');
     await adminPage.getByTestId(`org-link-${orgName}`).click();
     await createPelada(adminPage);
     const peladaUrl = adminPage.url();

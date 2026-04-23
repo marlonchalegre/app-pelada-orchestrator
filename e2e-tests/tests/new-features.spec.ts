@@ -30,7 +30,7 @@ test.describe('New Features and UI Improvements', () => {
     await makeMensalista(page, owner.name);
 
     // Navigate back to org detail to create pelada
-    await page.goto('/');
+    await page.goto('/home');
     await page.getByTestId(`org-link-${orgName}`).click();
 
     await createPelada(page);
@@ -62,7 +62,7 @@ test.describe('New Features and UI Improvements', () => {
     await registerAndCreateOrg(page, admin, orgName);
 
     // Navigate to org detail to create pelada
-    await page.goto('/');
+    await page.goto('/home');
     await page.getByTestId(`org-link-${orgName}`).click();
 
     await createPelada(page);
@@ -112,11 +112,11 @@ test.describe('New Features and UI Improvements', () => {
     await diaristaPage.getByTestId('first-access-username').fill(diarista.username);
     await diaristaPage.getByTestId('first-access-password').fill(diarista.password);
     await diaristaPage.getByTestId('first-access-submit').click();
-    await expect(diaristaPage).toHaveURL('/', { timeout: 15000 });
+    await expect(diaristaPage).toHaveURL('/home', { timeout: 15000 });
     await acceptPendingInvitation(diaristaPage, orgName);
 
     // Create pelada
-    await adminPage.goto('/');
+    await adminPage.goto('/home');
     await adminPage.getByTestId(`org-link-${orgName}`).click();
     await createPelada(adminPage);
     const peladaUrl = adminPage.url();
@@ -157,7 +157,7 @@ test.describe('New Features and UI Improvements', () => {
     await setupInvitedPlayer(browser, inviteLink, playerUser, orgName);
 
     // Create pelada
-    await adminPage.goto('/');
+    await adminPage.goto('/home');
     await adminPage.getByTestId(`org-link-${orgName}`).click();
     await createPelada(adminPage);
 
