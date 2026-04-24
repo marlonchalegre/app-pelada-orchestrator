@@ -30,11 +30,15 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - JAVA_OPTS=-Djdk.attach.allowAttachSelf=true
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev
+    cap_add:
+      - SYS_ADMIN
     ports:
       - 8000:8000
+      - 8081:8081
     volumes:
       - ./api-peladaapp:/app
       - ./uploads:/app/uploads
