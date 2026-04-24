@@ -57,3 +57,12 @@ services:
     volumes:
       - ./waha_data:/app/.waha/sessions
 
+  scheduler-trigger:
+    image: alpine:latest
+    container_name: pelada-cron-ghcr
+    restart: always
+    depends_on:
+      - backend
+    entrypoint: |
+      sh -c 'echo "*/5 * * * * wget -qO- --post-data=\"\" http://backend:8000/internal/scheduler/tick" > /etc/crontabs/root && crond -f'
+
