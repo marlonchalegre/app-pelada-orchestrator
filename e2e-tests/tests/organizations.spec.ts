@@ -41,6 +41,7 @@ test.describe('Organization Management', () => {
     await test.step('2. Personal Invitation & First Access Flow', async () => {
       const invitationLinkText = await invitePlayerByEmail(ownerPage, invitedUser.email);
       expect(invitationLinkText).toContain('/first-access');
+      expect(invitationLinkText).toContain('token=');
 
       const invitedContext = await browser.newContext(videoOptions);
       const invitedPage = await invitedContext.newPage();

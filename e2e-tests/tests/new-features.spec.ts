@@ -107,13 +107,9 @@ test.describe('New Features and UI Improvements', () => {
     const link = await invitePlayerByEmail(adminPage, diarista.email);
 
     // Setup diarista via invite link
-    await diaristaPage.goto(link);
-    await diaristaPage.getByTestId('first-access-name').fill(diarista.name);
-    await diaristaPage.getByTestId('first-access-username').fill(diarista.username);
-    await diaristaPage.getByTestId('first-access-password').fill(diarista.password);
-    await diaristaPage.getByTestId('first-access-submit').click();
-    await expect(diaristaPage).toHaveURL('/home', { timeout: 15000 });
-    await acceptPendingInvitation(diaristaPage, orgName);
+    await setupInvitedPlayer(browser, link, diarista, orgName);
+    
+    await loginUser(diaristaPage, diarista);
 
     // Create pelada
     await adminPage.goto('/home');

@@ -2,10 +2,12 @@ import { test, expect } from '@playwright/test';
 import {
   registerAndCreateOrg,
   invitePlayerByEmail,
+  setupInvitedPlayer,
   acceptPendingInvitation,
   makeMensalista,
   createPelada,
   UserData,
+  loginUser,
 } from './utils';
 
 test.describe('Mobile UX and Permissions', () => {
@@ -42,16 +44,13 @@ test.describe('Mobile UX and Permissions', () => {
     const inviteLink = await invitePlayerByEmail(page, player.email);
 
     // Setup player in separate context
+    await setupInvitedPlayer(browser, inviteLink, player, orgName);
+    
+    // Now player is registered and in the org.
+    // Let's create a separate context to simulate the player browsing.
     const playerContext = await browser.newContext();
     const playerPage = await playerContext.newPage();
-    await playerPage.goto(inviteLink);
-    await playerPage.getByTestId('first-access-name').fill(player.name);
-    await playerPage.getByTestId('first-access-username').fill(player.username);
-    await playerPage.getByTestId('first-access-password').fill(player.password);
-    await playerPage.getByTestId('first-access-submit').click();
-    await expect(playerPage).toHaveURL('/home', { timeout: 15000 });
-
-    await acceptPendingInvitation(playerPage, orgName);
+    await loginUser(playerPage, player);
 
     // Create pelada
     await page.goto('/home');

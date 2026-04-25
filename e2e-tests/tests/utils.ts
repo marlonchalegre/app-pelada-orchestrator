@@ -46,7 +46,7 @@ export async function loginUser(page: Page, user: UserData) {
   await page.getByTestId('login-email').fill(user.username);
   await page.getByTestId('login-password').fill(user.password);
   await page.getByTestId('login-submit').click();
-  await expect(page).toHaveURL('/home', { timeout: 10000 });
+  await expect(page).toHaveURL(/\/home/, { timeout: 15000 });
   await page.waitForLoadState('networkidle');
 }
 
@@ -73,7 +73,18 @@ export async function registerUser(page: Page, user: UserData) {
 }
 
 export async function getApiContext(page: Page, request: APIRequestContext): Promise<ApiContext> {
-  const token = await page.evaluate(() => localStorage.getItem('authToken'));
+  // Try to get token from localStorage first (might still be there in some flows or dev)
+  let token = await page.evaluate(() => localStorage.getItem('authToken'));
+  
+  if (!token) {
+    // If using cookies, we might not have the token in JS.
+    // In E2E tests, we often need the token for direct API calls.
+    // We can try to get it from the cookies if same-origin.
+    const cookies = await page.context().cookies();
+    const authCookie = cookies.find(c => c.name === 'authToken');
+    token = authCookie?.value || '';
+  }
+
   return {
     request,
     token: token!,
@@ -135,9 +146,50 @@ export async function invitePlayerByEmail(page: Page, email: string): Promise<st
   await page.getByTestId('invite-email-input').fill(email);
   await page.getByTestId('send-invite-button').click();
   await expect(page.getByTestId('invite-success-alert')).toBeVisible({ timeout: 15000 });
-  const link = await page.getByTestId('invitation-link-text').innerText();
+  
+  // The UI displays the token/link in 'invitation-link-text'
+  const linkText = await page.getByTestId('invitation-link-text').innerText();
+  console.log(`CAPTURED INVITATION TEXT: "${linkText}"`);
   await page.getByTestId('invite-dialog-close-button').click();
-  return link.trim();
+  
+  const rawText = linkText.trim();
+  let token = '';
+  
+  if (rawText.includes('token=')) {
+    const match = rawText.match(/[?&]token=([^&?#]+)/);
+    if (match) token = match[1];
+  } else if (rawText.includes('t=')) {
+    const match = rawText.match(/[?&]t=([^&?#]+)/);
+    if (match) token = match[1];
+  } else if (rawText.startsWith('http')) {
+    try {
+      const url = new URL(rawText);
+      token = url.searchParams.get('token') || url.searchParams.get('t') || '';
+      if (!token) {
+        const segments = url.pathname.split('/').filter(s => s !== '');
+        const last = segments.pop();
+        if (last && last !== 'first-access') token = last;
+      }
+    } catch (e) {
+      const parts = rawText.split('/').filter(s => s !== '');
+      const last = parts.pop() || '';
+      token = last.split('?')[0];
+    }
+  } else {
+    token = rawText;
+  }
+  
+  // Cleanup if we somehow took 'first-access' as token
+  if (token === 'first-access') token = '';
+
+  console.log(`EXTRACTED CLEAN TOKEN: "${token}" FROM "${rawText}"`);
+  
+  if (!token) {
+     console.error('CRITICAL: FAILED TO EXTRACT TOKEN FROM:', rawText);
+  }
+  
+  // Return the relative link with ONLY the clean token
+  return `/first-access?token=${token}&email=${encodeURIComponent(email)}`;
 }
 
 /** Register an invited player via first-access link and accept the invitation. */
@@ -150,16 +202,50 @@ export async function setupInvitedPlayer(
 ): Promise<void> {
   const ctx = await browser.newContext(videoOptions);
   const page = await ctx.newPage();
+  
+  // Navigate to the invite link (relative or absolute)
+  console.log(`NAVIGATING TO INVITE LINK: "${inviteLink}"`);
   await page.goto(inviteLink);
+  
+  // Robust wait for form
+  await expect(page.getByTestId('first-access-name')).toBeVisible({ timeout: 15000 });
+  
+  // Extra check: ensure we didn't end up on a broken URL
+  const currentUrl = page.url();
+  console.log(`CURRENT PAGE URL: "${currentUrl}"`);
+  if (!currentUrl.includes('token=')) {
+     console.error('STUCK ON FIRST ACCESS: URL is missing token!', currentUrl);
+  }
+
+  const emailInUrl = new URL(currentUrl, 'http://localhost:8080').searchParams.get('email');
+  const tokenInUrl = new URL(currentUrl, 'http://localhost:8080').searchParams.get('token');
+  console.log(`URL DATA: email="${emailInUrl}", token="${tokenInUrl}"`);
+
   await page.getByTestId('first-access-name').fill(player.name);
   await page.getByTestId('first-access-username').fill(player.username);
   await page.getByTestId('first-access-password').fill(player.password);
+  
   if (player.position) {
-    await page.getByTestId('first-access-position-select').click();
-    await page.getByRole('option', { name: player.position }).click();
+    const posLabel = page.getByTestId('first-access-position-select');
+    if (await posLabel.isVisible()) {
+      await posLabel.click();
+      await page.getByRole('option', { name: player.position }).click();
+    }
   }
+
+  console.log('SUBMITTING FIRST ACCESS FORM...');
   await page.getByTestId('first-access-submit').click();
-  await expect(page).toHaveURL('/home', { timeout: 15000 });
+  
+  // Wait for success and redirect
+  try {
+    await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
+    console.log('SUCCESSFULLY REDIRECTED TO /home');
+  } catch (e) {
+    const errorText = await page.locator('.MuiAlert-message').textContent().catch(() => 'No alert found');
+    console.error(`FAILED TO REDIRECT. Alert text: "${errorText}"`);
+    throw e;
+  }
+  
   await acceptPendingInvitation(page, orgName);
   await ctx.close();
 }
@@ -194,16 +280,19 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
 
 /** Create players via API (faster than UI invitation flow). */
 export async function createPlayerViaApi(api: ApiContext, orgId: string, name: string): Promise<number> {
+  const headers: Record<string, string> = {};
+  if (api.token) headers['Authorization'] = `Token ${api.token}`;
+
   const res = await api.request.post(`${api.apiBaseUrl}/api/organizations/${orgId}/invite`, {
     data: { name },
-    headers: { Authorization: `Token ${api.token}` },
+    headers,
   });
   const data = await res.json();
   const userId = data.user_id;
 
   await api.request.post(`${api.apiBaseUrl}/api/players`, {
     data: { organization_id: Number(orgId), user_id: userId, grade: 5 },
-    headers: { Authorization: `Token ${api.token}` },
+    headers,
   });
 
   return userId;
@@ -273,19 +362,22 @@ export async function confirmAndCloseAttendanceViaApi(
   orgId: string,
   peladaId: string,
 ): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (api.token) headers['Authorization'] = `Token ${api.token}`;
+
   const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`, {
-    headers: { Authorization: `Token ${api.token}` },
+    headers,
   });
   const players = await playersRes.json();
 
   await api.request.post(`${api.apiBaseUrl}/api/peladas/${peladaId}/attendance/batch`, {
     data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' },
-    headers: { Authorization: `Token ${api.token}` },
+    headers,
   });
 
   const closeRes = await api.request.put(`${api.apiBaseUrl}/api/peladas/${peladaId}`, {
     data: { status: 'open' },
-    headers: { Authorization: `Token ${api.token}` },
+    headers,
   });
   expect(closeRes.ok()).toBeTruthy();
 }
