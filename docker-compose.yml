@@ -78,4 +78,6 @@ services:
     depends_on:
       - backend
     entrypoint: |
-      sh -c 'echo "*/5 * * * * wget -qO- --post-data=\"\" http://backend:8000/internal/scheduler/tick" > /etc/crontabs/root && crond -f'
+      sh -c 'echo "*/5 * * * * wget -qO- --post-data=\"\" http://backend:8000/internal/scheduler/tick" > /etc/crontabs/root && \
+             echo "*/2 * * * * wget -qO- http://backend:8000/internal/waha/healthcheck || wget -qO- --post-data=\"\" http://backend:8000/internal/waha/resume" >> /etc/crontabs/root && \
+             crond -f'
