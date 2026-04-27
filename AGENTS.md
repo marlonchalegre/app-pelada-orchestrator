@@ -67,6 +67,11 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Debugging:** Use systematic debugging approaches. Leverage logging, tracing, and debugging tools effectively.
 *   **Code Reviews:** Think about how your changes would be reviewed by a human senior engineer. Self-review your code thoroughly.
 
+## Authentication & Security
+
+*   **Cookie-Based Auth:** The project uses an `authToken` cookie for authentication. The `Authorization` header is **NOT** used for API requests.
+*   **E2E Testing Auth:** In Playwright tests, use the `request` object from hooks or `page.request` to perform API calls. These automatically include the session cookies from the browser context, eliminating the need for manual header management.
+
 ## Tooling & Environment
 
 *   Utilize project-specific tooling (linters, formatters, build tools) to ensure code quality and consistency.

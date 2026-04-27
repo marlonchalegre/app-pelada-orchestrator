@@ -291,4 +291,65 @@ test.describe('Pelada Lifecycle', () => {
     await zebraContext.close();
     await albatrossContext.close();
   });
+
+  test('should produce different team compositions on consecutive randomizations', async ({ browser }) => {
+    // This test verifies the Bucket Shuffle algorithm provides variety while being fast by using API
+    const ts = Date.now() + 5;
+    const admin = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const orgName = `Variety Org ${ts}`;
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    // 1. Setup via UI using registerAndCreateOrg (correct way)
+    await registerAndCreateOrg(page, admin, orgName);
+    await expect(page).toHaveURL(/\/organizations\/\d+$/);
+    const orgUrl = page.url();
+    const orgId = orgUrl.split('/').pop();
+
+    // 2. Create players via API
+    const playerConfigs = [
+      { pos: 1, grade: 8 }, { pos: 1, grade: 7 },
+      { pos: 2, grade: 9 }, { pos: 2, grade: 8 }, { pos: 2, grade: 7 }, { pos: 2, grade: 6 },
+      { pos: 3, grade: 9 }, { pos: 3, grade: 8 }, { pos: 3, grade: 7 }, { pos: 3, grade: 6 },
+      { pos: 4, grade: 10 }, { pos: 4, grade: 5 }
+    ];
+
+    for (let i = 0; i < playerConfigs.length; i++) {
+      const invite = await (await page.request.post(`/api/organizations/${orgId}/invite`, { data: { name: `P${i}` } })).json();
+      await page.request.post('/api/players', {
+        data: { organization_id: Number(orgId), user_id: invite.user_id, grade: playerConfigs[i].grade, position_id: playerConfigs[i].pos }
+      });
+    }
+
+    // 3. Create Pelada and Confirm Attendance
+    const pelada = await (await page.request.post('/api/peladas', { data: { organization_id: Number(orgId), scheduled_at: new Date().toISOString() } })).json();
+    const peladaId = pelada.id;
+    const players = await (await page.request.get(`/api/organizations/${orgId}/players`)).json();
+    await page.request.post(`/api/peladas/${peladaId}/attendance/batch`, { data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' } });
+
+    // 4. Open Pelada, set players_per_team, and create 2 teams
+    await page.request.put(`/api/peladas/${peladaId}`, { data: { status: 'open', players_per_team: 6 } });
+    await page.request.post('/api/teams', { data: { pelada_id: peladaId, name: 'T1' } });
+    await page.request.post('/api/teams', { data: { pelada_id: peladaId, name: 'T2' } });
+
+    // 5. Randomize twice and compare
+    const getLineup = async () => {
+      await page.request.post(`/api/peladas/${peladaId}/teams/randomize`, { data: { player_ids: players.map((p: any) => p.id), players_per_team: 6 } });
+      const data = await (await page.request.get(`/api/peladas/${peladaId}/full-details`)).json();
+      return data.teams.map((t: any) => t.players.map((p: any) => p.id).sort().join(',')).sort();
+    };
+
+    const l1 = await getLineup();
+    const l2 = await getLineup();
+
+    if (JSON.stringify(l1) === JSON.stringify(l2)) {
+      const l3 = await getLineup();
+      expect(l1).not.toEqual(l3);
+    } else {
+      expect(l1).not.toEqual(l2);
+    }
+    
+    await context.close();
+  });
 });

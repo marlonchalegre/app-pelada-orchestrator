@@ -72,26 +72,22 @@ export async function registerUser(page: Page, user: UserData) {
   await page.waitForLoadState('networkidle');
 }
 
-export async function getApiContext(page: Page, request: APIRequestContext): Promise<ApiContext> {
+export async function getApiContext(page: Page, _request: APIRequestContext): Promise<ApiContext> {
   // Try to get token from localStorage first (might still be there in some flows or dev)
   let token = await page.evaluate(() => localStorage.getItem('authToken'));
-  
+
   if (!token) {
-    // If using cookies, we might not have the token in JS.
-    // In E2E tests, we often need the token for direct API calls.
-    // We can try to get it from the cookies if same-origin.
     const cookies = await page.context().cookies();
     const authCookie = cookies.find(c => c.name === 'authToken');
     token = authCookie?.value || '';
   }
 
   return {
-    request,
+    request: page.request, // ALWAYS use page.request for shared cookies
     token: token!,
-    apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8000',
+    apiBaseUrl: '', // Use relative paths to take advantage of cookies
   };
 }
-
 // ─── Organization ────────────────────────────────────────────────────────────
 
 export async function createOrganization(page: Page, orgName: string) {
@@ -261,19 +257,14 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
 
 /** Create players via API (faster than UI invitation flow). */
 export async function createPlayerViaApi(api: ApiContext, orgId: string, name: string): Promise<number> {
-  const headers: Record<string, string> = {};
-  if (api.token) headers['Authorization'] = `Token ${api.token}`;
-
   const res = await api.request.post(`${api.apiBaseUrl}/api/organizations/${orgId}/invite`, {
     data: { name },
-    headers,
   });
   const data = await res.json();
   const userId = data.user_id;
 
   await api.request.post(`${api.apiBaseUrl}/api/players`, {
     data: { organization_id: Number(orgId), user_id: userId, grade: 5 },
-    headers,
   });
 
   return userId;
@@ -336,31 +327,28 @@ export async function closeAttendance(page: Page): Promise<void> {
   await page.getByTestId('close-attendance-button').click();
   await page.getByTestId('confirm-close-attendance-button').click();
 }
-
 /** Batch-confirm players and close attendance via API. */
 export async function confirmAndCloseAttendanceViaApi(
   api: ApiContext,
   orgId: string,
   peladaId: string,
 ): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (api.token) headers['Authorization'] = `Token ${api.token}`;
-
-  const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`, {
-    headers,
-  });
+  const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`);
+  if (!playersRes.ok()) {
+    throw new Error(`Failed to fetch players: ${playersRes.status()} ${await playersRes.text()}`);
+  }
   const players = await playersRes.json();
 
   await api.request.post(`${api.apiBaseUrl}/api/peladas/${peladaId}/attendance/batch`, {
     data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' },
-    headers,
   });
 
   const closeRes = await api.request.put(`${api.apiBaseUrl}/api/peladas/${peladaId}`, {
     data: { status: 'open' },
-    headers,
   });
-  expect(closeRes.ok()).toBeTruthy();
+  if (!closeRes.ok()) {
+    throw new Error(`Failed to close attendance: ${closeRes.status()} ${await closeRes.text()}`);
+  }
 }
 
 // ─── Teams & Schedule ────────────────────────────────────────────────────────

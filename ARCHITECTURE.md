@@ -30,6 +30,18 @@ The backend follows a layered approach inspired by **Clean Architecture** and **
 - **Adapters**: Data transformations between database records, internal models, and API payloads.
 - **Schemas**: Strict data validation using Prismatic Schema.
 
+### 🧠 Key Algorithms
+
+- **Team Randomization (Bucket Shuffle)**:
+  To ensure both variety and technical balance, the system uses a **Bucket Shuffle** approach:
+  1.  **Grouping**: Players are grouped by position (Goalkeeper, Defender, etc.) and sorted by their technical grade.
+  2.  **Bucketing**: For each position, players are divided into "buckets" of size equal to the number of teams.
+  3.  **Shuffling**: Each bucket is shuffled individually, ensuring that players of similar skill level are randomized against each other.
+  4.  **Greedy Assignment**: Players are then assigned to teams using a greedy algorithm that prioritizes filling empty position slots first and then balancing the total team score.
+
+- **Match Scheduling (ILS)**:
+  Scheduling uses an **Iterated Local Search (ILS)** algorithm to generate optimized match sequences that minimize player wait times and ensure fair distribution of games.
+
 ## ⚛️ Frontend Architecture (React)
 
 The frontend is built with a **feature-based architecture** to ensure scalability and maintainability.
