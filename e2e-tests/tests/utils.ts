@@ -388,14 +388,14 @@ export async function setupTeams(page: Page, options: { count?: number; playersP
   }
 }
 
-export async function buildAndSaveSchedule(page: Page) {
+export async function buildAndUseSchedule(page: Page) {
   await page.getByTestId('build-schedule-button').click();
   await page.getByTestId('add-match-button').click();
   await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
 
-  const saveBtn = page.getByTestId('save-schedule-button');
-  await expect(saveBtn).toBeEnabled({ timeout: 15000 });
-  await saveBtn.click();
+  const useBtn = page.getByTestId('save-schedule-button');
+  await expect(useBtn).toBeEnabled({ timeout: 15000 });
+  await useBtn.click();
   await expect(page).toHaveURL(/\/peladas\/\d+$/, { timeout: 15000 });
 }
 
@@ -451,7 +451,7 @@ export async function setupMatchDay(
   await closeAttendance(page);
 
   await setupTeams(page, { count: 2, playersPerTeam: 1, randomize: true });
-  await buildAndSaveSchedule(page);
+  await buildAndUseSchedule(page);
   await startPelada(page);
 
   return { peladaId };

@@ -4,9 +4,9 @@ import {
   registerAndCreateOrg, 
   createPelada, 
   confirmAndCloseAttendance, 
-  setupTeams, 
-  buildAndSaveSchedule, 
-  startPelada 
+  setupTeams,
+  buildAndUseSchedule,
+  startPelada,
 } from './utils';
 
 test.describe('Voting Disable Feature', () => {
@@ -29,7 +29,7 @@ test.describe('Voting Disable Feature', () => {
     
     // 3. Setup teams
     await setupTeams(page, { count: 2 });
-    await buildAndSaveSchedule(page);
+    await buildAndUseSchedule(page);
     await startPelada(page);
     
     // 4. Close pelada to enable voting

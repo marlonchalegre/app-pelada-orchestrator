@@ -52,7 +52,7 @@ test.describe('Schedule Management', () => {
       await expect(homeSelect).toHaveText(awayText!);
       await expect(awaySelect).toHaveText(homeText!);
 
-      // Save
+      // Use Schedule
       await ownerPage.getByTestId('save-schedule-button').click();
       await expect(ownerPage).toHaveURL(/\/peladas\/\d+$/);
     });

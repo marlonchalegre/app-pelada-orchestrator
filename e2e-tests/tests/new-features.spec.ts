@@ -6,7 +6,7 @@ import {
   confirmAndCloseAttendance,
   closeAttendance,
   setupTeams,
-  buildAndSaveSchedule,
+  buildAndUseSchedule,
   startPelada,
   invitePlayerByEmail,
   setupInvitedPlayer,

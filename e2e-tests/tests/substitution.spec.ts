@@ -6,7 +6,7 @@ import {
   createPelada,
   confirmAndCloseAttendanceViaApi,
   setupTeams,
-  buildAndSaveSchedule,
+  buildAndUseSchedule,
   startPelada,
   getOrgIdFromUrl,
   getPeladaIdFromUrl,
@@ -68,7 +68,7 @@ test.describe('Substitution and Empty Spots', () => {
     await page.reload();
 
     // Build schedule and start
-    await buildAndSaveSchedule(page);
+    await buildAndUseSchedule(page);
     await startPelada(page);
 
     // Verify and perform substitution

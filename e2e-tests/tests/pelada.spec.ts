@@ -9,7 +9,7 @@ import {
   createPelada,
   confirmAndCloseAttendance,
   setupTeams,
-  buildAndSaveSchedule,
+  buildAndUseSchedule,
   startPelada,
   getPeladaIdFromUrl,
 } from './utils';
@@ -83,7 +83,7 @@ test.describe('Pelada Lifecycle', () => {
       await expect(ownerPage.getByTestId('player-row').filter({ hasText: player2.name })).toBeVisible();
 
       await setupTeams(ownerPage, { count: 2, playersPerTeam: 1, randomize: true });
-      await buildAndSaveSchedule(ownerPage);
+      await buildAndUseSchedule(ownerPage);
     });
 
     await test.step('Start Pelada and Record Events', async () => {
