@@ -149,7 +149,6 @@ export async function invitePlayerByEmail(page: Page, email: string): Promise<st
   
   // The UI displays the token/link in 'invitation-link-text'
   const linkText = await page.getByTestId('invitation-link-text').innerText();
-  console.log(`CAPTURED INVITATION TEXT: "${linkText}"`);
   await page.getByTestId('invite-dialog-close-button').click();
   
   const rawText = linkText.trim();
@@ -182,12 +181,6 @@ export async function invitePlayerByEmail(page: Page, email: string): Promise<st
   // Cleanup if we somehow took 'first-access' as token
   if (token === 'first-access') token = '';
 
-  console.log(`EXTRACTED CLEAN TOKEN: "${token}" FROM "${rawText}"`);
-  
-  if (!token) {
-     console.error('CRITICAL: FAILED TO EXTRACT TOKEN FROM:', rawText);
-  }
-  
   // Return the relative link with ONLY the clean token
   return `/first-access?token=${token}&email=${encodeURIComponent(email)}`;
 }
@@ -204,7 +197,6 @@ export async function setupInvitedPlayer(
   const page = await ctx.newPage();
   
   // Navigate to the invite link (relative or absolute)
-  console.log(`NAVIGATING TO INVITE LINK: "${inviteLink}"`);
   await page.goto(inviteLink);
   
   // Robust wait for form
@@ -212,14 +204,6 @@ export async function setupInvitedPlayer(
   
   // Extra check: ensure we didn't end up on a broken URL
   const currentUrl = page.url();
-  console.log(`CURRENT PAGE URL: "${currentUrl}"`);
-  if (!currentUrl.includes('token=')) {
-     console.error('STUCK ON FIRST ACCESS: URL is missing token!', currentUrl);
-  }
-
-  const emailInUrl = new URL(currentUrl, 'http://localhost:8080').searchParams.get('email');
-  const tokenInUrl = new URL(currentUrl, 'http://localhost:8080').searchParams.get('token');
-  console.log(`URL DATA: email="${emailInUrl}", token="${tokenInUrl}"`);
 
   await page.getByTestId('first-access-name').fill(player.name);
   await page.getByTestId('first-access-username').fill(player.username);
@@ -233,16 +217,12 @@ export async function setupInvitedPlayer(
     }
   }
 
-  console.log('SUBMITTING FIRST ACCESS FORM...');
   await page.getByTestId('first-access-submit').click();
   
   // Wait for success and redirect
   try {
     await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
-    console.log('SUCCESSFULLY REDIRECTED TO /home');
   } catch (e) {
-    const errorText = await page.locator('.MuiAlert-message').textContent().catch(() => 'No alert found');
-    console.error(`FAILED TO REDIRECT. Alert text: "${errorText}"`);
     throw e;
   }
   
