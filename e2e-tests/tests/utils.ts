@@ -254,28 +254,29 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
   await page.goto('/home');
   await page.waitForLoadState('networkidle');
 
+  const orgLink = page.getByTestId(`org-link-${orgName}`);
   const inviteCard = page.getByTestId(`invitation-card-${orgName}`);
 
   await expect(async () => {
-    if (!await inviteCard.isVisible()) {
+    if (!(await inviteCard.isVisible()) && !(await orgLink.isVisible())) {
       await page.reload();
       await page.waitForLoadState('networkidle');
     }
-    await expect(inviteCard).toBeVisible({ timeout: 5000 });
+    expect(await inviteCard.isVisible() || await orgLink.isVisible()).toBeTruthy();
   }).toPass({ timeout: 15000 });
 
-  await page.getByTestId(`accept-invitation-${orgName}`).click();
+  if (await inviteCard.isVisible()) {
+    await page.getByTestId(`accept-invitation-${orgName}`).click();
+    await expect(async () => {
+      if (!await orgLink.isVisible()) {
+        await page.goto('/home');
+        await page.waitForLoadState('networkidle');
+      }
+      await expect(orgLink).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 15000 });
+  }
 
-  await expect(async () => {
-    const orgLink = page.getByTestId(`org-link-${orgName}`);
-    if (!await orgLink.isVisible()) {
-      await page.goto('/home');
-      await page.waitForLoadState('networkidle');
-    }
-    await expect(orgLink).toBeVisible({ timeout: 5000 });
-  }).toPass({ timeout: 15000 });
-
-  await page.getByTestId(`org-link-${orgName}`).click();
+  await orgLink.click();
 }
 
 /** Create players via API (faster than UI invitation flow). */

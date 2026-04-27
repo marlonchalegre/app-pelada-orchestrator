@@ -12,6 +12,7 @@ import {
   setupInvitedPlayer,
   acceptPendingInvitation,
   getPeladaIdFromUrl,
+  loginUser,
 } from './utils';
 
 test.describe('New Features and UI Improvements', () => {
