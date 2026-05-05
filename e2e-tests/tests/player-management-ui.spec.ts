@@ -171,7 +171,7 @@ test.describe('New UI Features: Control Panel and Player Movement', () => {
     // Let's adjust the test to move from Bench to Home then Bench to Away.
     
     // Move from Home GK back to Bench (using the delete/remove button in Fixed GK section)
-    await homeGkSlot.locator('button:has(svg[data-testid="DeleteOutlineIcon"])').click();
+    await homeGkSlot.locator('button:has(svg[data-testid="DeleteOutlinedIcon"])').click();
     await expect(homeGkSlot.getByText(player1Name)).not.toBeVisible();
     
     // Move from Bench to Away GK
