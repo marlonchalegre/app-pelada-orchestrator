@@ -144,39 +144,27 @@ test.describe('New UI Features: Control Panel and Player Movement', () => {
 
   test('should handle fixed goalkeepers via action menu', async ({ page }) => {
     // 1. Enable fixed goalkeepers
-    const fixedGkToggle = page.getByTestId('fixed-gk-toggle');
-    await fixedGkToggle.click();
+    // Use label to click the switch reliably
+    await page.getByLabel(/Goleiros Fixos|Fixed Goalkeepers/i).click();
     
-    await expect(page.getByText(/Goleiros Fixos da Sessão|Session Fixed Goalkeepers/i)).toBeVisible();
+    await expect(page.getByTestId('fixed-goalkeepers-title')).toBeVisible();
 
     // 2. Move player to Home GK via menu
     await page.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: /Mover para Goleiro \(Casa\)|Move to Home GK/i }).click();
+    await page.getByTestId('move-to-home-gk-item').click();
 
     // 3. Verify player is in fixed GK slot
     const homeGkSlot = page.getByTestId('gk-slot-home');
     await expect(homeGkSlot.getByText(player1Name)).toBeVisible();
 
     // 4. Move player from Fixed GK to Away GK
-    // In Fixed GK slot, it's a Stack with the name, but I removed the action menu from there in my previous changes?
-    // Wait, let me check if I removed it.
-    // Actually, I did NOT add the SwapHoriz icon to FixedGoalkeepersSection.tsx.
-    // I only added it to TeamCard and AvailablePlayerItem.
-    // So the test should move it from Bench to Away GK if it wants to test that,
-    // or I should add the menu to FixedGoalkeepersSection too.
-    
-    // User asked: "Instead of the three vertical dots in the player card, can we use the substitution icon or any other that makes a reference to move from one place to another?"
-    // FixedGoalkeepersSection has a DELETE icon but no "move" menu.
-    
-    // Let's adjust the test to move from Bench to Home then Bench to Away.
-    
     // Move from Home GK back to Bench (using the delete/remove button in Fixed GK section)
     await homeGkSlot.locator('button:has(svg[data-testid="DeleteOutlinedIcon"])').click();
     await expect(homeGkSlot.getByText(player1Name)).not.toBeVisible();
     
     // Move from Bench to Away GK
     await page.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: /Mover para Goleiro \(Fora\)|Move to Away GK/i }).click();
+    await page.getByTestId('move-to-away-gk-item').click();
 
     const awayGkSlot = page.getByTestId('gk-slot-away');
     await expect(awayGkSlot.getByText(player1Name)).toBeVisible();

@@ -2,10 +2,10 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 2,
+  workers: 1,
   reporter: 'list',
   timeout: 60000,
   maxFailures: 0,
