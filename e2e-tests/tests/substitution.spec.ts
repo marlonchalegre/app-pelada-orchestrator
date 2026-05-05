@@ -48,21 +48,16 @@ test.describe('Substitution and Empty Spots', () => {
     await setupTeams(page, { count: 2, playersPerTeam: 2 });
 
     // Add only admin to Team 1 via API
-    const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`, {
-      headers: { Authorization: `Token ${api.token}` },
-    });
+    const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`);
     const players = await playersRes.json();
     const adminObj = players.find((p: any) => p.user_name === admin.name);
 
-    const teamsRes = await api.request.get(`${api.apiBaseUrl}/api/peladas/${peladaId}/dashboard-data`, {
-      headers: { Authorization: `Token ${api.token}` },
-    });
+    const teamsRes = await api.request.get(`${api.apiBaseUrl}/api/peladas/${peladaId}/dashboard-data`);
     const dashboardData = await teamsRes.json();
     const team1Id = dashboardData.teams[0].id;
 
     await api.request.post(`${api.apiBaseUrl}/api/teams/${team1Id}/players`, {
       data: { player_id: adminObj.id },
-      headers: { Authorization: `Token ${api.token}` },
     });
 
     await page.reload();
