@@ -69,6 +69,7 @@ This document outlines the principles and practices to be followed by an AI assi
 
 ## Authentication & Security
 
+*   **Cookie-Only Authentication:** You MUST NOT use the HTTP header for Authorization token. The token MUST be sent using cookies only (`authToken` cookie).
 *   **Cookie-Based Auth:** The project uses an `authToken` cookie for authentication. The `Authorization` header is **NOT** used for API requests.
 *   **E2E Testing Auth:** In Playwright tests, use the `request` object from hooks or `page.request` to perform API calls. These automatically include the session cookies from the browser context, eliminating the need for manual header management.
 

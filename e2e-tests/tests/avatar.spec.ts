@@ -41,8 +41,9 @@ test.describe('User Avatar Workflow', () => {
       const fileChooser = await fileChooserPromise;
       await fileChooser.setFiles(testImagePath);
 
-      // Wait for any success message or just check the img visibility
-      await expect(page.getByText(/Profile picture updated|Foto de perfil atualizada/i)).toBeVisible({ timeout: 15000 });
+      // Wait for success alert
+      await expect(page.getByTestId('profile-success-alert')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByTestId('profile-success-alert')).toContainText(/Profile picture updated|Foto de perfil atualizada/i);
       
       // Check if avatar image is visible in profile
       const profileAvatar = page.locator('main [data-testid="secure-avatar"] img');
