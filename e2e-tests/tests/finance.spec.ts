@@ -67,6 +67,8 @@ test.describe('Financial Control', () => {
       
       await mensalistaInput.fill('100');
       await diaristaInput.fill('25');
+      await page.getByTestId('monthly-fine-amount-input').fill('9');
+      await page.getByTestId('monthly-cut-off-day-input').fill('5');
       
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
@@ -182,14 +184,16 @@ test.describe('Financial Control', () => {
       // Verify status change
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
       
-      // Verify transaction added (100.00)
+      const fine = new Date().getDate() > 5 ? 9 : 0;
+
+      // Verify transaction added (100.00 + fine)
       await page.getByTestId('finance-tab-transactions').click();
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
       await expect(page.getByText(new RegExp(`Mensalidade ${currentMonth}/${currentYear}`))).toBeVisible();
       
-      // Balance was 175 -> 275
-      await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '275');
+      // Balance was 175 -> 275 + fine
+      await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', String(275 + fine));
     });
 
     await test.step('5. Mensalista Monthly Fee Reversal', async () => {
