@@ -290,7 +290,7 @@ export async function makeMensalista(page: Page, playerName: string) {
   const memberRow = page.locator('li').filter({ hasText: playerName });
   await expect(memberRow).toBeVisible({ timeout: 10000 });
   await memberRow.getByRole('combobox').click();
-  await page.getByRole('option', { name: 'Mensalista' }).click();
+  await page.getByRole('option', { name: 'Mensalista', exact: true }).click();
 }
 
 export async function addPlayerBySearch(page: Page, query: string) {

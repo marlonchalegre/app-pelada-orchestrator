@@ -25,7 +25,7 @@ async function makeDiarista(page: Page, orgName: string, playerName: string) {
   await page.getByTestId('mgmt-tab-members').click();
   const memberRow = page.locator('li').filter({ hasText: playerName });
   await memberRow.getByRole('combobox').click();
-  await page.getByRole('option', { name: /Diarista/i }).click();
+  await page.getByRole('listbox').getByRole('option', { name: 'Diarista', exact: true }).click();
   // Wait for persistence
   await page.waitForTimeout(1000);
 }

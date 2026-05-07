@@ -76,7 +76,7 @@ test.describe('Organization Management', () => {
       await ownerPage.getByTestId('mgmt-tab-members').click();
       const memberRow = ownerPage.locator('li').filter({ hasText: invitedUser.name });
       await memberRow.getByRole('combobox').click();
-      await ownerPage.getByRole('option', { name: 'Mensalista' }).click();
+      await ownerPage.getByRole('option', { name: 'Mensalista', exact: true }).click();
 
       await ownerPage.reload();
       await ownerPage.getByTestId('mgmt-tab-members').click();
