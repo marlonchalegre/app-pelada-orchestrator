@@ -181,6 +181,11 @@ test.describe('Financial Control', () => {
       // Mark as paid
       await playerRow.getByTestId('mark-payment-button').click();
       
+      // Handle confirmation dialog if fine applies (today is May 8, cutoff is 5)
+      if (new Date().getDate() > 5) {
+        await page.getByTestId('confirm-mark-payment-button').click();
+      }
+      
       // Verify status change
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
       
@@ -190,7 +195,7 @@ test.describe('Financial Control', () => {
       await page.getByTestId('finance-tab-transactions').click();
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
-      await expect(page.getByText(new RegExp(`Mensalidade ${currentMonth}/${currentYear}`))).toBeVisible();
+      await expect(page.getByText(`Mensalidade ${currentMonth}/${currentYear}`, { exact: true })).toBeVisible();
       
       // Balance was 175 -> 275 + fine
       await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', String(275 + fine));

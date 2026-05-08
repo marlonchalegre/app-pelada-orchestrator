@@ -66,14 +66,18 @@ test.describe('Automatic Fine', () => {
     
     await page.getByTestId('finance-tab-monthly').click();
     await playerRow.getByTestId('mark-payment-button').click();
+    await page.getByTestId('confirm-mark-payment-button').click();
     await expect(playerRow.getByTestId('status-paid')).toBeVisible();
 
     // 6. Verify Transaction breakdown
     await page.getByTestId('finance-tab-transactions').click();
-    await expect(page.getByText('Mensalidade 5/2026 (com multa)')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Mensalidade 5/2026', { exact: true })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Multa Mensalidade 5/2026', { exact: true })).toBeVisible();
     
-    const txRow = page.locator('tr').filter({ hasText: 'Mensalidade 5/2026 (com multa)' });
-    await expect(txRow.getByText('R$ 115,00')).toBeVisible();
-    await expect(txRow.getByText('(inclui R$ 15,00 multa)')).toBeVisible();
+    const txRow = page.locator('tr').filter({ hasText: 'Mensalidade 5/2026' }).filter({ hasNotText: 'Multa' });
+    await expect(txRow.getByText('R$ 100,00')).toBeVisible();
+
+    const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade 5/2026' });
+    await expect(fineRow.getByText('R$ 15,00')).toBeVisible();
   });
 });
