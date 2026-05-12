@@ -18,15 +18,15 @@ The backend follows a layered approach inspired by **Clean Architecture** and **
 ### Core Stack
 - **Runtime**: JVM 23 (Temurin).
 - **Framework**: Ring (middleware stack) and Compojure (routing).
-- **Database**: SQLite for local persistence, with support for Turso (LibSQL).
-- **Authentication**: JWT-based authentication using Buddy.
+- **Database**: PostgreSQL for persistence.
+- **Authentication**: Cookie-based authentication using Buddy.
 
 ### Layered Structure
 - **Components**: Manage the application lifecycle (Stuart Sierra Component).
 - **Routes & Handlers**: Define HTTP endpoints and map them to logical operations.
 - **Controllers**: Orchestrate business logic by calling logic functions and data access layers.
 - **Logic**: Pure functional core where all business calculations happen (e.g., team balancing, scheduling).
-- **DB (Persistence)**: Idiomatic data access using `next.jdbc`.
+- **DB (Persistence)**: Idiomatic data access using `next.jdbc` and `HoneySQL`.
 - **Adapters**: Data transformations between database records, internal models, and API payloads.
 - **Schemas**: Strict data validation using Prismatic Schema.
 
@@ -68,8 +68,8 @@ The development environment is fully containerized using `docker-compose.dev.yml
 - **Nginx Container**: Acts as a reverse proxy to provide a unified entry point at `http://localhost:8080`.
 
 ### Database
-- **SQLite**: The primary database is a local SQLite file (`peladaapp.db`), allowing for zero-configuration setup.
-- **Migrations**: Database schema is managed via Migratus (SQL-based migrations).
+- **PostgreSQL**: The primary database is a PostgreSQL instance, running as a containerized service.
+- **Migrations**: Database schema is managed via Migratus (SQL-based migrations) with HoneySQL for dynamic queries.
 
 ## 🧪 Testing Strategy
 
@@ -80,7 +80,7 @@ We employ a comprehensive testing strategy across all layers:
 
 ## 🔄 Data Flows
 
-1.  **Authentication**: Users authenticate via JWT. The token is stored in `localStorage` and sent in the `Authorization` header for all protected API calls.
+1.  **Authentication**: Users authenticate and receive a JWT stored in an `authToken` cookie. This cookie is automatically sent by the browser for all protected API calls.
 2.  **State Management**: Each feature manages its own data fetching and local state. Global state (like the current user) is handled via React Context.
 3.  **API interaction**: Frontend makes RESTful calls to the backend. The backend handles complex operations (like team balancing) and returns formatted JSON responses.
 

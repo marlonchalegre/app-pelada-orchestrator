@@ -9,11 +9,9 @@ set -o pipefail
 # Configuration
 PROJECT_DIR="/home/dietpi/app-pelada-orchestrator"
 BACKUP_DIR="/home/dietpi/backups/peladaapp"
-DATA_FILE="./data/peladaapp.db"
 TAG_FILE="./last_success_tag"
 COMPOSE_FILE="docker-compose.ghcr.yml"
 LOCK_FILE="/tmp/peladaapp_maintenance.lock"
-TURSO_DB_NAME="peladaapp"
 
 FORCE_RUN=false
 
@@ -106,23 +104,6 @@ update_code_and_get_tag() {
     return 0 # Change detected
 }
 
-backup_database() {
-    log "Backing up local database..."
-    mkdir -p ./data
-    if [ -f "$DATA_FILE" ]; then
-        cp "$DATA_FILE" "$BACKUP_DIR/peladaapp.db_$TAG"
-    fi
-}
-
-migrate_turso() {
-    if [ -n "$TURSO_DATABASE_URL" ]; then
-        log "Applying migrations to Turso..."
-        if [ -f "./scripts/migrate.sh" ]; then
-            ./scripts/migrate.sh "$TURSO_DB_NAME"
-        fi
-    fi
-}
-
 pull_images() {
     log "Pulling images from GHCR for version $TAG..."
     
@@ -130,7 +111,7 @@ pull_images() {
     echo "TAG=$TAG" > .env.deploy
     
     # Pass necessary runtime secrets to the backend and waha
-    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD" "LITESTREAM_ACCESS_KEY_ID" "LITESTREAM_SECRET_ACCESS_KEY" "LITESTREAM_BUCKET" "LITESTREAM_ENDPOINT")
+    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD")
     for v in "${vars[@]}"; do
         [ -n "${!v}" ] && echo "$v=${!v}" >> .env.deploy
     done
@@ -220,8 +201,6 @@ main() {
     fi
 
     login_ghcr
-    backup_database
-    migrate_turso
     
     if pull_images && replace_containers && perform_health_check; then
         if [ "$WAHA_RECREATED" = true ]; then
