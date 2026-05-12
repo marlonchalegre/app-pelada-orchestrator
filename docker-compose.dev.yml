@@ -23,6 +23,8 @@ services:
     environment:
       - PELADA_API_SECURITY_SIGNING_KEY=secret-for-dev-only-not-for-prod
       - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
+      - DATABASE_URL=postgres://pelada:pelada_pass@postgres:5432/peladaapp
+      - SKIP_MIGRATIONS=false
     build:
       context: ./api-peladaapp
       dockerfile: Dockerfile.dev
@@ -31,6 +33,17 @@ services:
     volumes:
       - ./api-peladaapp:/app
       - ./uploads:/app/uploads
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=pelada
+      - POSTGRES_PASSWORD=pelada_pass
+      - POSTGRES_DB=peladaapp
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   waha:
     image: ${WAHA_IMAGE:-devlikeapro/waha:arm}

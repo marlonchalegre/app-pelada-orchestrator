@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  pgloader:
+    image: dimitri/pgloader:latest
+    # Mount the sqlite DB file into /data inside the container. Adjust host path as needed.
+    volumes:
+      - ./peladaapp-prod.db:/data/peladaapp.db:ro
+    depends_on:
+      - postgres
+    # Default entrypoint sleeps so you can run `docker compose run --rm pgloader pgloader ...`
+    entrypoint: ["sleep","infinity"]
+    networks:
+      - default
+
+networks:
+  default:
+    external: false
