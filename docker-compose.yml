@@ -30,6 +30,7 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - DB_SCHEMA=peladaapp
       - JAVA_OPTS=-Djdk.attach.allowAttachSelf=true
     build:
       context: ./api-peladaapp

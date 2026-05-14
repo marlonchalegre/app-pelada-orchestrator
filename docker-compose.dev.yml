@@ -24,6 +24,7 @@ services:
       - PELADA_API_SECURITY_SIGNING_KEY=secret-for-dev-only-not-for-prod
       - WAHA_API_KEY=${WAHA_API_KEY:-dev-api-key}
       - DATABASE_URL=postgres://pelada:pelada_pass@postgres:5432/peladaapp
+      - DB_SCHEMA=peladaapp
       - SKIP_MIGRATIONS=false
     build:
       context: ./api-peladaapp
