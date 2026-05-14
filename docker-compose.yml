@@ -30,6 +30,7 @@ services:
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
+      - DATABASE_URL=postgres://pelada:pelada_pass@postgres:5432/peladaapp
       - DB_SCHEMA=peladaapp
       - JAVA_OPTS=-Djdk.attach.allowAttachSelf=true
     build:
@@ -43,6 +44,20 @@ services:
     volumes:
       - ./api-peladaapp:/app
       - ./uploads:/app/uploads
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=pelada
+      - POSTGRES_PASSWORD=pelada_pass
+      - POSTGRES_DB=peladaapp
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
 
   waha:
     image: ${WAHA_IMAGE:-devlikeapro/waha:arm}
