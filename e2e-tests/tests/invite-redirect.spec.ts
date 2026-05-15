@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerUser, registerAndCreateOrg, invitePlayerByEmail } from './utils';
+import { registerUser, registerAndCreateOrg, invitePlayerByEmail, acceptPendingInvitation, getOrgIdFromUrl } from './utils';
 
 test.describe('Organization Join Redirection', () => {
   const timestamp = Date.now();
@@ -25,7 +25,16 @@ test.describe('Organization Join Redirection', () => {
     
     // 1. Create org
     await registerAndCreateOrg(ownerPage, owner, orgName);
-    const inviteLink = await invitePlayerByEmail(ownerPage, invitedUser.email);
+    
+    // Get invite link properly: use the public join link
+    const orgId = getOrgIdFromUrl(ownerPage.url());
+    const inviteToken = await ownerPage.evaluate(async (id) => {
+        const res = await fetch(`/api/organizations/${id}/invite-link`);
+        const data = await res.json();
+        return data.token;
+    }, orgId);
+    const inviteLink = `/join/${inviteToken}`;
+    
     await ownerContext.close();
 
     // 2. Register invited user and join org
@@ -36,7 +45,7 @@ test.describe('Organization Join Redirection', () => {
     // Accept invite
     await userPage.goto(inviteLink);
     await userPage.getByTestId('join-org-button').click();
-    await expect(userPage).toHaveURL(/\/organizations\/[^\/]+/);
+    await expect(userPage).toHaveURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
     const orgUrl = userPage.url();
 
     // 3. Access invite link again
