@@ -111,7 +111,7 @@ pull_images() {
     echo "TAG=$TAG" > .env.deploy
     
     # Pass necessary runtime secrets to the backend and waha
-    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD")
+    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD" "POSTGRES_HOST" "POSTGRES_USER" "POSTGRES_PASSWORD" "POSTGRES_DB" "POSTGRES_PORT" "DATABASE_URL")
     for v in "${vars[@]}"; do
         [ -n "${!v}" ] && echo "$v=${!v}" >> .env.deploy
     done
