@@ -36,6 +36,12 @@ error_exit() {
 
 setup_environment() {
     log "Setting up environment..."
+    
+    # Load user's bashrc if it exists to get exported variables like DATABASE_URL
+    if [ -f "$HOME/.bashrc" ]; then
+        source "$HOME/.bashrc"
+    fi
+
     if [ -f "$LOCK_FILE" ]; then
         log "Maintenance already in progress. Exiting."
         exit 0
