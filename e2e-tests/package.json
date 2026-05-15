@@ -8,14 +8,14 @@
   },
   "scripts": {
     "test": "playwright test",
-    "env:up": "docker-compose -f ../docker-compose.yml up -d --build",
-    "env:down": "docker-compose -f ../docker-compose.yml down -v",
+    "env:up": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml up -d --build",
+    "env:down": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml down -v",
     "db:backup": "echo 'Postgres backup not implemented' || true",
     "db:restore": "echo 'Postgres restore not implemented' || true",
-    "db:clean": "rm -rf ../pgdata",
+    "db:clean": "docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c \"DROP SCHEMA IF EXISTS e2e CASCADE;\"",
     "wait-for-backend": "node scripts/wait-for-backend.js",
     "test:debug": "playwright test --debug",
-    "test:e2e": "npm run env:down && npm run db:clean && npm run env:up && npm run wait-for-backend && (npm run test || (EXIT_CODE=$?; echo 'Test failed, capturing logs...'; docker compose -f ../docker-compose.yml logs > test-results/docker-error.log; npm run env:down; exit $EXIT_CODE)); npm run env:down"
+    "test:e2e": "npm run env:down && docker compose -f ../docker-compose.yml up -d postgres && sleep 3 && npm run db:clean && npm run env:up && npm run wait-for-backend && (npm run test || (EXIT_CODE=$?; echo 'Test failed, capturing logs...'; docker compose -f ../docker-compose.yml logs > test-results/docker-error.log; npm run env:down; exit $EXIT_CODE)); npm run env:down"
   },
   "keywords": [],
   "author": "",
