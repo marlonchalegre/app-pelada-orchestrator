@@ -16,32 +16,32 @@ opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 urllib.request.install_opener(opener)
 
 users = [
-    {"name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "position": "midfielder", "score": 9.5, "member_type": "mensalista"},
-    {"name": "Frodo Baggins", "username": "frodo", "email": "frodo@fantasy.com", "position": "midfielder", "score": 7.0, "member_type": "diarista"},
-    {"name": "Samwise Gamgee", "username": "samwise", "email": "samwise@fantasy.com", "position": "defender", "score": 7.5, "member_type": "mensalista"},
-    {"name": "Aragorn", "username": "aragorn", "email": "aragorn@fantasy.com", "position": "striker", "score": 9.0, "member_type": "mensalista"},
-    {"name": "Legolas", "username": "legolas", "email": "legolas@fantasy.com", "position": "striker", "score": 8.8, "member_type": "mensalista"},
-    {"name": "Gimli", "username": "gimli", "email": "gimli@fantasy.com", "position": "defender", "score": 8.5, "member_type": "mensalista"},
-    {"name": "Boromir", "username": "boromir", "email": "boromir@fantasy.com", "position": "defender", "score": 8.2, "member_type": "mensalista"},
-    {"name": "Saruman", "username": "saruman", "email": "saruman@fantasy.com", "position": "goalkeeper", "score": 8.8, "member_type": "mensalista"},
-    {"name": "Galadriel", "username": "galadriel", "email": "galadriel@fantasy.com", "position": "midfielder", "score": 9.2, "member_type": "mensalista"},
-    {"name": "Elrond", "username": "elrond", "email": "elrond@fantasy.com", "position": "midfielder", "score": 9.0, "member_type": "mensalista"},
-    {"name": "Bilbo Baggins", "username": "bilbo", "email": "bilbo@fantasy.com", "position": "goalkeeper", "score": 7.0, "member_type": "diarista"},
-    {"name": "Gollum", "username": "gollum", "email": "gollum@fantasy.com", "position": "striker", "score": 6.5, "member_type": "diarista"},
-    {"name": "Sauron", "username": "sauron", "email": "sauron@fantasy.com", "position": "defender", "score": 9.5, "member_type": "mensalista"},
-    {"name": "Arwen", "username": "arwen", "email": "arwen@fantasy.com", "position": "midfielder", "score": 8.0, "member_type": "mensalista"},
-    {"name": "Eowyn", "username": "eowyn", "email": "eowyn@fantasy.com", "position": "striker", "score": 8.2, "member_type": "mensalista"},
-    {"name": "Faramir", "username": "faramir", "email": "faramir@fantasy.com", "position": "midfielder", "score": 7.8, "member_type": "mensalista"},
-    {"name": "Theoden", "username": "theoden", "email": "theoden@fantasy.com", "position": "defender", "score": 8.0, "member_type": "mensalista"},
-    {"name": "Eomer", "username": "eomer", "email": "eomer@fantasy.com", "position": "striker", "score": 8.5, "member_type": "mensalista"},
-    {"name": "Treebeard", "username": "treebeard", "email": "treebeard@fantasy.com", "position": "defender", "score": 8.8, "member_type": "mensalista"},
-    {"name": "Radagast", "username": "radagast", "email": "radagast@fantasy.com", "position": "midfielder", "score": 7.5, "member_type": "diarista"},
-    {"name": "Witch King", "username": "witchking", "email": "witchking@fantasy.com", "position": "defender", "score": 9.0, "member_type": "mensalista"},
-    {"name": "Smaug", "username": "smaug", "email": "smaug@fantasy.com", "position": "striker", "score": 9.5, "member_type": "mensalista"},
-    {"name": "Thorin Oakenshield", "username": "thorin", "email": "thorin@fantasy.com", "position": "defender", "score": 8.5, "member_type": "mensalista"},
-    {"name": "Balrog", "username": "balrog", "email": "balrog@fantasy.com", "position": "striker", "score": 9.2, "member_type": "mensalista"},
-    {"name": "Isildur", "username": "isildur", "email": "isildur@fantasy.com", "position": "midfielder", "score": 8.5, "member_type": "mensalista"},
-    {"name": "Celeborn", "username": "celeborn", "email": "celeborn@fantasy.com", "position": "midfielder", "score": 8.2, "member_type": "mensalista"}
+    {"name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "position": "Midfielder", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Frodo Baggins", "username": "frodo", "email": "frodo@fantasy.com", "position": "Midfielder", "score": 7.0, "member_type": "diarista"},
+    {"name": "Samwise Gamgee", "username": "samwise", "email": "samwise@fantasy.com", "position": "Defender", "score": 7.5, "member_type": "mensalista"},
+    {"name": "Aragorn", "username": "aragorn", "email": "aragorn@fantasy.com", "position": "Striker", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Legolas", "username": "legolas", "email": "legolas@fantasy.com", "position": "Striker", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Gimli", "username": "gimli", "email": "gimli@fantasy.com", "position": "Defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Boromir", "username": "boromir", "email": "boromir@fantasy.com", "position": "Defender", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Saruman", "username": "saruman", "email": "saruman@fantasy.com", "position": "Goalkeeper", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Galadriel", "username": "galadriel", "email": "galadriel@fantasy.com", "position": "Midfielder", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Elrond", "username": "elrond", "email": "elrond@fantasy.com", "position": "Midfielder", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Bilbo Baggins", "username": "bilbo", "email": "bilbo@fantasy.com", "position": "Goalkeeper", "score": 7.0, "member_type": "diarista"},
+    {"name": "Gollum", "username": "gollum", "email": "gollum@fantasy.com", "position": "Striker", "score": 6.5, "member_type": "diarista"},
+    {"name": "Sauron", "username": "sauron", "email": "sauron@fantasy.com", "position": "Defender", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Arwen", "username": "arwen", "email": "arwen@fantasy.com", "position": "Midfielder", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eowyn", "username": "eowyn", "email": "eowyn@fantasy.com", "position": "Striker", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Faramir", "username": "faramir", "email": "faramir@fantasy.com", "position": "Midfielder", "score": 7.8, "member_type": "mensalista"},
+    {"name": "Theoden", "username": "theoden", "email": "theoden@fantasy.com", "position": "Defender", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eomer", "username": "eomer", "email": "eomer@fantasy.com", "position": "Striker", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Treebeard", "username": "treebeard", "email": "treebeard@fantasy.com", "position": "Defender", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Radagast", "username": "radagast", "email": "radagast@fantasy.com", "position": "Midfielder", "score": 7.5, "member_type": "diarista"},
+    {"name": "Witch King", "username": "witchking", "email": "witchking@fantasy.com", "position": "Defender", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Smaug", "username": "smaug", "email": "smaug@fantasy.com", "position": "Striker", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Thorin Oakenshield", "username": "thorin", "email": "thorin@fantasy.com", "position": "Defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Balrog", "username": "balrog", "email": "balrog@fantasy.com", "position": "Striker", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Isildur", "username": "isildur", "email": "isildur@fantasy.com", "position": "Midfielder", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Celeborn", "username": "celeborn", "email": "celeborn@fantasy.com", "position": "Midfielder", "score": 8.2, "member_type": "mensalista"}
 ]
 
 def make_request(base_url, path, method="GET", data=None, headers=None):
@@ -85,7 +85,7 @@ def seed(base_url):
         print("Gandalf login failed, trying to register...")
         try:
             res = make_request(base_url, "/auth/register", method="POST", data={
-                "name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "password": "1234", "position": "midfielder"
+                "name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "password": "1234", "position": "Midfielder"
             })
             gandalf_id = res["id"]
             make_request(base_url, "/auth/login", method="POST", data={"email": "gandalf@fantasy.com", "password": "1234"})
