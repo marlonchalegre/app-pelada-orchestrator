@@ -12,14 +12,19 @@ async function checkUrl(url, options = {}) {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
-        // We consider it up if it's not a 502/503/504
-        if (res.statusCode < 500) {
-          if (!options.pattern || data.toLowerCase().includes(options.pattern.toLowerCase())) {
-            resolve(true);
-            return;
-          }
+        if (res.statusCode >= 500) {
+          process.stdout.write(`\n[WAIT] ${url} returned ${res.statusCode}. Waiting...`);
+          resolve(false);
+          return;
         }
-        resolve(false);
+        
+        if (options.pattern && !data.toLowerCase().includes(options.pattern.toLowerCase())) {
+          process.stdout.write(`\n[WAIT] ${url} returned ${res.statusCode} but pattern "${options.pattern}" not found. Waiting...`);
+          resolve(false);
+          return;
+        }
+
+        resolve(true);
       });
     });
     
@@ -39,22 +44,19 @@ async function wait() {
   for (let i = 0; i < MAX_RETRIES; i++) {
     const backendOk = await checkUrl(HEALTH_URL, { pattern: 'ok' });
     if (backendOk) {
-      console.log('Backend is healthy!');
-      
       // Test actual registration endpoint to avoid 502
       const authOk = await checkUrl(REGISTER_API, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'test@test.com' }) // Invalid request but should return 400, not 502
+        body: JSON.stringify({ email: 'test@test.com' })
       });
       
       if (authOk) {
-        console.log('Auth API is responding!');
         const frontendOk = await checkUrl(BASE_URL, { pattern: 'root' });
         if (frontendOk) {
-          console.log('Frontend is up!');
-          console.log('Waiting 5 more seconds for stability...');
-          await new Promise(r => setTimeout(r, 5000));
+          console.log('\nServices are up and responding!');
+          console.log('Waiting 3 more seconds for stability...');
+          await new Promise(r => setTimeout(r, 3000));
           process.exit(0);
         }
       }

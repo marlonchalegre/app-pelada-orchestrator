@@ -56,3 +56,6 @@ waha_data/
 api-peladaapp/uploads/
 uploads/
 remote-data/
+
+
+pgdata/

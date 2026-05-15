@@ -24,7 +24,7 @@ test.describe('Organization Statistics', () => {
 
     await test.step('Access Statistics Page', async () => {
       await page.getByTestId('org-statistics-button').click();
-      await expect(page).toHaveURL(/\/organizations\/\d+\/statistics/);
+      await expect(page).toHaveURL(/\/organizations\/[^\/]+\/statistics/);
       await expect(page.getByRole('heading', { name: new RegExp(orgName) })).toBeVisible();
 
       await expect(page.getByRole('heading', { name: /Artilheiro|Top Scorer/i })).toBeVisible();

@@ -23,9 +23,9 @@ test("UI Substitutions - history shows start and end dates for multiple substitu
 
   // Make admin mensalista and create/close two substitutions
   await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
-  await page.waitForURL(/\/organizations\/\d+\/management/);
+  await page.waitForURL(/\/organizations\/[^\/]+\/management/);
   const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-  await adminItem.getByTestId(/member-type-select-/).click();
+  await adminItem.getByTestId(/member-type-select-.*/).first().click();
   await page.getByRole("option", { name: /Mensalista/i }).first().click();
 
   // First substitution admin <- p2
@@ -58,7 +58,7 @@ test("UI Substitutions - history shows start and end dates for multiple substitu
 
   // Make admin mensalista again and create second substitution admin <- p3
   await page.getByTestId("mgmt-tab-members").click();
-  await adminItem.getByTestId(/member-type-select-/).click();
+  await adminItem.getByTestId(/member-type-select-.*/).first().click();
   await page.getByRole("option", { name: /Mensalista/i }).first().click();
 
   await page.getByTestId("mgmt-tab-substitutions").click();

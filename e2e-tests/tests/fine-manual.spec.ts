@@ -39,7 +39,7 @@ test.describe('Manual Fine Control', () => {
     await page.getByTestId('finance-tab-monthly').click();
 
     // Since today is May 8, 2026 (or whatever), and cutoff was day 1, fine is applicable
-    const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+    const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
     await expect(playerRow.getByText('+ R$ 20,00 (multa)')).toBeVisible();
 
     // 5. Mark as paid but UNCHECK fine
@@ -86,7 +86,7 @@ test.describe('Manual Fine Control', () => {
     await page.getByTestId('mgmt-tab-finance').click();
     await page.getByTestId('finance-tab-monthly').click();
 
-    const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+    const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
     await playerRow.getByTestId('mark-payment-button').click();
     
     // Leave checked and confirm
@@ -118,7 +118,7 @@ test.describe('Manual Fine Control', () => {
     await page.getByTestId('mgmt-tab-finance').click();
     await page.getByTestId('finance-tab-monthly').click();
 
-    const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+    const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
     await playerRow.getByTestId('mark-payment-button').click();
     await page.getByTestId('confirm-mark-payment-button').click();
     await expect(playerRow.getByTestId('status-paid')).toBeVisible();

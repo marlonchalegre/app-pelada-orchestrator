@@ -34,7 +34,7 @@ test.describe('Schedule Management', () => {
       await expect(ownerPage).toHaveURL(/\/build-schedule/);
 
       // Change matches per team
-      await ownerPage.getByTestId('matches-per-team-select').click();
+      await ownerPage.getByLabel(/matches per team/i).click();
       await ownerPage.getByRole('option', { name: /^3/ }).click();
       await expect(ownerPage.getByRole('row')).toHaveCount(4); // Header + 3
 
@@ -54,7 +54,7 @@ test.describe('Schedule Management', () => {
 
       // Use Schedule
       await ownerPage.getByTestId('save-schedule-button').click();
-      await expect(ownerPage).toHaveURL(/\/peladas\/\d+$/);
+      await expect(ownerPage).toHaveURL(/\/peladas\/[^\/]+$/);
     });
 
     await test.step('Start with Built Schedule', async () => {

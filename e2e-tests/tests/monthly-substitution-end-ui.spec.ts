@@ -21,9 +21,9 @@ test("UI Substitutions - end substitution via UI reverts statuses", async ({ pag
 
   // Make admin mensalista and create substitution
   await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
-  await page.waitForURL(/\/organizations\/\d+\/management/);
+  await page.waitForURL(/\/organizations\/[^\/]+\/management/);
   const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-  await adminItem.getByTestId(/member-type-select-/).click();
+  await adminItem.getByTestId(/member-type-select-.*/).first().click();
   await page.getByRole("option", { name: /Mensalista/i }).first().click();
 
   await page.getByTestId("mgmt-tab-substitutions").click();

@@ -24,9 +24,9 @@ test("UI Substitutions - show API error when creating conflicting substitution",
 
   // Go to management and make admin mensalista
   await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
-  await page.waitForURL(/\/organizations\/\d+\/management/);
+  await page.waitForURL(/\/organizations\/[^\/]+\/management/);
   const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-  await adminItem.getByTestId(/member-type-select-/).click();
+  await adminItem.getByTestId(/member-type-select-.*/).first().click();
   await page.getByRole("option", { name: /Mensalista/i }).first().click();
 
   // Create first substitution admin <- p2

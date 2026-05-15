@@ -6,7 +6,7 @@ The Pelada App monorepo bundles the backend Clojure API and the React front-end 
 Technology Stack
 ---------------
 
-- **Backend:** Clojure, Ring/Compojure, next.jdbc, SQLite, Buddy Auth (JWT), Stuart Sierra Component.
+- **Backend:** Clojure, Ring/Compojure, next.jdbc, PostgreSQL, Buddy Auth (Cookie), Stuart Sierra Component.
 - **Frontend:** React 19, TypeScript, Vite, Material-UI (MUI), Vitest.
 - **Infrastructure:** Docker, Docker Compose, Nginx.
 
@@ -20,13 +20,13 @@ Repository Layout
 - `nginx/`: Reverse proxy configuration used by the Compose stacks.
 - `ARCHITECTURE.md`: High-level system design overview.
 - `CONTRIBUTING.md`: Guidelines for development and submission.
-- `seed_anime_users.sh`: Script to seed the database with test users.
 
 Prerequisites
 -------------
 
 - Docker Engine 24.x or newer with the Compose plugin (`docker compose`).
 - Git 2.34+ with SSH access to the submodule repositories.
+- PostgreSQL 15+ (if running outside Docker).
 - Optional: `direnv` or another env loader if you manage environment variables outside Compose.
 
 Cloning the Repository
@@ -49,7 +49,7 @@ Docker Workflows
 
 ### Local development stack
 
-Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access.
+Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access. It also includes a PostgreSQL database.
 
 ```bash
 docker compose -f docker-compose.dev.yml up --build
@@ -60,6 +60,7 @@ Services exposed:
 - **Unified Web UI (Nginx):** `http://localhost:8080`
 - **Front-end dev server:** `http://localhost:8080` (Proxied)
 - **Backend API:** `http://localhost:8000` (Direct) or `http://localhost:8080/api` (Proxied)
+- **Database (PostgreSQL):** `localhost:5432`
 
 Restart or rebuild individual services as needed:
 
@@ -99,8 +100,8 @@ See `e2e-tests/README.md` for more details.
 Development Tips
 ----------------
 
-- **Database:** The backend uses an embedded SQLite database (`peladaapp.db`). In development, this file is persisted via Docker volumes if you mount the `api-peladaapp` directory.
-- **Seeding:** Use `./seed_anime_users.sh` to populate the database with test data once the backend is running.
+- **Database:** The backend uses a PostgreSQL database. In development, data is persisted via Docker volumes.
+- **Seeding:** Use the available seeding scripts to populate the database with test data once the backend is running.
 - **Submodules:** Remember that `api-peladaapp` and `web-peladaapp` are separate git repositories. Commits made inside them must be pushed to their respective remotes.
 
 License
