@@ -175,7 +175,7 @@ test.describe('Financial Control', () => {
       await page.getByTestId('finance-tab-monthly').click();
       
       // Should see the player in the list as pending
-      const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+      const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
       await expect(playerRow.getByTestId('status-pending')).toBeVisible();
       
       // Mark as paid
@@ -204,7 +204,7 @@ test.describe('Financial Control', () => {
     await test.step('5. Mensalista Monthly Fee Reversal', async () => {
       await page.getByTestId('finance-tab-monthly').click();
       
-      const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+      const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
       
       // Click reverse button

@@ -31,7 +31,7 @@ services:
       - SMTP_FROM=${SMTP_FROM}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:8080}
       - DATABASE_URL=postgres://pelada:pelada_pass@postgres:5432/peladaapp
-      - DB_SCHEMA=peladaapp
+      - DB_SCHEMA=public
       - JAVA_OPTS=-Djdk.attach.allowAttachSelf=true
     build:
       context: ./api-peladaapp

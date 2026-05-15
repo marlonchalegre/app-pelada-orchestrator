@@ -29,7 +29,7 @@ test.describe("Monthly Player Substitution", () => {
   test("should manage monthly substitutions", async ({ page, request }) => {
     // Go to org page
     await page.getByTestId(`org-link-${orgName}`).click();
-    await page.waitForURL(/\/organizations\/\d+/);
+    await page.waitForURL(/\/organizations\/[^\/]+/);
     const orgId = getOrgIdFromUrl(page.url());
     const api = await getApiContext(page, request);
 
@@ -38,7 +38,7 @@ test.describe("Monthly Player Substitution", () => {
     
     // Go to management page via button
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
-    await page.waitForURL(/\/organizations\/\d+\/management/);
+    await page.waitForURL(/\/organizations\/[^\/]+\/management/);
     
     // Wait for any player item to appear
     await expect(page.getByTestId("player-item").first()).toBeVisible({ timeout: 30000 });
@@ -47,7 +47,7 @@ test.describe("Monthly Player Substitution", () => {
     const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
     await expect(adminItem).toBeVisible();
     
-    const adminSelect = adminItem.getByTestId(/member-type-select-/);
+    const adminSelect = adminItem.getByTestId(/member-type-select-.*/).first();
     await adminSelect.click();
     await page.getByRole("option", { name: /Mensalista/i }).first().click();
 

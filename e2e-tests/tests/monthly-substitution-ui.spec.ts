@@ -21,12 +21,12 @@ test("UI Substitutions - permanent excluded after active substitution", async ({
 
   // Go to management
   await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
-  await page.waitForURL(/\/organizations\/\d+\/management/);
+  await page.waitForURL(/\/organizations\/[^\/]+\/management/);
 
   // Make admin mensalista
   const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
   await expect(adminItem).toBeVisible();
-  const adminSelect = adminItem.getByTestId(/member-type-select-/);
+  const adminSelect = adminItem.getByTestId(/member-type-select-.*/).first();
   await adminSelect.click();
   await page.getByRole("option", { name: /Mensalista/i }).first().click();
 

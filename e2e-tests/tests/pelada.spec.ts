@@ -82,7 +82,7 @@ test.describe('Pelada Lifecycle', () => {
 
       await expect(ownerPage.getByTestId('player-row').filter({ hasText: player2.name })).toBeVisible();
 
-      await setupTeams(ownerPage, { count: 2, playersPerTeam: 1, randomize: true });
+      await setupTeams(ownerPage, { count: 2, playersPerTeam: 2, randomize: true });
       await buildAndUseSchedule(ownerPage);
     });
 
@@ -100,7 +100,7 @@ test.describe('Pelada Lifecycle', () => {
       // Record a substitution
       await anyPlayerRow.getByTestId('sub-button').click();
       await expect(ownerPage.getByTestId('player-select-dialog')).toBeVisible();
-      const benchItem = ownerPage.getByTestId(/bench-player-item-\d+/).first();
+      const benchItem = ownerPage.getByTestId(/bench-player-item-.*/).first();
       if (await benchItem.isVisible()) {
         await benchItem.click();
       } else {
@@ -109,15 +109,18 @@ test.describe('Pelada Lifecycle', () => {
 
       // End match
       await ownerPage.getByTestId('end-match-button').click();
-      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
+      const confirmBtn = ownerPage.getByTestId('pretty-confirm-button');
+      await expect(confirmBtn).toBeVisible({ timeout: 15000 });
+      await confirmBtn.click({ force: true });
 
       // Match Summary Modal
-      await expect(ownerPage.getByText(/Match Finished!|Partida Finalizada!/i)).toBeVisible({ timeout: 15000 });
-      const nextMatchBtn = ownerPage.getByRole('button', { name: /Next Match|Próxima Partida/i });
+      await expect(ownerPage.getByTestId('match-finished-title')).toBeVisible({ timeout: 30000 });
+      await ownerPage.waitForTimeout(2000);
+      const nextMatchBtn = ownerPage.getByTestId('summary-next-match-button');
       if (await nextMatchBtn.isVisible()) {
         await nextMatchBtn.click();
       } else {
-        await ownerPage.getByRole('button', { name: /Close|Fechar/i }).click();
+        await ownerPage.getByTestId('summary-close-button').click();
       }
 
       // Verify finished match in history
@@ -185,7 +188,7 @@ test.describe('Pelada Lifecycle', () => {
       const closeBtn = ownerPage.getByTestId('close-pelada-button');
       await expect(closeBtn).toBeVisible({ timeout: 10000 });
       await closeBtn.click();
-      await ownerPage.getByRole('button', { name: /Confirmar|Confirm/i }).click();
+      await ownerPage.getByTestId('pretty-confirm-button').click();
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
 
       // Verify Performance tab is active
@@ -202,8 +205,10 @@ test.describe('Pelada Lifecycle', () => {
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
       await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
 
-      const ratingContainers = await ownerPage.getByTestId(/rating-\d+/).all();
-      for (const container of ratingContainers) {
+      const ratingContainers = ownerPage.getByTestId(/rating-.*/);
+      await expect(ratingContainers.first()).toBeVisible({ timeout: 15000 });
+      const containers = await ratingContainers.all();
+      for (const container of containers) {
         await container.scrollIntoViewIfNeeded();
         await container.getByRole('radio', { name: /5 Stars/i }).click({ force: true });
       }
@@ -276,6 +281,7 @@ test.describe('Pelada Lifecycle', () => {
 
     // Move them all to Confirmed to check sorting there
     await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
+    await adminPage.waitForTimeout(1000);
     await adminPage.getByTestId(`attendance-card-${albatrossUser.username}`).getByTestId('attendance-card-confirm').click();
 
     await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
@@ -303,7 +309,7 @@ test.describe('Pelada Lifecycle', () => {
 
     // 1. Setup via UI using registerAndCreateOrg (correct way)
     await registerAndCreateOrg(page, admin, orgName);
-    await expect(page).toHaveURL(/\/organizations\/\d+$/);
+    await expect(page).toHaveURL(/\/organizations\/[^\/]+$/);
     const orgUrl = page.url();
     const orgId = orgUrl.split('/').pop();
 
@@ -315,15 +321,22 @@ test.describe('Pelada Lifecycle', () => {
       { pos: 4, grade: 10 }, { pos: 4, grade: 5 }
     ];
 
+    const posMap: Record<number, string> = {
+      1: 'Goalkeeper',
+      2: 'Defender',
+      3: 'Midfielder',
+      4: 'Striker'
+    };
+
     for (let i = 0; i < playerConfigs.length; i++) {
       const invite = await (await page.request.post(`/api/organizations/${orgId}/invite`, { data: { name: `P${i}` } })).json();
       await page.request.post('/api/players', {
-        data: { organization_id: Number(orgId), user_id: invite.user_id, grade: playerConfigs[i].grade, position_id: playerConfigs[i].pos }
+        data: { organization_id: orgId, user_id: invite.user_id, grade: playerConfigs[i].grade, position: posMap[playerConfigs[i].pos] }
       });
     }
 
     // 3. Create Pelada and Confirm Attendance
-    const pelada = await (await page.request.post('/api/peladas', { data: { organization_id: Number(orgId), scheduled_at: new Date().toISOString() } })).json();
+    const pelada = await (await page.request.post('/api/peladas', { data: { organization_id: orgId, scheduled_at: new Date().toISOString() } })).json();
     const peladaId = pelada.id;
     const players = await (await page.request.get(`/api/organizations/${orgId}/players`)).json();
     await page.request.post(`/api/peladas/${peladaId}/attendance/batch`, { data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' } });

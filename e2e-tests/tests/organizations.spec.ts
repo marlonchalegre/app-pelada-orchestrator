@@ -117,7 +117,7 @@ test.describe('Organization Management', () => {
       await joinerPage.goto(publicLink);
       await expect(joinerPage.getByTestId('join-org-button')).toBeVisible({ timeout: 15000 });
       await joinerPage.getByTestId('join-org-button').click();
-      await expect(joinerPage).toHaveURL(/\/organizations\/\d+/);
+      await expect(joinerPage).toHaveURL(/\/organizations\/[^\/]+/);
 
       // Leave Organization
       await joinerPage.getByTestId('leave-org-button').click();

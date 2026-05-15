@@ -6,6 +6,13 @@ import {
 
 test.describe('Automatic Fine', () => {
   const timestamp = Date.now();
+  
+  test.beforeEach(async ({ page }) => {
+    // Set the date to the 6th of May 2026 to guarantee the cut-off logic works 
+    // consistently regardless of when the test is run.
+    await page.clock.install({ time: new Date('2026-05-06T12:00:00Z') });
+  });
+
   const owner = {
     name: `Fine Owner ${timestamp}`,
     username: `fine_owner_${timestamp}`,
@@ -44,7 +51,7 @@ test.describe('Automatic Fine', () => {
     await page.getByTestId('month-select').click();
     await page.getByTestId('month-option-5').click(); // May
     
-    const playerRow = page.getByTestId(/monthly-payment-row-/).filter({ hasText: owner.name });
+    const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: owner.name });
     await expect(playerRow.getByText('R$ 115,00')).toBeVisible();
     await expect(playerRow.getByText('+ R$ 15,00 (multa)')).toBeVisible();
 
@@ -56,7 +63,7 @@ test.describe('Automatic Fine', () => {
 
     // Check Monthly Payments again - fine should be GONE (since May 6 <= May 10)
     await page.getByTestId('finance-tab-monthly').click();
-    await expect(playerRow.getByText('R$ 100,00')).toBeVisible();
+    await expect(playerRow.getByText(/R\$\s*100,00/)).toBeVisible();
     await expect(playerRow.locator('text=+ R$ 15,00 (multa)')).not.toBeVisible();
 
     // 5. Mark May as paid and verify transaction (restore fine to 15 first for the check)
@@ -75,9 +82,9 @@ test.describe('Automatic Fine', () => {
     await expect(page.getByText('Multa Mensalidade 5/2026', { exact: true })).toBeVisible();
     
     const txRow = page.locator('tr').filter({ hasText: 'Mensalidade 5/2026' }).filter({ hasNotText: 'Multa' });
-    await expect(txRow.getByText('R$ 100,00')).toBeVisible();
+    await expect(txRow.getByText(/R\$\s*100,00/)).toBeVisible();
 
     const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade 5/2026' });
-    await expect(fineRow.getByText('R$ 15,00')).toBeVisible();
+    await expect(fineRow.getByText(/R\$\s*15,00/)).toBeVisible();
   });
 });

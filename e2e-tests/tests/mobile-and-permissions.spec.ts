@@ -77,7 +77,7 @@ test.describe('Mobile UX and Permissions', () => {
     // Admin closes attendance
     await page.getByTestId('close-attendance-button').click();
     await page.getByTestId('confirm-close-attendance-button').click();
-    await expect(page).toHaveURL(/\/peladas\/\d+$/);
+    await expect(page).toHaveURL(/\/peladas\/[^\/]+$/);
 
     // Verify restricted buttons for regular user on pelada detail
     await playerPage.goto(page.url());
@@ -89,7 +89,7 @@ test.describe('Mobile UX and Permissions', () => {
     // Verify pelada row visible in list
     await page.goto('/home');
     await page.waitForLoadState('networkidle');
-    await expect(page.getByTestId(/pelada-row-\d+/).first()).toBeVisible();
+    await expect(page.getByTestId(/pelada-row-.*/).first()).toBeVisible();
 
     await playerContext.close();
   });

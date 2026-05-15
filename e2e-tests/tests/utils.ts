@@ -99,7 +99,7 @@ export async function createOrganization(page: Page, orgName: string) {
 
   await expect(page.getByTestId(`org-link-${orgName}`)).toBeVisible({ timeout: 15000 });
   await page.getByTestId(`org-link-${orgName}`).click();
-  await expect(page).toHaveURL(/\/organizations\/\d+/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
   await page.waitForLoadState('networkidle');
 }
 
@@ -111,12 +111,21 @@ export async function registerAndCreateOrg(page: Page, user: UserData, orgName: 
 }
 
 export function getOrgIdFromUrl(url: string): string {
-  const match = url.match(/\/organizations\/(\d+)/);
-  return match![1];
+  const parts = url.split('/');
+  const idx = parts.indexOf('organizations');
+  if (idx !== -1 && parts[idx + 1]) {
+    return parts[idx + 1].split('?')[0];
+  }
+  throw new Error(`Could not extract organization ID from URL: ${url}`);
 }
 
 export function getPeladaIdFromUrl(url: string): string {
-  return url.split('/').find((s, i, a) => a[i - 1] === 'peladas')!;
+  const parts = url.split('/');
+  const idx = parts.indexOf('peladas');
+  if (idx !== -1 && parts[idx + 1]) {
+    return parts[idx + 1].split('?')[0].split('/')[0];
+  }
+  throw new Error(`Could not extract pelada ID from URL: ${url}`);
 }
 
 // ─── Invitation & Player Setup ───────────────────────────────────────────────
@@ -264,7 +273,7 @@ export async function createPlayerViaApi(api: ApiContext, orgId: string, name: s
   const userId = data.user_id;
 
   await api.request.post(`${api.apiBaseUrl}/api/players`, {
-    data: { organization_id: Number(orgId), user_id: userId, grade: 5 },
+    data: { organization_id: orgId, user_id: userId, grade: 5 },
   });
 
   return userId;
@@ -311,7 +320,7 @@ export async function addPlayerBySearch(page: Page, query: string) {
 /** Creates a pelada from the org detail page. Returns the pelada ID. */
 export async function createPelada(page: Page): Promise<string> {
   await page.getByTestId('create-pelada-submit').or(page.getByRole('button', { name: /Criar pelada|Create pelada/i })).click();
-  await expect(page).toHaveURL(/\/peladas\/\d+\/attendance/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/attendance/, { timeout: 15000 });
   return getPeladaIdFromUrl(page.url());
 }
 
@@ -396,7 +405,7 @@ export async function buildAndUseSchedule(page: Page) {
   const useBtn = page.getByTestId('save-schedule-button');
   await expect(useBtn).toBeEnabled({ timeout: 15000 });
   await useBtn.click();
-  await expect(page).toHaveURL(/\/peladas\/\d+$/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/peladas\/[^\/]+$/, { timeout: 15000 });
 }
 
 export async function startPelada(page: Page) {
@@ -405,7 +414,7 @@ export async function startPelada(page: Page) {
   await expect(startBtn).toBeEnabled({ timeout: 10000 });
   await startBtn.click();
   await page.getByRole('button', { name: /Confirmar|Confirm/i }).click();
-  await expect(page).toHaveURL(/\/peladas\/\d+\/matches/, { timeout: 15000 });
+  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/matches/, { timeout: 15000 });
 }
 
 // ─── Composite Setup Helpers ─────────────────────────────────────────────────
@@ -418,7 +427,7 @@ export async function setupOrgAndPelada(page: Page, user: UserData, orgName: str
   // Navigate to org detail to create pelada
   await page.goto('/home');
   await page.getByTestId(`org-link-${orgName}`).click();
-  await page.waitForURL(/\/organizations\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
 
   const peladaId = await createPelada(page);
   return { orgUrl, peladaId };
@@ -439,7 +448,7 @@ export async function setupMatchDay(
 
   await page.goto('/home');
   await page.getByTestId(`org-link-${orgName}`).click();
-  await page.waitForURL(/\/organizations\/\d+/, { timeout: 15000 });
+  await page.waitForURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
 
   const peladaId = await createPelada(page);
 
