@@ -104,6 +104,19 @@ Development Tips
 - **Seeding:** Use the available seeding scripts to populate the database with test data once the backend is running.
 - **Submodules:** Remember that `api-peladaapp` and `web-peladaapp` are separate git repositories. Commits made inside them must be pushed to their respective remotes.
 
+Deployment
+----------
+
+### Docker Compose
+For standard VPS deployments using Docker Compose and GHCR images, use:
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Kubernetes (K3s + Cloudflare Tunnel)
+For a more robust, production-grade deployment on a VPS using Kubernetes, refer to our:
+👉 **[Kubernetes Deployment Guide](docs/kubernetes-deployment.md)**
+
 License
 -------
 
