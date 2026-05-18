@@ -128,7 +128,13 @@ kubectl apply -f k8s/manifests/
 
 ## 🔄 Updating the App
 
-When you push a new version to GHCR, update the deployment:
+### Automated Updates (Keel)
+This cluster uses **Keel** to automatically update your application when a new image is published to GHCR.
+- By default, Keel is configured to **poll the registry every 1 hour** (`@every 1h` in the deployment annotations).
+- If Keel detects a new image digest for the `latest` tag, it will automatically roll out the new pods.
+
+### Manual / Immediate Updates
+If you push a critical fix and do not want to wait for Keel's next hourly poll, you can force Kubernetes to pull the latest images and restart the pods immediately by running:
 ```bash
 kubectl rollout restart deployment/backend -n peladaapp
 kubectl rollout restart deployment/frontend -n peladaapp

@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: Always
           env:
             - name: POLL_INTERVAL
-              value: "1m" # Check for new images every minute
+              value: "1h" # Check for new images every hour
             - name: DEBUG
               value: "false"
             - name: UI_ENABLED
