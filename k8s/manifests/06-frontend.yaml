@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: peladaapp
+  annotations:
+    keel.sh/policy: force
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: "@every 1m"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-login # Must be created manually
+      containers:
+        - name: frontend
+          image: ghcr.io/marlonchalegre/web-peladaapp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: frontend-nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: peladaapp
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: frontend

@@ -52,7 +52,7 @@ Docker Workflows
 Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access. It also includes a PostgreSQL database.
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build
+docker compose up --build
 ```
 
 Services exposed:
@@ -65,20 +65,9 @@ Services exposed:
 Restart or rebuild individual services as needed:
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build frontend
-docker compose -f docker-compose.dev.yml restart backend
+docker compose up --build frontend
+docker compose restart backend
 ```
-
-### Production build preview
-
-Builds production images for both services and serves the pre-built front-end via Nginx.
-
-```bash
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up
-```
-
-This stack builds and tags production images as `peladaapp-frontend:prod` and `peladaapp-backend:prod`. The Nginx container exposes the bundled site at `http://localhost`.
 
 Testing
 -------

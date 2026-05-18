@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waha
+  namespace: peladaapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: waha
+  template:
+    metadata:
+      labels:
+        app: waha
+    spec:
+      containers:
+        - name: waha
+          image: devlikeapro/waha:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: WAHA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_API_KEY
+            - name: WAHA_DASHBOARD_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_DASHBOARD_USERNAME
+            - name: WAHA_DASHBOARD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_DASHBOARD_PASSWORD
+            - name: WHATSAPP_SWAGGER_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_DASHBOARD_USERNAME
+            - name: WHATSAPP_SWAGGER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_DASHBOARD_PASSWORD
+            - name: WAHA_SWAGGER_ENABLED
+              value: "true"
+            - name: WAHA_DASHBOARD_ENABLED
+              value: "false"
+            - name: WHATSAPP_DEFAULT_ENGINE
+              value: "GOWS"
+            - name: WAHA_RESTART_ALL_SESSIONS
+              value: "true"
+            - name: WAHA_AUTO_START_DELAY_SECONDS
+              value: "5"
+            - name: WAHA_LOCAL_STORE_BASE_DIR
+              value: "/app/.waha/sessions"
+            - name: WAHA_SQLITE_ENGINE
+              value: "sqlite3"
+          volumeMounts:
+            - name: waha-data
+              mountPath: /app/.waha/sessions
+      volumes:
+        - name: waha-data
+          persistentVolumeClaim:
+            claimName: waha-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waha
+  namespace: peladaapp
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: waha

@@ -8,6 +8,15 @@ This document explains how to deploy PeladaApp to a Kubernetes cluster running o
 - **Cloudflare Tunnel (`cloudflared`)**: Creates a secure, outbound-only bridge between your cluster and Cloudflare. This means your VPS firewall can remain **completely closed** (no ports 80/443 open).
 - **Ansible**: Used for the initial server provisioning and K3s installation.
 - **GHCR**: Private images are pulled from the GitHub Container Registry.
+- **Host-Native Postgres**: We use the Postgres instance installed directly on the VPS for better performance and simplicity.
+
+---
+
+## 🛠️ Prerequisites
+
+Before you begin, ensure you have the following installed on your **local machine**:
+- **Ansible**: To run the server provisioning playbook. ([Installation Guide](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html))
+- **kubectl**: To interact with the Kubernetes cluster once it is created. ([Installation Guide](https://kubernetes.io/docs/tasks/tools/))
 
 ---
 
@@ -29,11 +38,35 @@ First, you need to turn your bare VPS into a Kubernetes cluster.
     ansible-playbook -i inventory.ini playbook.yml
     ```
 
-**What this does:** Installs K3s (without Traefik), secures the OS, and downloads a `k3s-vps.yaml` file to your local machine.
+**What this does:** Installs K3s (without Traefik), secures the OS, enables the `host.k3s.internal` resolver, and downloads a `k3s-vps.yaml` file to your local machine.
 
 ---
 
-## 🔐 Step 2: Cluster Connectivity & Secrets
+## 🗄️ Step 2: Database Setup (Host-Native Postgres)
+
+Configure your VPS Postgres to allow connections from the Kubernetes internal network.
+
+1.  **Update `postgresql.conf`**:
+    Edit `/etc/postgresql/15/main/postgresql.conf` (or your version) and ensure it listens to all interfaces:
+    ```ini
+    listen_addresses = '*'
+    ```
+
+2.  **Update `pg_hba.conf`**:
+    Allow the K3s pod network (default is `10.42.0.0/16`):
+    ```text
+    # Add this at the end of /etc/postgresql/15/main/pg_hba.conf
+    host    all             all             10.42.0.0/16            scram-sha-256
+    ```
+
+3.  **Restart Postgres**:
+    ```bash
+    sudo systemctl restart postgresql
+    ```
+
+---
+
+## 🔐 Step 3: Cluster Connectivity & Secrets
 
 1.  **Configure `kubectl`**:
     Point your local terminal to the new cluster:
@@ -54,13 +87,14 @@ First, you need to turn your bare VPS into a Kubernetes cluster.
     ```
 
 3.  **Application Secrets**:
-    - Open `k8s/manifests/01-secrets-template.yaml`.
-    - Fill in all the `replace_with_...` fields (Database URLs, SMTP keys, and your **Cloudflare Tunnel Token**).
-    - Save it as `k8s/manifests/01-secrets.yaml` (this file is git-ignored for safety).
+    - Copy the template: `cp k8s/manifests/01-secrets-template.yaml k8s/manifests/01-secrets.yaml`
+    - Open `k8s/manifests/01-secrets.yaml`.
+    - Fill in all the `replace_with_...` fields and update the fake database credentials.
+    - **Note:** Ensure you use `10.42.0.1` (the default K3s host gateway) in your `DATABASE_URL` (e.g., `jdbc:postgresql://10.42.0.1:5432/peladaapp?user=...`).
 
 ---
 
-## 🌐 Step 3: Domain Configuration
+## 🌐 Step 4: Domain Configuration
 
 1.  Open `k8s/manifests/08-cloudflared.yaml`.
 2.  Update the `hostname` field (e.g., `pelada.yourdomain.com`) to match your actual domain.
@@ -68,7 +102,7 @@ First, you need to turn your bare VPS into a Kubernetes cluster.
 
 ---
 
-## 🚢 Step 4: Deploying the Stack
+## 🚢 Step 5: Deploying the Stack
 
 Apply all manifests in order:
 
@@ -78,9 +112,9 @@ kubectl apply -f k8s/manifests/
 
 ### Order of operations:
 1.  **Namespace & Secrets**: Sets the stage.
-2.  **Persistent Volumes**: Reserves disk space on your VPS for Postgres and uploads.
-3.  **Postgres (StatefulSet)**: Starts the database.
-4.  **Workloads (Backend, Frontend, WAHA)**: Starts the application services.
+2.  **Persistent Volumes**: Reserves disk space on your VPS for uploads and WAHA data.
+3.  **Workloads (Backend, Frontend, WAHA)**: Starts the application services.
+4.  **Frontend Config**: Injects the Nginx routing logic for the single-domain setup.
 5.  **Cloudflared**: Creates the tunnel to the internet.
 
 ---
@@ -99,4 +133,3 @@ When you push a new version to GHCR, update the deployment:
 kubectl rollout restart deployment/backend -n peladaapp
 kubectl rollout restart deployment/frontend -n peladaapp
 ```
-*(Tip: This can be automated in GitHub Actions as a final step in your `deploy.yml` workflow).*

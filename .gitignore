@@ -57,5 +57,9 @@ api-peladaapp/uploads/
 uploads/
 remote-data/
 
+# K8s Sensitive Files
+k8s/k3s-vps.yaml
+k8s/ansible/inventory.ini
+k8s/manifests/*secrets.yaml
 
 pgdata/

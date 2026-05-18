@@ -1,0 +1,51 @@
+---
+- name: Prepare VPS and Install K3s
+  hosts: vps
+  become: yes
+  vars:
+    # Disable traefik (using cloudflared instead) and servicelb
+    # Using --node-ip allows K3s to correctly map host.k3s.internal
+    k3s_install_args: "--disable traefik --disable servicelb --node-ip {{ inventory_hostname }}"
+
+  tasks:
+    - name: Update apt cache and upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install required dependencies
+      apt:
+        name:
+          - curl
+          - nfs-common
+          - ca-certificates
+          - iptables
+        state: present
+
+    - name: Install or Update K3s
+      shell: |
+        curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="{{ k3s_install_args }}" K3S_KUBECONFIG_MODE="644" sh -
+      register: k3s_install_result
+      changed_when: "'already installed' not in k3s_install_result.stdout"
+
+    - name: Wait for K3s to be ready
+      shell: k3s kubectl get nodes
+      register: nodes
+      until: '" Ready " in nodes.stdout'
+      retries: 10
+      delay: 5
+
+    - name: Fetch Kubeconfig to local machine
+      fetch:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: ../k3s-vps.yaml
+        flat: yes
+
+    - name: Adjust Kubeconfig IP
+      delegate_to: localhost
+      become: no
+      replace:
+        path: ../k3s-vps.yaml
+        regexp: '127\.0\.0\.1'
+        replace: "{{ inventory_hostname }}"

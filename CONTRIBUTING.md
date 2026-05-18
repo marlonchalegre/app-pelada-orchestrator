@@ -10,7 +10,7 @@ Thank you for your interest in contributing to PeladaApp! This document outlines
     ```
 2.  **Start the development environment**:
     ```bash
-    docker compose -f docker-compose.dev.yml up --build
+    docker compose up --build
     ```
 
 ## 🛠️ Development Workflow

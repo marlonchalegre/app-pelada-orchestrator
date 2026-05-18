@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: peladaapp
+  annotations:
+    keel.sh/policy: force
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: "@every 1m"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-login # Must be created manually
+      containers:
+        - name: backend
+          image: ghcr.io/marlonchalegre/api-peladaapp:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: DATABASE_URL
+            - name: SKIP_MIGRATIONS
+              value: "false"
+            - name: APP_VERSION
+              value: "latest"
+            - name: PELADA_API_SECURITY_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: PELADA_API_SECURITY_SIGNING_KEY
+            - name: WAHA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: WAHA_API_KEY
+            - name: SMTP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SMTP_PORT
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SMTP_PASS
+            - name: SMTP_FROM
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SMTP_FROM
+            - name: FRONTEND_URL
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: FRONTEND_URL
+          volumeMounts:
+            - name: backend-uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: backend-uploads
+          persistentVolumeClaim:
+            claimName: backend-uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: peladaapp
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    app: backend

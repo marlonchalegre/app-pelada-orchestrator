@@ -62,13 +62,18 @@ The frontend is built with a **feature-based architecture** to ensure scalabilit
 ## 🐋 Infrastructure & Deployment
 
 ### Development Environment
-The development environment is fully containerized using `docker-compose.dev.yml`. It includes:
+The development environment is fully containerized using `docker-compose.yml`. It includes:
 - **Frontend Container**: Runs the Vite dev server with Hot Module Replacement (HMR).
 - **Backend Container**: Runs the Clojure API with code reloading.
 - **Nginx Container**: Acts as a reverse proxy to provide a unified entry point at `http://localhost:8080`.
 
+### Production Environment
+The application supports two primary deployment strategies:
+1. **Docker Compose**: A standard, lightweight deployment using `docker-compose.ghcr.yml` that pulls pre-built multi-architecture images from the GitHub Container Registry.
+2. **Kubernetes (K3s)**: A robust, production-grade deployment managed via **Ansible** and **K3s**. It uses K8s manifests for deployments, Persistent Volumes (PVC) for storage, a Host-Native Postgres instance for performance, and **Cloudflare Tunnels** (`cloudflared`) to expose the application securely without opening inbound VPS firewall ports.
+
 ### Database
-- **PostgreSQL**: The primary database is a PostgreSQL instance, running as a containerized service.
+- **PostgreSQL**: The primary database is a PostgreSQL instance, running as a containerized service in development or as a host-native service in Kubernetes production.
 - **Migrations**: Database schema is managed via Migratus (SQL-based migrations) with HoneySQL for dynamic queries.
 
 ## 🧪 Testing Strategy
