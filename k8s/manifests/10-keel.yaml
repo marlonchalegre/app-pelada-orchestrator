@@ -29,12 +29,12 @@ spec:
               value: "false"
             - name: UI_ENABLED
               value: "true"
-            - name: UI_USER
+            - name: BASIC_AUTH_USER
               valueFrom:
                 secretKeyRef:
                   name: keel-secrets
                   key: KEEL_PORTAL_USER
-            - name: UI_PASSWORD
+            - name: BASIC_AUTH_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: keel-secrets
