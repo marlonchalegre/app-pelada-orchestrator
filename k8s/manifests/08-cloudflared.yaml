@@ -1,33 +1,3 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: cloudflared-config
-  namespace: peladaapp
-data:
-  config.yaml: |
-    # The token is injected via environment variable from the secret
-    tunnel: default
-    credentials-file: /etc/cloudflared/creds/credentials.json
-    metrics: 0.0.0.0:2000
-    no-autoupdate: true
-    ingress:
-      # Route all traffic for your single domain to the frontend
-      # The frontend's Nginx will handle routing /api and /auth to the backend
-      - hostname: minhapelada.mcp.dev.br
-        service: http://frontend.peladaapp.svc.cluster.local:8080
-
-      # Keel Dashboard for monitoring
-      - hostname: keel.mcp.dev.br
-        service: http://keel.keel.svc.cluster.local:9300
-
-      # Portainer for Logs, Status and UI management
-      - hostname: portainer.mcp.dev.br
-        service: http://portainer.portainer.svc.cluster.local:9000
-
-      # Catch-all rule
-      - service: http_status:404
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -48,23 +18,13 @@ spec:
           image: cloudflare/cloudflared:latest
           args:
             - tunnel
-            - --config
-            - /etc/cloudflared/config/config.yaml
+            - --no-autoupdate
             - run
+            - --token
+            - $(TUNNEL_TOKEN)
           env:
             - name: TUNNEL_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: cloudflared-token
                   key: TUNNEL_TOKEN
-          volumeMounts:
-            - name: config
-              mountPath: /etc/cloudflared/config
-              readOnly: true
-      volumes:
-        - name: config
-          configMap:
-            name: cloudflared-config
-            items:
-              - key: config.yaml
-                path: config.yaml

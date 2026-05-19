@@ -26,11 +26,28 @@ spec:
           ports:
             - containerPort: 8000
           env:
-            - name: DATABASE_URL
+            - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
                   name: peladaapp-secrets
-                  key: DATABASE_URL
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: POSTGRES_HOST
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: POSTGRES_DB
+            - name: DATABASE_URL
+              value: "jdbc:postgresql://$(POSTGRES_HOST):5432/$(POSTGRES_DB)?user=$(POSTGRES_USER)&password=$(POSTGRES_PASSWORD)"
             - name: SKIP_MIGRATIONS
               value: "false"
             - name: APP_VERSION
