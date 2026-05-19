@@ -9,7 +9,7 @@
   "scripts": {
     "test": "playwright test",
     "env:up": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml up -d --build",
-    "env:down": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml down -v",
+    "env:down": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml down",
     "db:backup": "echo 'Postgres backup not implemented' || true",
     "db:restore": "echo 'Postgres restore not implemented' || true",
     "db:clean": "docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c \"DROP SCHEMA IF EXISTS e2e CASCADE;\"",

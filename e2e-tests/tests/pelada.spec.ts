@@ -318,7 +318,7 @@ test.describe('Pelada Lifecycle', () => {
       { pos: 1, grade: 8 }, { pos: 1, grade: 7 },
       { pos: 2, grade: 9 }, { pos: 2, grade: 8 }, { pos: 2, grade: 7 }, { pos: 2, grade: 6 },
       { pos: 3, grade: 9 }, { pos: 3, grade: 8 }, { pos: 3, grade: 7 }, { pos: 3, grade: 6 },
-      { pos: 4, grade: 10 }, { pos: 4, grade: 5 }
+      { pos: 4, grade: 9 }, { pos: 4, grade: 8 }
     ];
 
     const posMap: Record<number, string> = {

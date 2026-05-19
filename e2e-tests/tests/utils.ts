@@ -393,6 +393,11 @@ export async function setupTeams(page: Page, options: { count?: number; playersP
 
   if (randomize) {
     await page.getByTestId('randomize-teams-button').click();
+    // Handle the confirmation dialog
+    const confirmBtn = page.getByTestId('pretty-confirm-button');
+    if (await confirmBtn.isVisible({ timeout: 2000 })) {
+      await confirmBtn.click();
+    }
     await expect(page.getByTestId('team-card-name').first()).toBeVisible({ timeout: 10000 });
   }
 }

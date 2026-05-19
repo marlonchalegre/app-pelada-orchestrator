@@ -21,8 +21,7 @@ yarn-error.log*
 # Clojure / JVM build outputs
 target/
 classes/
-.lein-repl-history
-.lein-failures
+.lein*
 
 # Editor / IDE
 .idea/
@@ -35,6 +34,7 @@ tmp/
 
 .clj-kondo/
 .lsp/
+.antigravitycli/
 
 # Scripts
 # scripts/
@@ -63,3 +63,9 @@ k8s/ansible/inventory.ini
 k8s/manifests/*secrets.yaml
 
 pgdata/
+
+# Versioning
+version.json
+
+# Scratch
+api-peladaapp/scratch/
