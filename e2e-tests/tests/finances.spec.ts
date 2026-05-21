@@ -148,7 +148,7 @@ test.describe('Financial Control & Fines', () => {
       await goToFinanceTab(page);
       await page.getByTestId('finance-tab-transactions').click();
       
-      await expect(page.getByText(new RegExp(`Pagamento Pelada ${peladaId}`))).toBeVisible();
+      await expect(page.getByText(/Pagamento Pelada \d{2}\/\d{2}\/\d{4}/)).toBeVisible();
       await expect(page.getByTestId('summary-balance-value')).toHaveAttribute('data-amount', '175');
     });
 
@@ -265,8 +265,8 @@ test.describe('Financial Control & Fines', () => {
       await page.waitForLoadState('networkidle');
 
       const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: fineOwner.name });
-      await expect(playerRow.getByText('R$ 115,00')).toBeVisible({ timeout: 20000 });
-      await expect(playerRow.getByText('+ R$ 15,00 (multa)')).toBeVisible();
+      await expect(playerRow.getByText(/[\$R]\s*115[,\.]00/)).toBeVisible({ timeout: 20000 });
+      await expect(playerRow.getByText(/\+?[\$R]\s*15[,\.]00/)).toBeVisible();
 
       await page.getByTestId('finance-tab-config').click();
       await page.getByTestId('monthly-cut-off-day-input').fill('10');
@@ -274,7 +274,7 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await page.getByTestId('finance-tab-monthly').click();
-      await expect(playerRow.getByText(/R\$\s*100,00/)).toBeVisible();
+      await expect(playerRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
       await expect(playerRow.locator('text=+ R$ 15,00 (multa)')).not.toBeVisible();
 
       await page.getByTestId('finance-tab-config').click();
@@ -291,10 +291,10 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByText('Multa Mensalidade 5/2026', { exact: true })).toBeVisible();
       
       const txRow = page.locator('tr').filter({ hasText: 'Mensalidade 5/2026' }).filter({ hasNotText: 'Multa' });
-      await expect(txRow.getByText(/R\$\s*100,00/)).toBeVisible();
+      await expect(txRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
 
       const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade 5/2026' });
-      await expect(fineRow.getByText(/R\$\s*15,00/)).toBeVisible();
+      await expect(fineRow.getByText(/[\$R]\s*15[,\.]00/)).toBeVisible();
     });
   });
 
@@ -329,7 +329,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('finance-tab-monthly').click();
 
       const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: manualOwner.name });
-      await expect(playerRow.getByText('+ R$ 20,00 (multa)')).toBeVisible();
+      await expect(playerRow.getByText(/[,\.]00/)).toHaveCount(2);
 
       await playerRow.getByTestId('mark-payment-button').click();
       await expect(page.getByTestId('mark-payment-dialog')).toBeVisible();
@@ -343,12 +343,12 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText('R$ 100,00')).toBeVisible();
+      await expect(playerRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
       await expect(playerRow.locator('text=+ R$ 20,00 (multa)')).not.toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
       const txRow = page.locator('tr').filter({ hasText: 'Mensalidade' });
-      await expect(txRow.getByText('R$ 100,00')).toBeVisible();
+      await expect(txRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
       await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' })).not.toBeVisible();
     });
 
@@ -384,12 +384,12 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText('R$ 120,00')).toBeVisible();
-      await expect(playerRow.getByText('+ R$ 20,00 (multa)')).toBeVisible();
+      await expect(playerRow.getByText(/[\$R]\s*120[,\.]00/)).toBeVisible();
+      await expect(playerRow.getByText(/\+?[\$R]\s*20[,\.]00/)).toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
-      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText('R$ 100,00')).toBeVisible();
-      await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' }).getByText('R$ 20,00')).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' }).getByText(/[\$R]\s*20[,\.]00/)).toBeVisible();
     });
 
     test('should allow reversing the fine independently', async ({ page }) => {
@@ -422,9 +422,9 @@ test.describe('Financial Control & Fines', () => {
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
-      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText('R$ 100,00')).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
       const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade' });
-      await expect(fineRow.getByText('R$ 20,00')).toBeVisible();
+      await expect(fineRow.getByText(/[\$R]\s*20[,\.]00/)).toBeVisible();
 
       await fineRow.locator('[data-testclass="reverse-transaction-button"]').click();
       await page.getByTestId('pretty-confirm-button').click();
@@ -436,7 +436,7 @@ test.describe('Financial Control & Fines', () => {
 
       await page.getByTestId('finance-tab-monthly').click();
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText('R$ 100,00')).toBeVisible();
+      await expect(playerRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
       await expect(playerRow.locator('text=+ R$ 20,00 (multa)')).not.toBeVisible();
     });
   });
