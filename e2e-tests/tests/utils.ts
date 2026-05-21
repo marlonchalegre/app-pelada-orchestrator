@@ -64,7 +64,9 @@ export async function registerUser(page: Page, user: UserData) {
 
   if (user.position) {
     await page.getByLabel('Position').or(page.getByLabel('Posição')).click();
-    await page.getByRole('option', { name: user.position }).click();
+    const option = page.getByTestId(`position-option-${user.position}`);
+    await expect(option).toBeVisible();
+    await option.click();
   }
 
   await page.getByTestId('register-submit').click();

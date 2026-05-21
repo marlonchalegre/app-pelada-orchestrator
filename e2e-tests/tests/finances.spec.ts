@@ -23,8 +23,14 @@ async function makeDiarista(page: Page, orgName: string, playerName: string) {
   await page.getByTestId('mgmt-tab-members').click();
   const memberRow = page.locator('li').filter({ hasText: playerName });
   await memberRow.getByRole('combobox').click();
-  await page.getByRole('listbox').getByRole('option', { name: 'Diarista', exact: true }).click();
-  await page.waitForTimeout(1000);
+  
+  const responsePromise = page.waitForResponse(
+    resp => resp.url().includes('/api/players/') && resp.request().method() === 'PUT' && resp.status() === 200,
+    { timeout: 15000 }
+  );
+  
+  await page.getByRole('option', { name: 'Diarista', exact: true }).click();
+  await responsePromise;
 }
 
 async function goToFinanceTab(page: Page) {
@@ -280,6 +286,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('finance-tab-config').click();
       await page.getByTestId('monthly-cut-off-day-input').fill('5');
       await page.getByTestId('save-finance-config-button').click();
+      await expect(page.getByTestId('finance-success')).toBeVisible();
       
       await page.getByTestId('finance-tab-monthly').click();
       await playerRow.getByTestId('mark-payment-button').click();
@@ -372,6 +379,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('monthly-fine-amount-input').fill('20');
       await page.getByTestId('monthly-cut-off-day-input').fill('1');
       await page.getByTestId('save-finance-config-button').click();
+      await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await makeMensalista(page, manualOwner.name);
       await goToFinanceTab(page);
@@ -411,6 +419,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('monthly-fine-amount-input').fill('20');
       await page.getByTestId('monthly-cut-off-day-input').fill('1');
       await page.getByTestId('save-finance-config-button').click();
+      await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await makeMensalista(page, manualOwner.name);
       await goToFinanceTab(page);
