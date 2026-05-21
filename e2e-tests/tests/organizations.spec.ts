@@ -5,6 +5,12 @@ import {
   registerUser,
   registerAndCreateOrg,
   invitePlayerByEmail,
+  setupInvitedPlayer,
+  createPelada,
+  UserData,
+  loginUser,
+  makeMensalista,
+  getOrgIdFromUrl,
 } from './utils';
 
 test.describe('Organization Management', () => {
@@ -176,5 +182,201 @@ test.describe('Organization Management', () => {
 
     await ownerContext.close();
     await saveVideo(ownerPage, 'owner-org-management', testInfo);
+  });
+
+  test('should verify attendance details, restricted icons and row visibility', async ({ browser }) => {
+    const ts = Date.now() + 10000;
+    const adminUser = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: 'password123',
+      position: 'Striker',
+    };
+    const playerUser = {
+      name: `Player ${ts}`,
+      username: `player_${ts}`,
+      email: `player-${ts}@example.com`,
+      password: 'password123',
+    };
+    const uxOrgName = `UX Org ${ts}`;
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await registerAndCreateOrg(page, adminUser, uxOrgName);
+    await makeMensalista(page, adminUser.name);
+
+    await page.goto('/home');
+    await page.getByTestId(`org-link-${uxOrgName}`).click();
+    const inviteLink = await invitePlayerByEmail(page, playerUser.email);
+
+    await setupInvitedPlayer(browser, inviteLink, playerUser, uxOrgName);
+    
+    const playerContext = await browser.newContext();
+    const playerPage = await playerContext.newPage();
+    await loginUser(playerPage, playerUser);
+
+    await page.goto('/home');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId(`org-link-${uxOrgName}`).click();
+    await createPelada(page);
+    const attendanceUrl = page.url();
+
+    await page.getByTestId('attendance-confirm-button').click();
+    const adminCard = page.getByTestId(`attendance-card-${adminUser.username}`);
+    await expect(adminCard).toBeVisible();
+    await expect(adminCard.getByText(/Atacante|Striker/i)).toBeVisible();
+    await expect(adminCard.getByText(/Mensalista/i)).toBeVisible();
+
+    await playerPage.goto(attendanceUrl);
+    await playerPage.getByTestId('attendance-confirm-button').click();
+    await playerPage.getByRole('tab', { name: /Espera|Waitlist/i }).first().click();
+    await expect(playerPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+    await expect(playerPage.getByTestId('attendance-card-confirm')).not.toBeVisible();
+    await expect(playerPage.getByTestId('attendance-card-decline')).not.toBeVisible();
+
+    await page.getByTestId('close-attendance-button').click();
+    await page.getByTestId('confirm-close-attendance-button').click();
+    await expect(page).toHaveURL(/\/peladas\/[^\/]+$/);
+
+    await playerPage.goto(page.url());
+    await expect(playerPage.getByTestId('copy-players-button')).not.toBeVisible();
+    await expect(playerPage.getByTestId('randomize-teams-button')).not.toBeVisible();
+    await expect(playerPage.getByTestId('create-team-button')).not.toBeVisible();
+    await expect(playerPage.getByTestId('share-dropdown-button')).not.toBeVisible();
+
+    await page.goto('/home');
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByTestId(/pelada-row-.*/).first()).toBeVisible();
+
+    await playerContext.close();
+    await context.close();
+  });
+
+  test('should verify mobile optimizations (hidden text)', async ({ page }) => {
+    const ts = Date.now() + 20000;
+    const adminUser = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: 'password123',
+      position: 'Striker',
+    };
+    const mobileOrgName = `UX Org ${ts}`;
+    await registerAndCreateOrg(page, adminUser, mobileOrgName);
+
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/home');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId(`org-link-${mobileOrgName}`).click();
+
+    await createPelada(page);
+
+    const closeBtn = page.getByTestId('close-attendance-button');
+    const textSpan = closeBtn.locator('span').filter({ hasText: /Fechar Lista|Close List/i });
+    await expect(textSpan).not.toBeVisible();
+
+    await page.goto('/home');
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId(`org-link-${mobileOrgName}`).click();
+    await page.getByTestId('org-management-button').click();
+    const tabLabel = page.getByTestId('mgmt-tab-members').locator('span').filter({ hasText: /Membros|Members/i });
+    await expect(tabLabel).not.toBeVisible();
+  });
+
+  test('should configure WAHA settings', async ({ page }, testInfo) => {
+    const ts = Date.now() + 30000;
+    const adminUser = {
+      name: `WAHA Admin ${ts}`,
+      username: `waha_admin_${ts}`,
+      email: `waha-${ts}@example.com`,
+      password: 'password123',
+      position: 'Goalkeeper'
+    };
+    const wahaOrgName = `WAHA Org ${ts}`;
+
+    await registerAndCreateOrg(page, adminUser, wahaOrgName);
+
+    await page.getByTestId('org-management-button').click();
+    await page.getByTestId('mgmt-tab-waha').click();
+
+    const enabledSwitch = page.locator('input[name="waha_enabled"]');
+    await expect(enabledSwitch).not.toBeChecked();
+    const testBtn = page.getByTestId('waha-test-connection-button');
+    await expect(testBtn).toBeDisabled();
+
+    await page.locator('input[name="waha_api_url"]').fill('http://waha:3000');
+    await page.locator('input[name="waha_instance"]').fill('default');
+    await page.locator('input[name="waha_group_id"]').fill('123456789@g.us');
+
+    await page.getByLabel(/(Enable|Habilitar) WAHA/i).click();
+    await expect(enabledSwitch).toBeChecked();
+
+    await page.getByLabel(/(Notify when pelada starts|Notificar quando a pelada iniciar)/i).click();
+    await page.getByLabel(/(Notify when pelada ends|Notificar quando a pelada encerrar)/i).click();
+
+    await page.getByTestId('waha-save-button').click();
+    await expect(page.getByText(/(saved successfully|salvas com sucesso)/i)).toBeVisible();
+    await expect(testBtn).toBeEnabled();
+
+    await page.reload();
+    await page.getByTestId('mgmt-tab-waha').click();
+    await expect(enabledSwitch).toBeChecked();
+    await expect(page.locator('input[name="waha_api_url"]')).toHaveValue('http://waha:3000');
+    await expect(page.locator('input[name="waha_instance"]')).toHaveValue('default');
+    await expect(page.locator('input[name="waha_group_id"]')).toHaveValue('123456789@g.us');
+    await expect(page.locator('input[name="waha_start_msg_enabled"]')).toBeChecked();
+    await expect(page.locator('input[name="waha_end_msg_enabled"]')).toBeChecked();
+
+    await saveVideo(page, 'waha-configuration', testInfo);
+  });
+
+  test('should redirect existing member to org page when accessing invite link', async ({ browser }) => {
+    const timestamp = Date.now() + Math.floor(Math.random() * 1000000);
+    const owner = {
+      name: `Owner ${timestamp}`,
+      username: `owner_${timestamp}`,
+      email: `owner-${timestamp}@example.com`,
+      password: 'password123',
+      position: 'Defender'
+    };
+    const invitedUser = {
+      name: `User ${timestamp}`,
+      username: `user_${timestamp}`,
+      email: `user-${timestamp}@example.com`,
+      password: 'password123',
+      position: 'Striker'
+    };
+    const orgName = `Redirection Org ${timestamp}`;
+
+    const ownerContext = await browser.newContext();
+    const ownerPage = await ownerContext.newPage();
+    
+    await registerAndCreateOrg(ownerPage, owner, orgName);
+    
+    const orgId = getOrgIdFromUrl(ownerPage.url());
+    const inviteToken = await ownerPage.evaluate(async (id) => {
+        const res = await fetch(`/api/organizations/${id}/invite-link`);
+        const data = await res.json();
+        return data.token;
+    }, orgId);
+    const inviteLink = `/join/${inviteToken}`;
+    
+    await ownerContext.close();
+
+    const userContext = await browser.newContext();
+    const userPage = await userContext.newPage();
+    await registerUser(userPage, invitedUser);
+    
+    await userPage.goto(inviteLink);
+    await userPage.getByTestId('join-org-button').click();
+    await expect(userPage).toHaveURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
+    const orgUrl = userPage.url();
+
+    await userPage.goto(inviteLink);
+    await expect(userPage).toHaveURL(orgUrl);
+    
+    await userContext.close();
   });
 });

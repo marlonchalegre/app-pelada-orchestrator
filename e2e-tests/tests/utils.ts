@@ -298,8 +298,22 @@ export async function makeMensalista(page: Page, playerName: string) {
 
   const memberRow = page.locator('li').filter({ hasText: playerName });
   await expect(memberRow).toBeVisible({ timeout: 10000 });
-  await memberRow.getByRole('combobox').click();
+  
+  const combobox = memberRow.getByRole('combobox');
+  const currentValue = await combobox.innerText();
+  if (currentValue.trim() === 'Mensalista') {
+    return;
+  }
+
+  await combobox.click();
+
+  const responsePromise = page.waitForResponse(
+    resp => resp.url().includes('/api/players/') && resp.request().method() === 'PUT' && resp.status() === 200,
+    { timeout: 15000 }
+  );
+
   await page.getByRole('option', { name: 'Mensalista', exact: true }).click();
+  await responsePromise;
 }
 
 export async function addPlayerBySearch(page: Page, query: string) {

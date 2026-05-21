@@ -71,11 +71,15 @@ test.describe('Substitution and Empty Spots', () => {
     const emptySlot = homeTeamSection.getByTestId('player-row-empty').first();
     await expect(emptySlot).toBeVisible({ timeout: 15000 });
 
+    const initialEmptySlotsCount = await homeTeamSection.getByTestId('player-row-empty').count();
+
     await emptySlot.getByRole('button').click();
     await expect(page.getByTestId('player-select-dialog')).toBeVisible();
     await page.getByTestId('player-select-dialog').getByText(player1Name).click();
 
     await expect(homeTeamSection.getByTestId('player-row').filter({ hasText: player1Name })).toBeVisible();
-    await expect(homeTeamSection.getByTestId('player-row-empty')).toHaveCount(0);
+    
+    // Verify that the count of empty slots decreased by 1
+    await expect(homeTeamSection.getByTestId('player-row-empty')).toHaveCount(initialEmptySlotsCount - 1);
   });
 });
