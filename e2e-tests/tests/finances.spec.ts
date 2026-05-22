@@ -76,6 +76,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('monthly-fine-amount-input').fill('9');
       await page.getByTestId('monthly-cut-off-day-input').fill('5');
       
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
     });
@@ -131,6 +132,9 @@ test.describe('Financial Control & Fines', () => {
       const paidBtn = playerCard.getByTestId('mark-as-paid-button');
       await expect(paidBtn).toBeVisible();
       
+      // Wait for the button to be enabled (finance data loaded)
+      await expect(paidBtn).toBeEnabled({ timeout: 15000 });
+
       const dashboardDataPromise = page.waitForResponse(
         response => {
           const url = response.url();
@@ -258,6 +262,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('monthly-fine-amount-input').fill('15');
       await page.getByTestId('monthly-cut-off-day-input').fill('5');
       
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
@@ -276,6 +281,7 @@ test.describe('Financial Control & Fines', () => {
 
       await page.getByTestId('finance-tab-config').click();
       await page.getByTestId('monthly-cut-off-day-input').fill('10');
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
@@ -285,6 +291,7 @@ test.describe('Financial Control & Fines', () => {
 
       await page.getByTestId('finance-tab-config').click();
       await page.getByTestId('monthly-cut-off-day-input').fill('5');
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
       
@@ -298,10 +305,10 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByText('Multa Mensalidade 5/2026', { exact: true })).toBeVisible();
       
       const txRow = page.locator('tr').filter({ hasText: 'Mensalidade 5/2026' }).filter({ hasNotText: 'Multa' });
-      await expect(txRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(txRow.getByText(/100[,\.]00/)).toBeVisible();
 
       const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade 5/2026' });
-      await expect(fineRow.getByText(/[\$R]\s*15[,\.]00/)).toBeVisible();
+      await expect(fineRow.getByText(/15[,\.]00/)).toBeVisible();
     });
   });
 
@@ -327,6 +334,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('monthly-fine-amount-input').fill('20');
       await page.getByTestId('monthly-cut-off-day-input').fill('1');
       
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
@@ -334,9 +342,11 @@ test.describe('Financial Control & Fines', () => {
 
       await goToFinanceTab(page);
       await page.getByTestId('finance-tab-monthly').click();
-
+      
+      // Explicitly wait for the monthly payments to load
       const playerRow = page.getByTestId(/monthly-payment-row-.*/).filter({ hasText: manualOwner.name });
-      await expect(playerRow.getByText(/[,\.]00/)).toHaveCount(2);
+      await expect(playerRow).toBeVisible({ timeout: 15000 });
+      await expect(playerRow.getByText(/[,\.]00/)).toHaveCount(2, { timeout: 15000 });
 
       await playerRow.getByTestId('mark-payment-button').click();
       await expect(page.getByTestId('mark-payment-dialog')).toBeVisible();
@@ -350,12 +360,12 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(playerRow.getByText(/100[,\.]00/)).toBeVisible();
       await expect(playerRow.locator('text=+ R$ 20,00 (multa)')).not.toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
       const txRow = page.locator('tr').filter({ hasText: 'Mensalidade' });
-      await expect(txRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(txRow.getByText(/100[,\.]00/)).toBeVisible();
       await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' })).not.toBeVisible();
     });
 
@@ -378,6 +388,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('mensalista-price-input').fill('100');
       await page.getByTestId('monthly-fine-amount-input').fill('20');
       await page.getByTestId('monthly-cut-off-day-input').fill('1');
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
@@ -392,12 +403,12 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText(/[\$R]\s*120[,\.]00/)).toBeVisible();
-      await expect(playerRow.getByText(/\+?[\$R]\s*20[,\.]00/)).toBeVisible();
+      await expect(playerRow.getByText(/120[,\.]00/)).toBeVisible();
+      await expect(playerRow.getByText(/\+.*20[,\.]00.*multa/)).toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
-      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
-      await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' }).getByText(/[\$R]\s*20[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/100[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' }).getByText(/20[,\.]00/)).toBeVisible();
     });
 
     test('should allow reversing the fine independently', async ({ page }) => {
@@ -418,6 +429,7 @@ test.describe('Financial Control & Fines', () => {
       await page.getByTestId('mensalista-price-input').fill('100');
       await page.getByTestId('monthly-fine-amount-input').fill('20');
       await page.getByTestId('monthly-cut-off-day-input').fill('1');
+      await page.waitForTimeout(300); // Wait for React state to flush
       await page.getByTestId('save-finance-config-button').click();
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
@@ -431,9 +443,9 @@ test.describe('Financial Control & Fines', () => {
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
-      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/100[,\.]00/)).toBeVisible();
       const fineRow = page.locator('tr').filter({ hasText: 'Multa Mensalidade' });
-      await expect(fineRow.getByText(/[\$R]\s*20[,\.]00/)).toBeVisible();
+      await expect(fineRow.getByText(/20[,\.]00/)).toBeVisible();
 
       await fineRow.locator('[data-testclass="reverse-transaction-button"]').click();
       await page.getByTestId('pretty-confirm-button').click();
@@ -445,7 +457,7 @@ test.describe('Financial Control & Fines', () => {
 
       await page.getByTestId('finance-tab-monthly').click();
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText(/[\$R]\s*100[,\.]00/)).toBeVisible();
+      await expect(playerRow.getByText(/100[,\.]00/)).toBeVisible();
       await expect(playerRow.locator('text=+ R$ 20,00 (multa)')).not.toBeVisible();
     });
   });

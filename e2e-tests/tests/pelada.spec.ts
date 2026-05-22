@@ -212,13 +212,18 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
       await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
 
-      const ratingContainers = ownerPage.getByTestId(/rating-.*/);
-      await expect(ratingContainers.first()).toBeVisible({ timeout: 15000 });
-      const containers = await ratingContainers.all();
-      for (const container of containers) {
-        await container.scrollIntoViewIfNeeded();
-        await container.getByRole('radio', { name: /5 Stars/i }).click({ force: true });
-      }
+      // Explicitly wait for both player voting cards to be visible to avoid race conditions
+      const card2 = ownerPage.getByTestId(/voting-card-.*/).filter({ hasText: player2.name });
+      const card3 = ownerPage.getByTestId(/voting-card-.*/).filter({ hasText: player3.name });
+      await expect(card2).toBeVisible({ timeout: 15000 });
+      await expect(card3).toBeVisible({ timeout: 15000 });
+
+      // Click the 5 Stars rating for each player
+      await card2.scrollIntoViewIfNeeded();
+      await card2.locator('label').nth(4).click();
+      await card3.scrollIntoViewIfNeeded();
+      await card3.locator('label').nth(4).click();
+
       await ownerPage.getByTestId('save-votes-button').click();
       await expect(ownerPage.getByText(/Votos registrados|Votes saved/i).first()).toBeVisible();
     });
@@ -534,7 +539,9 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.getByTestId('build-schedule-button').click();
       await expect(ownerPage).toHaveURL(/\/build-schedule/);
 
-      await ownerPage.getByLabel(/matches per team/i).click();
+      const select = ownerPage.getByTestId('matches-per-team-select');
+      await expect(select).toBeEnabled();
+      await select.click();
       await ownerPage.getByRole('option', { name: /^3/ }).click();
       await expect(ownerPage.getByRole('row')).toHaveCount(4);
 

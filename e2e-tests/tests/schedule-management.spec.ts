@@ -34,7 +34,9 @@ test.describe('Schedule Management', () => {
       await expect(ownerPage).toHaveURL(/\/build-schedule/);
 
       // Change matches per team
-      await ownerPage.getByLabel(/matches per team/i).click();
+      const select = ownerPage.getByLabel(/matches per team/i);
+      await expect(select).toBeEnabled();
+      await select.click();
       await ownerPage.getByRole('option', { name: /^3/ }).click();
       await expect(ownerPage.getByRole('row')).toHaveCount(4); // Header + 3
 
