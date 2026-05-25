@@ -539,7 +539,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.getByTestId('build-schedule-button').click();
       await expect(ownerPage).toHaveURL(/\/build-schedule/);
 
-      const select = ownerPage.getByTestId('matches-per-team-select');
+      const select = ownerPage.getByTestId('matches-per-team-select').getByRole('combobox');
       await expect(select).toBeEnabled();
       await select.click();
       await ownerPage.getByRole('option', { name: /^3/ }).click();
