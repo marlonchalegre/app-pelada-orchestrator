@@ -93,6 +93,16 @@ spec:
                 secretKeyRef:
                   name: peladaapp-secrets
                   key: FRONTEND_URL
+            - name: SUPER_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SUPER_ADMIN_EMAIL
+            - name: SUPER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: peladaapp-secrets
+                  key: SUPER_ADMIN_PASSWORD
           volumeMounts:
             - name: backend-uploads
               mountPath: /app/uploads

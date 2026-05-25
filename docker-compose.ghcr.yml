@@ -19,12 +19,14 @@ services:
       - APP_VERSION=${TAG:-latest}
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY}
       - WAHA_API_KEY=${WAHA_API_KEY}
-      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
-      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
     volumes:
       - ./uploads:/app/uploads
     depends_on:
@@ -35,7 +37,7 @@ services:
     image: postgres:15-alpine
     restart: always
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -44,7 +46,7 @@ services:
       - ./pgdata:/var/lib/postgresql/data
 
   waha:
-    image: ${WAHA_IMAGE:-devlikeapro/waha:arm}
+    image: ${WAHA_IMAGE}
     restart: always
     environment:
       - WAHA_API_KEY=${WAHA_API_KEY}
@@ -52,13 +54,13 @@ services:
       - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
       - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
       - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
-      - WAHA_SWAGGER_ENABLED=true
-      - WAHA_DASHBOARD_ENABLED=false
-      - WHATSAPP_DEFAULT_ENGINE=GOWS
-      - WAHA_RESTART_ALL_SESSIONS=true
-      - WAHA_AUTO_START_DELAY_SECONDS=5
-      - WAHA_LOCAL_STORE_BASE_DIR=/app/.waha/sessions
-      - WAHA_SQLITE_ENGINE=sqlite3
+      - WAHA_SWAGGER_ENABLED=${WAHA_SWAGGER_ENABLED}
+      - WAHA_DASHBOARD_ENABLED=${WAHA_DASHBOARD_ENABLED}
+      - WHATSAPP_DEFAULT_ENGINE=${WHATSAPP_DEFAULT_ENGINE}
+      - WAHA_RESTART_ALL_SESSIONS=${WAHA_RESTART_ALL_SESSIONS}
+      - WAHA_AUTO_START_DELAY_SECONDS=${WAHA_AUTO_START_DELAY_SECONDS}
+      - WAHA_LOCAL_STORE_BASE_DIR=${WAHA_LOCAL_STORE_BASE_DIR}
+      - WAHA_SQLITE_ENGINE=${WAHA_SQLITE_ENGINE}
     ports:
       - 3000:3000
     volumes:

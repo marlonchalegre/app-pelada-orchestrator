@@ -1,4 +1,5 @@
 import { Browser, Page, TestInfo, APIRequestContext, expect } from '@playwright/test';
+import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -92,6 +93,15 @@ export async function getApiContext(page: Page, _request: APIRequestContext): Pr
 }
 // ─── Organization ────────────────────────────────────────────────────────────
 
+/**
+ * Grant allow_org_creation=true for a user by email in the e2e schema.
+ * Required because new users default to allow_org_creation=false.
+ */
+export function grantOrgCreation(email: string) {
+  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"` ;
+  execSync(cmd);
+}
+
 export async function createOrganization(page: Page, orgName: string) {
   await page.goto('/home');
   await page.waitForLoadState('networkidle');
@@ -108,6 +118,8 @@ export async function createOrganization(page: Page, orgName: string) {
 /** Register user + create org in one call. Returns the org URL. */
 export async function registerAndCreateOrg(page: Page, user: UserData, orgName: string): Promise<string> {
   await registerUser(page, user);
+  // Grant org creation permission since new users default to false.
+  grantOrgCreation(user.email);
   await createOrganization(page, orgName);
   return page.url();
 }
