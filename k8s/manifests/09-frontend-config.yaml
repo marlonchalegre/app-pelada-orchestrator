@@ -36,6 +36,35 @@ data:
             add_header Content-Type "application/manifest+json";
         }
 
+        # Handle main entry points with fallback to latest version (gambiarra for cached index.html)
+        location ~* /assets/index-.*\.js$ {
+            include /usr/share/nginx/html/assets/latest.conf;
+            try_files $uri @latest_js;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        location @latest_js {
+            include /usr/share/nginx/html/assets/latest.conf;
+            expires -1;
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            return 302 /assets/$latest_index_js;
+        }
+
+        location ~* /assets/index-.*\.css$ {
+            include /usr/share/nginx/html/assets/latest.conf;
+            try_files $uri @latest_css;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        location @latest_css {
+            include /usr/share/nginx/html/assets/latest.conf;
+            expires -1;
+            add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            return 302 /assets/$latest_index_css;
+        }
+
         # Hashed JS and CSS - 1 year cache
         location ~* \.(?:css|js)$ {
             expires 1y;
