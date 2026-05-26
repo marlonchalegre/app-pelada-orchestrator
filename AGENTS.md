@@ -67,6 +67,10 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Debugging:** Use systematic debugging approaches. Leverage logging, tracing, and debugging tools effectively.
 *   **Code Reviews:** Think about how your changes would be reviewed by a human senior engineer. Self-review your code thoroughly.
 
+## Business Rules
+
+*   **Attendance Sorting:** Players in attendance lists (confirmed, waitlist, etc.) MUST be sorted primarily by their member type priority (mensalista > diarista > convidado) and then by their attendance update time (FIFO - First In First Out). If update time is missing, it falls back to alphabetical sort by name.
+
 ## Authentication & Security
 
 *   **Cookie-Only Authentication:** You MUST NOT use the HTTP header for Authorization token. The token MUST be sent using cookies only (`authToken` cookie).
