@@ -222,6 +222,166 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await expect(orgAdminPage.getByTestId('create-pelada-submit')).toBeHidden();
     });
 
+    // 6. Reset user password
+    await test.step('6. Reset user password and verify login', async () => {
+      await superAdminPage.goto('/admin');
+      
+      // Search for regular user
+      const userSearchInput = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      await userSearchInput.click();
+      await userSearchInput.clear();
+      await userSearchInput.pressSequentially(regularUser.name);
+      const userResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      await userSearchInput.press('Enter');
+      await userResponsePromise;
+
+      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      
+      // Unblock them first so we can verify they can log in
+      const blockSwitch = userRow.locator('input[type="checkbox"]').nth(0);
+      await blockSwitch.click();
+      await expect(blockSwitch).not.toBeChecked();
+
+      // Click reset password key button
+      await userRow.locator('[data-testid^="reset-password-btn-"]').click();
+      
+      // Wait for dialog
+      const dialog = superAdminPage.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      
+      // Fill new password
+      const newPassword = 'newPassword123!';
+      await superAdminPage.getByTestId('new-password-input').fill(newPassword);
+      
+      // Click confirm
+      const resetPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/reset-password') && resp.status() === 200);
+      await superAdminPage.getByTestId('confirm-reset-password-btn').click();
+      await resetPromise;
+      
+      // Wait for dialog closure
+      await expect(dialog).toBeHidden();
+      
+      // Log out regular user and verify they can log back in with the new password
+      await regularPage.goto('/home');
+      await regularPage.getByTestId('user-settings-button').click();
+      await regularPage.getByTestId('logout-menu-item').click();
+      await expect(regularPage).toHaveURL('/');
+      
+      const updatedRegularUser = { ...regularUser, password: newPassword };
+      await regularPage.goto('/login');
+      await regularPage.getByTestId('login-email').fill(updatedRegularUser.username);
+      await regularPage.getByTestId('login-password').fill(updatedRegularUser.password);
+      await regularPage.getByTestId('login-submit').click();
+      await expect(regularPage).toHaveURL('/home');
+    });
+
+    // 7. Manage organization admins
+    await test.step('7. Add and remove organization admins', async () => {
+      // Go to Organizations tab on superAdminPage
+      await superAdminPage.goto('/admin');
+      await superAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
+
+      // Search for the organization
+      const orgSearchInput = superAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
+      await orgSearchInput.click();
+      await orgSearchInput.clear();
+      await orgSearchInput.pressSequentially(orgName);
+      const orgResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
+      await orgSearchInput.press('Enter');
+      await orgResponsePromise;
+
+      const orgRow = superAdminPage.locator('tr').filter({ hasText: orgName });
+      await orgRow.locator('[data-testid^="manage-admins-btn-"]').click();
+
+      // Dialog should open
+      const dialog = superAdminPage.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+
+      // Search for regularUser to add them as admin
+      await superAdminPage.getByTestId('admin-search-input').fill(regularUser.username);
+      const searchUsersPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      await superAdminPage.getByTestId('search-admin-users-btn').click();
+      await searchUsersPromise;
+
+      // Add regularUser as admin
+      const addAdminPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/admins') && resp.status() === 200);
+      await superAdminPage.locator('[data-testid^="add-admin-btn-"]').click();
+      await addAdminPromise;
+
+      // Confirm they are added to the list of admins
+      await expect(dialog.getByText(regularUser.name)).toBeVisible();
+
+      // Verify on regularPage (regular user context) that they can manage the organization
+      await regularPage.goto('/home');
+      await regularPage.reload();
+      await regularPage.waitForLoadState('networkidle');
+      
+      // Verify organization shows up in administered list
+      await expect(regularPage.getByTestId('admin-orgs-list')).toContainText(orgName);
+
+      // Now remove the regularUser from admins on superAdminPage
+      const removeAdminPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/admins/') && resp.status() === 200);
+      // Click delete icon next to regularUser name
+      await dialog.locator('li').filter({ hasText: regularUser.name }).locator('[data-testid^="remove-admin-btn-"]').click();
+      await removeAdminPromise;
+
+      // Confirm they are removed from current admins list
+      await expect(dialog.getByText(regularUser.name)).toBeHidden();
+
+      // Try to remove the last admin (orgAdminUser) - the remove button should be disabled
+      const lastAdminItem = dialog.locator('li').filter({ hasText: orgAdminUser.name });
+      const removeLastAdminBtn = lastAdminItem.locator('[data-testid^="remove-admin-btn-"]');
+      await expect(removeLastAdminBtn).toBeDisabled();
+
+      // Close Dialog
+      await superAdminPage.getByRole('button', { name: /Fechar|Close/i }).click();
+      await expect(dialog).toBeHidden();
+    });
+
+    // 8. Remove user and verify cascading deletion
+    await test.step('8. Remove user and check cascading deletion', async () => {
+      await superAdminPage.goto('/admin');
+      await superAdminPage.getByRole('tab', { name: /Usuários|Users/i }).click();
+
+      // Search for regular user
+      const userSearchInput = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      await userSearchInput.click();
+      await userSearchInput.clear();
+      await userSearchInput.pressSequentially(regularUser.name);
+      const userResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      await userSearchInput.press('Enter');
+      await userResponsePromise;
+
+      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      await userRow.locator('[data-testid^="delete-user-btn-"]').click();
+
+      // Wait for confirm delete dialog
+      const deleteDialog = superAdminPage.getByRole('dialog');
+      await expect(deleteDialog).toBeVisible();
+
+      // Click Excluir / Confirm
+      const deletePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/user/') && resp.status() === 204);
+      await superAdminPage.getByTestId('confirm-delete-user-btn').click();
+      await deletePromise;
+
+      // Wait for dialog to disappear and search to show empty results
+      await expect(deleteDialog).toBeHidden();
+      await expect(superAdminPage.locator('tr').filter({ hasText: regularUser.name })).toBeHidden();
+
+      // Verify regular user cannot log in anymore
+      await regularPage.goto('/home');
+      await regularPage.getByTestId('user-settings-button').click();
+      await regularPage.getByTestId('logout-menu-item').click();
+      await expect(regularPage).toHaveURL('/');
+
+      await regularPage.goto('/login');
+      await regularPage.getByTestId('login-email').fill(regularUser.username);
+      await regularPage.getByTestId('login-password').fill('newPassword123!');
+      await regularPage.getByTestId('login-submit').click();
+      // Should show a login error toast or alert and not redirect to /home
+      await expect(regularPage).not.toHaveURL('/home');
+    });
+
     // Cleanup contexts
     await superAdminContext.close();
     await regularContext.close();
