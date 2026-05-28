@@ -9,16 +9,16 @@ import {
 } from './utils';
 
 // Helper to run PostgreSQL command inside docker container to promote user
-function promoteToSuperAdmin(email: string) {
+function promoteToGlobalAdmin(email: string) {
   const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET is_super_admin = TRUE WHERE email = '${email}';"`;
   execSync(cmd);
 }
 
-test.describe('Super Admin Panel & Block Systems', () => {
+test.describe('Global Admin Panel & Block Systems', () => {
   const timestamp = Date.now() + Math.floor(Math.random() * 10000);
   
-  const superAdminUser = {
-    name: `Super Admin ${timestamp}`,
+  const globalAdminUser = {
+    name: `Global Admin ${timestamp}`,
     username: `superadmin_${timestamp}`,
     email: `superadmin-${timestamp}@example.com`,
     password: 'password123',
@@ -43,12 +43,12 @@ test.describe('Super Admin Panel & Block Systems', () => {
 
   const orgName = `Test Block Org ${timestamp}`;
 
-  test('Super Admin and Blocking Workflows', async ({ browser }, testInfo) => {
+  test('Global Admin and Blocking Workflows', async ({ browser }, testInfo) => {
     const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
 
     // Contexts for separate users
-    const superAdminContext = await browser.newContext(videoOptions);
-    const superAdminPage = await superAdminContext.newPage();
+    const globalAdminContext = await browser.newContext(videoOptions);
+    const globalAdminPage = await globalAdminContext.newPage();
 
     const regularContext = await browser.newContext(videoOptions);
     const regularPage = await regularContext.newPage();
@@ -72,48 +72,48 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await regularPage.keyboard.press('Escape');
     });
 
-    // 2. Promote superAdminUser, verify access to /admin
-    await test.step('2. Promote user to Super Admin and access panel', async () => {
-      await registerUser(superAdminPage, superAdminUser);
+    // 2. Promote globalAdminUser, verify access to /admin
+    await test.step('2. Promote user to Global Admin and access panel', async () => {
+      await registerUser(globalAdminPage, globalAdminUser);
 
       // Promote to super admin via DB
-      promoteToSuperAdmin(superAdminUser.email);
+      promoteToGlobalAdmin(globalAdminUser.email);
 
       // Log out and log back in to get a new token/cookie with the updated claim
-      await superAdminPage.getByTestId('user-settings-button').click();
-      await superAdminPage.getByTestId('logout-menu-item').click();
-      await expect(superAdminPage).toHaveURL('/');
+      await globalAdminPage.getByTestId('user-settings-button').click();
+      await globalAdminPage.getByTestId('logout-menu-item').click();
+      await expect(globalAdminPage).toHaveURL('/');
 
       // Log back in
-      await superAdminPage.goto('/login');
-      await superAdminPage.getByTestId('login-email').fill(superAdminUser.username);
-      await superAdminPage.getByTestId('login-password').fill(superAdminUser.password);
-      await superAdminPage.getByTestId('login-submit').click();
-      await expect(superAdminPage).toHaveURL('/home');
+      await globalAdminPage.goto('/login');
+      await globalAdminPage.getByTestId('login-email').fill(globalAdminUser.username);
+      await globalAdminPage.getByTestId('login-password').fill(globalAdminUser.password);
+      await globalAdminPage.getByTestId('login-submit').click();
+      await expect(globalAdminPage).toHaveURL('/home');
 
       // Click avatar menu and click admin panel
-      await superAdminPage.getByTestId('user-settings-button').click();
-      const adminMenu = superAdminPage.getByTestId('admin-menu-item');
+      await globalAdminPage.getByTestId('user-settings-button').click();
+      const adminMenu = globalAdminPage.getByTestId('admin-menu-item');
       await expect(adminMenu).toBeVisible();
       await adminMenu.click();
 
-      await expect(superAdminPage).toHaveURL('/admin');
-      await expect(superAdminPage.locator('h1')).toContainText(/Painel do Super Admin|Super Admin Panel/i);
+      await expect(globalAdminPage).toHaveURL('/admin');
+      await expect(globalAdminPage.locator('h1')).toContainText(/Painel do Global Admin|Global Admin Panel/i);
     });
 
     // 3. Toggle allow_org_creation for regularUser
     await test.step('3. Toggle organization creation permission', async () => {
-      await superAdminPage.goto('/admin');
+      await globalAdminPage.goto('/admin');
       
       // Search for regular user
-      const userSearchInput = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      const userSearchInput = globalAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
       await userSearchInput.click();
       await userSearchInput.pressSequentially(regularUser.name);
-      const userResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      const userResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
       await userSearchInput.press('Enter');
       await userResponsePromise;
 
-      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      const userRow = globalAdminPage.locator('tr').filter({ hasText: regularUser.name });
       await expect(userRow).toBeVisible();
 
       // Checkboxes: is_blocked (nth 0), allow_org_creation (nth 1), is_super_admin (nth 2)
@@ -122,13 +122,13 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await expect(orgCreationSwitch).not.toBeChecked();
 
       // Check it (grant permission)
-      const grantTogglePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/toggle-org-creation') && resp.status() === 200);
+      const grantTogglePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/toggle-org-creation') && resp.status() === 200);
       await orgCreationSwitch.click();
       await grantTogglePromise;
       await expect(orgCreationSwitch).toBeChecked();
 
       // Uncheck it again (revoke permission)
-      const revokeTogglePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/toggle-org-creation') && resp.status() === 200);
+      const revokeTogglePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/toggle-org-creation') && resp.status() === 200);
       await orgCreationSwitch.click();
       await revokeTogglePromise;
       await expect(orgCreationSwitch).not.toBeChecked();
@@ -146,17 +146,17 @@ test.describe('Super Admin Panel & Block Systems', () => {
 
     // 4. Block regularUser and verify limitations
     await test.step('4. Block user and verify restrictions', async () => {
-      await superAdminPage.goto('/admin');
+      await globalAdminPage.goto('/admin');
 
       // Search for regular user
-      const userSearchInput2 = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      const userSearchInput2 = globalAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
       await userSearchInput2.click();
       await userSearchInput2.pressSequentially(regularUser.name);
-      const userResponsePromise2 = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      const userResponsePromise2 = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
       await userSearchInput2.press('Enter');
       await userResponsePromise2;
 
-      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      const userRow = globalAdminPage.locator('tr').filter({ hasText: regularUser.name });
       const blockSwitch = userRow.locator('input[type="checkbox"]').nth(0);
       
       // Block regular user
@@ -190,18 +190,18 @@ test.describe('Super Admin Panel & Block Systems', () => {
       const orgUrl = orgAdminPage.url();
 
       // 5.2 Block the organization in admin panel
-      await superAdminPage.goto('/admin');
-      await superAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
+      await globalAdminPage.goto('/admin');
+      await globalAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
 
       // Search for the organization
-      const orgSearchInput = superAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
+      const orgSearchInput = globalAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
       await orgSearchInput.click();
       await orgSearchInput.pressSequentially(orgName);
-      const orgResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
+      const orgResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
       await orgSearchInput.press('Enter');
       await orgResponsePromise;
 
-      const orgRow = superAdminPage.locator('tr').filter({ hasText: orgName });
+      const orgRow = globalAdminPage.locator('tr').filter({ hasText: orgName });
       await expect(orgRow).toBeVisible();
 
       const blockOrgSwitch = orgRow.locator('input[type="checkbox"]').first();
@@ -224,18 +224,18 @@ test.describe('Super Admin Panel & Block Systems', () => {
 
     // 6. Reset user password
     await test.step('6. Reset user password and verify login', async () => {
-      await superAdminPage.goto('/admin');
+      await globalAdminPage.goto('/admin');
       
       // Search for regular user
-      const userSearchInput = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      const userSearchInput = globalAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
       await userSearchInput.click();
       await userSearchInput.clear();
       await userSearchInput.pressSequentially(regularUser.name);
-      const userResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      const userResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
       await userSearchInput.press('Enter');
       await userResponsePromise;
 
-      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      const userRow = globalAdminPage.locator('tr').filter({ hasText: regularUser.name });
       
       // Unblock them first so we can verify they can log in
       const blockSwitch = userRow.locator('input[type="checkbox"]').nth(0);
@@ -246,16 +246,16 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await userRow.locator('[data-testid^="reset-password-btn-"]').click();
       
       // Wait for dialog
-      const dialog = superAdminPage.getByRole('dialog');
+      const dialog = globalAdminPage.getByRole('dialog');
       await expect(dialog).toBeVisible();
       
       // Fill new password
       const newPassword = 'newPassword123!';
-      await superAdminPage.getByTestId('new-password-input').fill(newPassword);
+      await globalAdminPage.getByTestId('new-password-input').fill(newPassword);
       
       // Click confirm
-      const resetPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/reset-password') && resp.status() === 200);
-      await superAdminPage.getByTestId('confirm-reset-password-btn').click();
+      const resetPromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/reset-password') && resp.status() === 200);
+      await globalAdminPage.getByTestId('confirm-reset-password-btn').click();
       await resetPromise;
       
       // Wait for dialog closure
@@ -277,35 +277,35 @@ test.describe('Super Admin Panel & Block Systems', () => {
 
     // 7. Manage organization admins
     await test.step('7. Add and remove organization admins', async () => {
-      // Go to Organizations tab on superAdminPage
-      await superAdminPage.goto('/admin');
-      await superAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
+      // Go to Organizations tab on globalAdminPage
+      await globalAdminPage.goto('/admin');
+      await globalAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
 
       // Search for the organization
-      const orgSearchInput = superAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
+      const orgSearchInput = globalAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
       await orgSearchInput.click();
       await orgSearchInput.clear();
       await orgSearchInput.pressSequentially(orgName);
-      const orgResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
+      const orgResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
       await orgSearchInput.press('Enter');
       await orgResponsePromise;
 
-      const orgRow = superAdminPage.locator('tr').filter({ hasText: orgName });
+      const orgRow = globalAdminPage.locator('tr').filter({ hasText: orgName });
       await orgRow.locator('[data-testid^="manage-admins-btn-"]').click();
 
       // Dialog should open
-      const dialog = superAdminPage.getByRole('dialog');
+      const dialog = globalAdminPage.getByRole('dialog');
       await expect(dialog).toBeVisible();
 
       // Search for regularUser to add them as admin
-      await superAdminPage.getByTestId('admin-search-input').fill(regularUser.username);
-      const searchUsersPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
-      await superAdminPage.getByTestId('search-admin-users-btn').click();
+      await globalAdminPage.getByTestId('admin-search-input').fill(regularUser.username);
+      const searchUsersPromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      await globalAdminPage.getByTestId('search-admin-users-btn').click();
       await searchUsersPromise;
 
       // Add regularUser as admin
-      const addAdminPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/admins') && resp.status() === 200);
-      await superAdminPage.locator('[data-testid^="add-admin-btn-"]').click();
+      const addAdminPromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/admins') && resp.status() === 200);
+      await globalAdminPage.locator('[data-testid^="add-admin-btn-"]').click();
       await addAdminPromise;
 
       // Confirm they are added to the list of admins
@@ -319,8 +319,8 @@ test.describe('Super Admin Panel & Block Systems', () => {
       // Verify organization shows up in administered list
       await expect(regularPage.getByTestId('admin-orgs-list')).toContainText(orgName);
 
-      // Now remove the regularUser from admins on superAdminPage
-      const removeAdminPromise = superAdminPage.waitForResponse(resp => resp.url().includes('/admins/') && resp.status() === 200);
+      // Now remove the regularUser from admins on globalAdminPage
+      const removeAdminPromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/admins/') && resp.status() === 200);
       // Click delete icon next to regularUser name
       await dialog.locator('li').filter({ hasText: regularUser.name }).locator('[data-testid^="remove-admin-btn-"]').click();
       await removeAdminPromise;
@@ -334,39 +334,39 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await expect(removeLastAdminBtn).toBeDisabled();
 
       // Close Dialog
-      await superAdminPage.getByRole('button', { name: /Fechar|Close/i }).click();
+      await globalAdminPage.getByRole('button', { name: /Fechar|Close/i }).click();
       await expect(dialog).toBeHidden();
     });
 
     // 8. Remove user and verify cascading deletion
     await test.step('8. Remove user and check cascading deletion', async () => {
-      await superAdminPage.goto('/admin');
-      await superAdminPage.getByRole('tab', { name: /Usuários|Users/i }).click();
+      await globalAdminPage.goto('/admin');
+      await globalAdminPage.getByRole('tab', { name: /Usuários|Users/i }).click();
 
       // Search for regular user
-      const userSearchInput = superAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      const userSearchInput = globalAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
       await userSearchInput.click();
       await userSearchInput.clear();
       await userSearchInput.pressSequentially(regularUser.name);
-      const userResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      const userResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
       await userSearchInput.press('Enter');
       await userResponsePromise;
 
-      const userRow = superAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      const userRow = globalAdminPage.locator('tr').filter({ hasText: regularUser.name });
       await userRow.locator('[data-testid^="delete-user-btn-"]').click();
 
       // Wait for confirm delete dialog
-      const deleteDialog = superAdminPage.getByRole('dialog');
+      const deleteDialog = globalAdminPage.getByRole('dialog');
       await expect(deleteDialog).toBeVisible();
 
       // Click Excluir / Confirm
-      const deletePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/user/') && resp.status() === 204);
-      await superAdminPage.getByTestId('confirm-delete-user-btn').click();
+      const deletePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/user/') && resp.status() === 204);
+      await globalAdminPage.getByTestId('confirm-delete-user-btn').click();
       await deletePromise;
 
       // Wait for dialog to disappear and search to show empty results
       await expect(deleteDialog).toBeHidden();
-      await expect(superAdminPage.locator('tr').filter({ hasText: regularUser.name })).toBeHidden();
+      await expect(globalAdminPage.locator('tr').filter({ hasText: regularUser.name })).toBeHidden();
 
       // Verify regular user cannot log in anymore
       await regularPage.goto('/home');
@@ -384,36 +384,36 @@ test.describe('Super Admin Panel & Block Systems', () => {
 
     // 9. Remove organization and verify deletion
     await test.step('9. Remove organization and check deletion', async () => {
-      await superAdminPage.goto('/admin');
-      await superAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
+      await globalAdminPage.goto('/admin');
+      await globalAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
 
       // Search for the organization
-      const orgSearchInput = superAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
+      const orgSearchInput = globalAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
       await orgSearchInput.click();
       await orgSearchInput.clear();
       await orgSearchInput.pressSequentially(orgName);
-      const orgResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
+      const orgResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
       await orgSearchInput.press('Enter');
       await orgResponsePromise;
 
-      const orgRow = superAdminPage.locator('tr').filter({ hasText: orgName });
+      const orgRow = globalAdminPage.locator('tr').filter({ hasText: orgName });
       await expect(orgRow).toBeVisible();
 
       // Click delete icon next to the organization name
       await orgRow.locator('[data-testid^="delete-org-btn-"]').click();
 
       // Wait for confirm delete dialog
-      const deleteDialog = superAdminPage.getByRole('dialog');
+      const deleteDialog = globalAdminPage.getByRole('dialog');
       await expect(deleteDialog).toBeVisible();
 
       // Click Excluir / Confirm
-      const deletePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/organizations/') && resp.status() === 200);
-      await superAdminPage.getByTestId('confirm-delete-org-btn').click();
+      const deletePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/organizations/') && resp.status() === 200);
+      await globalAdminPage.getByTestId('confirm-delete-org-btn').click();
       await deletePromise;
 
       // Wait for dialog to disappear and search to show empty results
       await expect(deleteDialog).toBeHidden();
-      await expect(superAdminPage.locator('tr').filter({ hasText: orgName })).toBeHidden();
+      await expect(globalAdminPage.locator('tr').filter({ hasText: orgName })).toBeHidden();
 
       // Verify orgAdmin cannot view the organization anymore (should be removed from home list)
       await orgAdminPage.goto('/home');
@@ -423,11 +423,11 @@ test.describe('Super Admin Panel & Block Systems', () => {
     });
 
     // Cleanup contexts
-    await superAdminContext.close();
+    await globalAdminContext.close();
     await regularContext.close();
     await orgAdminContext.close();
 
-    await saveVideo(superAdminPage, 'superadmin-flow', testInfo);
+    await saveVideo(globalAdminPage, 'globaladmin-flow', testInfo);
     await saveVideo(regularPage, 'blocked-user-flow', testInfo);
     await saveVideo(orgAdminPage, 'blocked-org-flow', testInfo);
   });
