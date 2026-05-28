@@ -64,7 +64,7 @@ The frontend is built with a **feature-based architecture** to ensure scalabilit
 To help organization administrators visualize and manage player skills, the system supports a 6-axis **Radar Graph** representing player abilities:
 - **Passing** (`passing`): Accuracy and vision for passes.
 - **Ball Control** (`ball_control`): First touch and control.
-- **Carrying** (`carrying`): Running with the ball and pace.
+- **Velocity** (`velocity`): Running with the ball and pace.
 - **Shooting** (`shooting`): Finishing and shot power.
 - **Dribbling** (`dribbling`): Tricks, agility, and 1v1 capability.
 - **Defending** (`defending`): Positioning, tackling, and marking.
