@@ -102,6 +102,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
       // Record a goal
       const anyPlayerRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
       await anyPlayerRow.getByTestId('stat-goals-increment').click();
+      await ownerPage.getByTestId('without-assistance-option').click();
       await expect(anyPlayerRow.getByTestId('stat-goals-value')).toHaveText('1');
 
       // Record a substitution
@@ -175,6 +176,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
       const currentGoals = await editPlayerRow.getByTestId('stat-goals-value').innerText();
       const expectedGoals = (parseInt(currentGoals) + 1).toString();
       await editPlayerRow.getByTestId('stat-goals-increment').click();
+      await ownerPage.getByTestId('without-assistance-option').click();
       await ownerPage.getByTestId('finish-editing-button').click();
       await ownerPage.waitForTimeout(500);
 
@@ -187,6 +189,34 @@ test.describe('Pelada Lifecycle & Matches', () => {
 
       const updatedRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
       await expect(updatedRow.getByTestId('stat-goals-value')).toHaveText(expectedGoals, { timeout: 15000 });
+    });
+
+    await test.step('Timeline Edit and Delete', async () => {
+      await ownerPage.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
+      await ownerPage.waitForTimeout(500);
+
+      // Verify edit dialog opening
+      const editBtn = ownerPage.locator('[data-testid^="edit-event-"]').first();
+      await expect(editBtn).toBeVisible({ timeout: 10000 });
+      await editBtn.click();
+      await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
+      await ownerPage.getByRole('button', { name: /Cancelar|Cancel/i }).click();
+      await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
+
+      // Delete the goal event
+      const deleteButtons = ownerPage.locator('[data-testid^="delete-event-"]');
+      const initialCount = await deleteButtons.count();
+      const firstDeleteBtn = deleteButtons.first();
+      await expect(firstDeleteBtn).toBeVisible({ timeout: 10000 });
+      const testId = await firstDeleteBtn.getAttribute('data-testid');
+      await firstDeleteBtn.click();
+      await ownerPage.getByTestId('pretty-confirm-button').click();
+
+      // Verify the specific event button is deleted and count decreases
+      if (testId) {
+        await expect(ownerPage.getByTestId(testId)).not.toBeVisible({ timeout: 10000 });
+      }
+      await expect(deleteButtons).toHaveCount(initialCount - 1, { timeout: 10000 });
     });
 
     await test.step('Close Pelada and Vote', async () => {
@@ -609,6 +639,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
 
     await page.getByTestId('stat-goals-increment').first().click();
+    await page.getByTestId('without-assistance-option').click();
     await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
     const scoreBoard = page.getByTestId('match-score-display');
     await expect(scoreBoard).toContainText('1');

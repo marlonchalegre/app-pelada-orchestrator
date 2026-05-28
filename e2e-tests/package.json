@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test --workers=1",
     "env:up": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml up -d --build",
     "env:down": "DB_SCHEMA=e2e docker-compose -f ../docker-compose.yml down",
     "db:backup": "echo 'Postgres backup not implemented' || true",
