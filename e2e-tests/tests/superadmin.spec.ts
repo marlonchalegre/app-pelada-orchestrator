@@ -382,6 +382,46 @@ test.describe('Super Admin Panel & Block Systems', () => {
       await expect(regularPage).not.toHaveURL('/home');
     });
 
+    // 9. Remove organization and verify deletion
+    await test.step('9. Remove organization and check deletion', async () => {
+      await superAdminPage.goto('/admin');
+      await superAdminPage.getByRole('tab', { name: /Organizações|Organizations/i }).click();
+
+      // Search for the organization
+      const orgSearchInput = superAdminPage.getByPlaceholder(/Buscar organização|Search organization/i);
+      await orgSearchInput.click();
+      await orgSearchInput.clear();
+      await orgSearchInput.pressSequentially(orgName);
+      const orgResponsePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/admin/organizations') && resp.status() === 200);
+      await orgSearchInput.press('Enter');
+      await orgResponsePromise;
+
+      const orgRow = superAdminPage.locator('tr').filter({ hasText: orgName });
+      await expect(orgRow).toBeVisible();
+
+      // Click delete icon next to the organization name
+      await orgRow.locator('[data-testid^="delete-org-btn-"]').click();
+
+      // Wait for confirm delete dialog
+      const deleteDialog = superAdminPage.getByRole('dialog');
+      await expect(deleteDialog).toBeVisible();
+
+      // Click Excluir / Confirm
+      const deletePromise = superAdminPage.waitForResponse(resp => resp.url().includes('/api/organizations/') && resp.status() === 200);
+      await superAdminPage.getByTestId('confirm-delete-org-btn').click();
+      await deletePromise;
+
+      // Wait for dialog to disappear and search to show empty results
+      await expect(deleteDialog).toBeHidden();
+      await expect(superAdminPage.locator('tr').filter({ hasText: orgName })).toBeHidden();
+
+      // Verify orgAdmin cannot view the organization anymore (should be removed from home list)
+      await orgAdminPage.goto('/home');
+      await orgAdminPage.reload();
+      await orgAdminPage.waitForLoadState('networkidle');
+      await expect(orgAdminPage.getByTestId('admin-orgs-list')).not.toContainText(orgName);
+    });
+
     // Cleanup contexts
     await superAdminContext.close();
     await regularContext.close();
