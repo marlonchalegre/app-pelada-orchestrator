@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cloudflared
+  name: cloudflared-tunnel-1
   namespace: peladaapp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: cloudflared
+      app: cloudflared-tunnel-1
   template:
     metadata:
       labels:
-        app: cloudflared
+        app: cloudflared-tunnel-1
     spec:
       containers:
         - name: cloudflared
@@ -26,5 +26,37 @@ spec:
             - name: TUNNEL_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: cloudflared-token
+                  name: cloudflared-token-1
                   key: TUNNEL_TOKEN
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared-tunnel-2
+  namespace: peladaapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared-tunnel-2
+  template:
+    metadata:
+      labels:
+        app: cloudflared-tunnel-2
+    spec:
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --no-autoupdate
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-token-2
+                  key: TUNNEL_TOKEN
+
