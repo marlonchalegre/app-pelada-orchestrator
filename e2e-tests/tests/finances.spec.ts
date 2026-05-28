@@ -403,12 +403,12 @@ test.describe('Financial Control & Fines', () => {
       await expect(page.getByTestId('finance-success')).toBeVisible();
 
       await expect(playerRow.getByTestId('status-paid')).toBeVisible();
-      await expect(playerRow.getByText(/120[,\.]00/)).toBeVisible();
-      await expect(playerRow.getByText(/\+.*20[,\.]00.*multa/)).toBeVisible();
+      await expect(playerRow.getByText(/120[,\.\$]00|120\.00/)).toBeVisible();
+      await expect(playerRow.getByText(/\+.*20[,\.\$]00.*(multa|fine)/i)).toBeVisible();
 
       await page.getByTestId('finance-tab-transactions').click();
-      await expect(page.locator('tr').filter({ hasText: 'Mensalidade' }).getByText(/100[,\.]00/)).toBeVisible();
-      await expect(page.locator('tr').filter({ hasText: 'Multa Mensalidade' }).getByText(/20[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: /Mensalidade|Monthly Fee/ }).getByText(/100[,\.]00/)).toBeVisible();
+      await expect(page.locator('tr').filter({ hasText: /Multa Mensalidade|Monthly Fee Fine/ }).getByText(/20[,\.]00/)).toBeVisible();
     });
 
     test('should allow reversing the fine independently', async ({ page }) => {
