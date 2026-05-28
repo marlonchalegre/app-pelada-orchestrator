@@ -1,6 +1,7 @@
 # Contributing to PeladaApp
 
-Thank you for your interest in contributing to PeladaApp! This document outlines the standards and workflows we use to maintain a high-quality codebase.
+> [!NOTE]
+> This document provides contributing guidelines. For detailed execution logs, setups, and testing commands, please refer to the **[🛠️ Development & Testing Guide](docs/development-testing.md)**.
 
 ## 🚀 Getting Started
 

@@ -10,6 +10,16 @@ Technology Stack
 - **Frontend:** React 19, TypeScript, Vite, Material-UI (MUI), Vitest.
 - **Infrastructure:** Docker, Docker Compose, Nginx.
 
+Documentation Portal
+--------------------
+
+For detailed guides, please refer to our **[📚 Documentation Portal](docs/README.md)**:
+
+*   **[⚽ User Features Guide](docs/user-features.md)**: Role models, registration, game day lifecycles, team randomizations, and post-match voting rules.
+*   **[🏛️ Technical Architecture](docs/technical-architecture.md)**: Decoupled structures, database schemas, and mathematical algorithms (Bucket Shuffle, ILS).
+*   **[🛠️ Development & Testing Guide](docs/development-testing.md)**: Local configurations, code standards, and test suites.
+*   **[🚢 Kubernetes Deployment Guide](docs/kubernetes-deployment.md)**: VPS setups using K3s and Cloudflare Tunnels.
+
 Repository Layout
 -----------------
 

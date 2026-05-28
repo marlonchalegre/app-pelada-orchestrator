@@ -1,6 +1,7 @@
 # System Architecture: PeladaApp
 
-This document provides a high-level overview of the PeladaApp architecture, its components, and design decisions.
+> [!NOTE]
+> This document provides a high-level summary of the architecture. For the comprehensive, detailed documentation, please refer to the **[🏛️ Technical Architecture Guide](docs/technical-architecture.md)**.
 
 ## 🏗️ Overview
 
@@ -58,22 +59,6 @@ The frontend is built with a **feature-based architecture** to ensure scalabilit
 - **features/**: Self-contained modules (Auth, Organizations, Peladas, User, etc.) containing their own components, hooks, and logic.
 - **shared/**: Reusable UI components, generic hooks, and API client utilities.
 - **lib/**: Configuration for external libraries (MUI theme, i18n setup).
-
-### 📊 Player Characteristics & Radar Graph
-
-To help organization administrators visualize and manage player skills, the system supports a 6-axis **Radar Graph** representing player abilities:
-- **Passing** (`passing`): Accuracy and vision for passes.
-- **Ball Control** (`ball_control`): First touch and control.
-- **Velocity** (`velocity`): Running with the ball and pace.
-- **Shooting** (`shooting`): Finishing and shot power.
-- **Dribbling** (`dribbling`): Tricks, agility, and 1v1 capability.
-- **Defending** (`defending`): Positioning, tackling, and marking.
-
-**Implementation Details**:
-- **Database**: Stored in `"OrganizationPlayers"` table as integers from `0` to `5` with CHECK constraints.
-- **Backend Validation**: Pure Clojure validator enforces the range `[0, 5]` at the API controller layer.
-- **Frontend Visualization**: Rendered using a lightweight, responsive custom SVG component (without heavy charting libraries) inside `PlayerRadarDialog.tsx`.
-- **Administrative Controls**: Sliders update the graph in real-time, sending updates to the standard player update API endpoint.
 
 ## 🐋 Infrastructure & Deployment
 
