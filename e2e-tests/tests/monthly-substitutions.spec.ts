@@ -20,8 +20,6 @@ test.describe("Monthly Player Substitution", () => {
     const orgName = `Sub Org ${timestamp}`;
 
     await registerAndCreateOrg(page, admin, orgName);
-    await page.getByTestId(`org-link-${orgName}`).click();
-    await page.waitForURL(/\/organizations\/[^\/]+/);
     const orgId = getOrgIdFromUrl(page.url());
     const api = await getApiContext(page, request);
 

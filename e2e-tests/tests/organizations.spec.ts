@@ -41,7 +41,6 @@ test.describe('Organization Management', () => {
 
     await test.step('1. Owner Registration & Org Creation', async () => {
       await registerAndCreateOrg(ownerPage, owner, orgName);
-      await ownerPage.reload();
     });
 
     await test.step('2. Personal Invitation & First Access Flow', async () => {
@@ -58,7 +57,7 @@ test.describe('Organization Management', () => {
       await invitedPage.getByTestId('first-access-username').fill(invitedUser.username);
       await invitedPage.getByTestId('first-access-password').fill(invitedUser.password);
       await invitedPage.getByTestId('first-access-position-select').click();
-      await invitedPage.getByRole('option', { name: invitedUser.position }).click();
+      await invitedPage.getByTestId(`position-option-${invitedUser.position}`).click();
       await invitedPage.getByTestId('first-access-submit').click();
 
       await expect(invitedPage).toHaveURL('/home');
@@ -317,7 +316,7 @@ test.describe('Organization Management', () => {
     await page.getByLabel(/(Notify when pelada ends|Notificar quando a pelada encerrar)/i).click();
 
     await page.getByTestId('waha-save-button').click();
-    await expect(page.getByText(/(saved successfully|salvas com sucesso)/i)).toBeVisible();
+    await expect(page.getByText(/(saved successfully|salva com sucesso|salvas com sucesso)/i)).toBeVisible();
     await expect(testBtn).toBeEnabled();
 
     await page.reload();

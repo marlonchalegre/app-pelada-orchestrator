@@ -30,7 +30,10 @@ test.describe('Player Characteristics & Radar Graph Editor', () => {
     await page.goto(`/organizations/${orgId}/management`);
     await page.waitForLoadState('networkidle');
 
-    // 2. Click on the admin's own member click zone in the members section
+    // Go to Ratings (Notas) tab
+    await page.getByTestId('mgmt-tab-ratings').click();
+
+    // 2. Click on the admin's own member click zone in the ratings section
     const clickZone = page.getByTestId(/^player-click-zone-/).first();
     await expect(clickZone).toBeVisible();
     await clickZone.click();

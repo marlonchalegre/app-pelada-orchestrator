@@ -102,6 +102,15 @@ export function grantOrgCreation(email: string) {
   execSync(cmd);
 }
 
+/**
+ * Enable premium feature flags for an organization in the E2E schema.
+ */
+export function enableFeatureFlags(orgId: string) {
+  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"` ;
+  execSync(cmd);
+}
+
+
 export async function createOrganization(page: Page, orgName: string) {
   await page.goto('/home');
   await page.waitForLoadState('networkidle');
@@ -121,6 +130,13 @@ export async function registerAndCreateOrg(page: Page, user: UserData, orgName: 
   // Grant org creation permission since new users default to false.
   grantOrgCreation(user.email);
   await createOrganization(page, orgName);
+
+  // Enable feature flags to unlock all tabs for tests by default
+  const orgId = getOrgIdFromUrl(page.url());
+  enableFeatureFlags(orgId);
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+
   return page.url();
 }
 
@@ -232,7 +248,7 @@ export async function setupInvitedPlayer(
     const posLabel = page.getByTestId('first-access-position-select');
     if (await posLabel.isVisible()) {
       await posLabel.click();
-      await page.getByRole('option', { name: player.position }).click();
+      await page.getByTestId(`position-option-${player.position}`).click();
     }
   }
 
