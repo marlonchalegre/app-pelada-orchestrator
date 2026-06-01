@@ -258,6 +258,39 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await expect(ownerPage.getByText(/Votos registrados|Votes saved/i).first()).toBeVisible();
     });
 
+    await test.step('Verify Restricted Results for Non-Voting Participant', async () => {
+      const { execSync } = require('child_process');
+      const out = execSync(`docker compose exec postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}'"`).toString();
+      console.log(`DB UPDATE OUTPUT FOR ID ${peladaId}:`, out);
+
+      const p2Context = await browser.newContext(videoOptions);
+      const p2Page = await p2Context.newPage();
+
+      // Log in as player2 (who did not vote)
+      await loginUser(p2Page, player2);
+
+      // Try to access results page
+      await p2Page.goto(`/peladas/${peladaId}/results`);
+
+      // Verify that the restricted modal dialog is visible
+      await expect(p2Page.getByText(/Resultados Restritos|Restricted/i).first()).toBeVisible({ timeout: 15000 });
+      await expect(p2Page.getByText(/Você participou desta pelada mas não votou|did not vote/i).first()).toBeVisible();
+
+      // Verify "Ver Partidas" button is visible
+      const verPartidasBtn = p2Page.getByRole('link', { name: /Ver Partidas|View Matches/i });
+      await expect(verPartidasBtn).toBeVisible();
+
+      // Verify "Voltar para Organização" button is visible
+      const voltarBtn = p2Page.getByRole('link', { name: /Voltar para Organização|Voltar para Peladas|Back to Organization/i });
+      await expect(voltarBtn).toBeVisible();
+
+      // Click "Ver Partidas" to verify navigation works without loop
+      await verPartidasBtn.click();
+      await expect(p2Page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+
+      await p2Context.close();
+    });
+
     await ownerContext.close();
     await saveVideo(ownerPage, 'full-pelada-lifecycle', testInfo);
   });
