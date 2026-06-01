@@ -313,6 +313,10 @@ test.describe('Financial Control & Fines', () => {
   });
 
   test.describe('Manual Fine Control', () => {
+    test.beforeEach(async ({ page }) => {
+      await page.clock.install({ time: new Date('2026-05-06T12:00:00Z') });
+    });
+
     test('should allow admin to choose not to apply fine after deadline', async ({ page }) => {
       const timestamp = Date.now() + Math.floor(Math.random() * 10000) + 20000;
       const manualOwner = {
