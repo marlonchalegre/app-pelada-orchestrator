@@ -94,11 +94,16 @@ Configure your VPS Postgres to allow connections from the Kubernetes internal ne
 
 ---
 
-## 🌐 Step 4: Domain Configuration
+## 🌐 Step 4: Domain & Tunnel Configuration
 
-1.  Open `k8s/manifests/08-cloudflared.yaml`.
-2.  Update the `hostname` field (e.g., `pelada.yourdomain.com`) to match your actual domain.
-3.  Open `k8s/manifests/01-secrets.yaml` and ensure `FRONTEND_URL` matches the same domain.
+1.  Open `k8s/manifests/01-secrets.yaml` and ensure `FRONTEND_URL` matches your actual domain (e.g., `https://pelada.yourdomain.com`).
+2.  Configure public hostnames inside your **Cloudflare Zero Trust Dashboard** for the corresponding tunnels (Tunnel 1 and Tunnel 2). Since the tunnels are run using tokens, Cloudflare manages the routing at the edge:
+    - **For the application tunnel (Tunnel 1 / `cloudflared-tunnel-1`)**:
+      - Add a public hostname: `pelada.yourdomain.com`
+      - Map it to the internal service: `http://frontend.peladaapp.svc.cluster.local:8080` (this routes traffic to the Nginx frontend inside the Kubernetes namespace `peladaapp`).
+    - **For the management tunnel (Tunnel 2 / `cloudflared-tunnel-2`)**:
+      - **WAHA Dashboard**: Add a public hostname (e.g., `waha.yourdomain.com`) and map it to `http://waha.peladaapp.svc.cluster.local:3000`.
+      - **Portainer (Optional)**: Add a public hostname (e.g., `portainer.yourdomain.com`) and map it to `http://portainer.portainer.svc.cluster.local:9000`.
 
 ---
 

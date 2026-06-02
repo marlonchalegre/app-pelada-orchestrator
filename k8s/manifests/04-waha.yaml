@@ -48,7 +48,7 @@ spec:
             - name: WAHA_SWAGGER_ENABLED
               value: "true"
             - name: WAHA_DASHBOARD_ENABLED
-              value: "false"
+              value: "true"
             - name: WHATSAPP_DEFAULT_ENGINE
               value: "GOWS"
             - name: WAHA_RESTART_ALL_SESSIONS
