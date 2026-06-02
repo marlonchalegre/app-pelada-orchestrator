@@ -200,7 +200,18 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await expect(editBtn).toBeVisible({ timeout: 10000 });
       await editBtn.click();
       await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
-      await ownerPage.getByRole('button', { name: /Cancelar|Cancel/i }).click();
+      
+      // Select an assistant if any other player is on the same team
+      await ownerPage.getByTestId('edit-assistant-select').click();
+      const options = ownerPage.getByRole('option');
+      const optionsCount = await options.count();
+      if (optionsCount > 1) {
+        await options.nth(1).click();
+      } else {
+        await ownerPage.getByRole('option', { name: /Sem assistência|Without assistance/i }).click();
+      }
+
+      await ownerPage.getByTestId('save-event-edit-button').click();
       await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
 
       // Delete the goal event
