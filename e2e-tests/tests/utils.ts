@@ -129,6 +129,8 @@ export async function registerAndCreateOrg(page: Page, user: UserData, orgName: 
   await registerUser(page, user);
   // Grant org creation permission since new users default to false.
   grantOrgCreation(user.email);
+  await page.reload();
+  await page.waitForLoadState('networkidle');
   await createOrganization(page, orgName);
 
   // Enable feature flags to unlock all tabs for tests by default

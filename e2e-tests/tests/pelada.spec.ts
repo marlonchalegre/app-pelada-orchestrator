@@ -745,4 +745,71 @@ test.describe('Pelada Lifecycle & Matches', () => {
       }
     }
   });
+
+  test('fixed goalkeepers are blocked from voting by default and can be unblocked by admin', async ({ page, request }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 14000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: 'GK Admin',
+      username: 'gk_admin_' + Math.random().toString(36).substring(7),
+      email: `gk_admin_${ts}@test.com`,
+      password: 'password123',
+    };
+    const voteOrgName = 'GK E2E Org';
+
+    await registerAndCreateOrg(page, adminUser, voteOrgName);
+    const orgId = getOrgIdFromUrl(page.url());
+    const api = await getApiContext(page, request);
+
+    const gkName = `GK Player ${ts}`;
+    await createPlayerViaApi(api, orgId, gkName);
+
+    await page.goto(`/organizations/${orgId}`);
+    const peladaId = await createPelada(page);
+
+    await confirmAndCloseAttendanceViaApi(api, orgId, peladaId);
+    await page.goto(`/peladas/${peladaId}`);
+    await page.waitForLoadState('networkidle');
+
+    await page.getByLabel(/Goleiros Fixos|Fixed Goalkeepers/i).click();
+    await expect(page.getByTestId('fixed-goalkeepers-title')).toBeVisible();
+
+    await page.getByTestId('player-row').filter({ hasText: gkName }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
+    await page.getByTestId('move-to-home-gk-item').click();
+
+    const homeGkSlot = page.getByTestId('gk-slot-home');
+    await expect(homeGkSlot.getByText(gkName)).toBeVisible();
+
+    await setupTeams(page, { count: 2 });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    const anyPlayerRow = page.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
+    await anyPlayerRow.getByTestId('stat-goals-increment').click();
+    await page.getByTestId('without-assistance-option').click();
+    await page.getByTestId('end-match-button').click();
+    await page.getByTestId('pretty-confirm-button').click();
+    await page.getByTestId('summary-close-button').click();
+
+    await page.getByRole('tab', { name: /Classificação|Standings/i }).click();
+    const closeBtn = page.getByTestId('close-pelada-button');
+    await expect(closeBtn).toBeVisible({ timeout: 10000 });
+    await closeBtn.click();
+    await page.getByTestId('pretty-confirm-button').click();
+    await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+
+    await page.goto(`/peladas/${peladaId}/voting`);
+    await expect(page.getByText(/Votação|Voting/i).first()).toBeVisible({ timeout: 10000 });
+
+    const gkCard = page.getByTestId(/^voting-card-/).filter({ hasText: gkName });
+    await expect(gkCard.getByText(/Desativar|Disable|Desabilitar/i)).toBeVisible({ timeout: 10000 });
+
+    await gkCard.getByRole('button', { name: /Habilitar|Enable/i }).click();
+    
+    await expect(gkCard.getByText(/Desativar|Disable|Desabilitar/i).first()).toBeVisible({ timeout: 10000 });
+    
+    const rating = gkCard.getByTestId(/^rating-/);
+    await expect(rating).toBeEnabled();
+  });
 });
+
