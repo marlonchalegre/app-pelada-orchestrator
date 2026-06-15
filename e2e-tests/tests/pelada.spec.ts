@@ -105,6 +105,17 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.getByTestId('without-assistance-option').click();
       await expect(anyPlayerRow.getByTestId('stat-goals-value')).toHaveText('1');
 
+      // Record a custom event (drible)
+      await expect(ownerPage.getByTestId('record-event-fab')).toBeVisible();
+      await ownerPage.getByTestId('record-event-fab').click();
+      await expect(ownerPage.getByTestId('record-event-dialog')).toBeVisible();
+      const firstPlayerItem = ownerPage.getByTestId(/event-player-item-.*/).first();
+      await expect(firstPlayerItem).toBeVisible();
+      await firstPlayerItem.click();
+      await ownerPage.getByTestId('event-type-card-drible').click();
+      await ownerPage.getByTestId('confirm-event-button').click();
+      await expect(ownerPage.getByTestId('record-event-dialog')).not.toBeVisible();
+
       // Record a substitution
       await anyPlayerRow.getByTestId('sub-button').click();
       await expect(ownerPage.getByTestId('player-select-dialog')).toBeVisible();
@@ -150,6 +161,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await expect(timeline).toBeVisible({ timeout: 10000 });
       await timeline.scrollIntoViewIfNeeded();
       await expect(timeline.getByText(/GOL|GOAL|Gol/i).first()).toBeVisible({ timeout: 15000 });
+      await expect(timeline.getByText(/Dribble|Drible/i).first()).toBeVisible({ timeout: 15000 });
 
       // Check export dropdown
       await ownerPage.getByTestId('share-dropdown-button').click();
@@ -195,10 +207,22 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
       await ownerPage.waitForTimeout(500);
 
-      // Verify edit dialog opening
-      const editBtn = ownerPage.locator('[data-testid^="edit-event-"]').first();
-      await expect(editBtn).toBeVisible({ timeout: 10000 });
-      await editBtn.click();
+      // Verify custom event exists and can be edited
+      const editButtons = ownerPage.locator('[data-testid^="edit-event-"]');
+      await expect(editButtons).toHaveCount(3, { timeout: 10000 });
+
+      // Edit the custom event (drible, at index 1)
+      await editButtons.nth(1).click();
+      await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
+      await expect(ownerPage.getByTestId('edit-assistant-select')).not.toBeVisible();
+      await expect(ownerPage.getByRole('heading', { name: /Edit Event|Editar Evento/i })).toBeVisible();
+      await ownerPage.getByRole('button', { name: /Cancelar|Cancel/i }).click();
+      await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
+
+      // Verify edit dialog opening for the goal event (at index 0)
+      const firstEditBtn = editButtons.first();
+      await expect(firstEditBtn).toBeVisible({ timeout: 10000 });
+      await firstEditBtn.click();
       await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
       
       // Select an assistant if any other player is on the same team
@@ -214,20 +238,15 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await ownerPage.getByTestId('save-event-edit-button').click();
       await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
 
-      // Delete the goal event
+      // Delete the custom event (at index 1)
       const deleteButtons = ownerPage.locator('[data-testid^="delete-event-"]');
-      const initialCount = await deleteButtons.count();
-      const firstDeleteBtn = deleteButtons.first();
-      await expect(firstDeleteBtn).toBeVisible({ timeout: 10000 });
-      const testId = await firstDeleteBtn.getAttribute('data-testid');
-      await firstDeleteBtn.click();
+      await expect(deleteButtons).toHaveCount(3);
+      const customDeleteBtn = deleteButtons.nth(1);
+      await customDeleteBtn.click();
       await ownerPage.getByTestId('pretty-confirm-button').click();
 
-      // Verify the specific event button is deleted and count decreases
-      if (testId) {
-        await expect(ownerPage.getByTestId(testId)).not.toBeVisible({ timeout: 10000 });
-      }
-      await expect(deleteButtons).toHaveCount(initialCount - 1, { timeout: 10000 });
+      // Verify count decreases to 2
+      await expect(deleteButtons).toHaveCount(2, { timeout: 10000 });
     });
 
     await test.step('Close Pelada and Vote', async () => {
