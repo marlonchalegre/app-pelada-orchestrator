@@ -101,6 +101,54 @@ test.describe('Global Admin Panel & Block Systems', () => {
       await expect(globalAdminPage.locator('h1')).toContainText(/Painel do Global Admin|Global Admin Panel/i);
     });
 
+    // 2.5. Edit user email and phone
+    await test.step('2.5. Edit user email and phone', async () => {
+      await globalAdminPage.goto('/admin');
+
+      // Search for regular user
+      const userSearchInput = globalAdminPage.getByPlaceholder(/Buscar por nome|Search by name/i);
+      await userSearchInput.click();
+      await userSearchInput.clear();
+      await userSearchInput.pressSequentially(regularUser.name);
+      const userResponsePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/api/users/search') && resp.status() === 200);
+      await userSearchInput.press('Enter');
+      await userResponsePromise;
+
+      const userRow = globalAdminPage.locator('tr').filter({ hasText: regularUser.name });
+      await expect(userRow).toBeVisible();
+
+      // Email should be initially visible in the row for global admin
+      await expect(userRow).toContainText(regularUser.email);
+
+      // Click edit button
+      await userRow.locator('[data-testid^="edit-user-btn-"]').click();
+
+      // Dialog should be open
+      const dialog = globalAdminPage.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+
+      // Fill new email and phone
+      const newEmail = `new-email-${timestamp}@example.com`;
+      const newPhone = '5511999999999';
+      await globalAdminPage.getByTestId('edit-user-email-input').fill(newEmail);
+      await globalAdminPage.getByTestId('edit-user-phone-input').fill(newPhone);
+
+      // Click save
+      const savePromise = globalAdminPage.waitForResponse(resp => resp.url().includes('/profile') && resp.status() === 200);
+      await globalAdminPage.getByTestId('confirm-edit-user-btn').click();
+      await savePromise;
+
+      // Dialog should be closed
+      await expect(dialog).toBeHidden();
+
+      // Verify changes are shown in the row
+      await expect(userRow).toContainText(newEmail);
+      await expect(userRow).toContainText(newPhone);
+
+      // Update the regularUser email so subsequent steps continue working
+      regularUser.email = newEmail;
+    });
+
     // 3. Toggle allow_org_creation for regularUser
     await test.step('3. Toggle organization creation permission', async () => {
       await globalAdminPage.goto('/admin');
