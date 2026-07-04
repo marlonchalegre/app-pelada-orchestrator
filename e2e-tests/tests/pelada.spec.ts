@@ -830,5 +830,67 @@ test.describe('Pelada Lifecycle & Matches', () => {
     const rating = gkCard.getByTestId(/^rating-/);
     await expect(rating).toBeEnabled();
   });
+
+  test('should verify inline event recording and timeline copy table features', async ({ page, context }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 15000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: 'E2E Custom Events',
+      username: 'e2e_events_' + Math.random().toString(36).substring(7),
+      email: `e2e_events_${ts}@test.com`,
+      password: 'password123',
+    };
+    const orgName = 'Custom Events Org';
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    const peladaId = await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: true });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    // Verify inline record event button is present and click it
+    const inlineBtn = page.getByTestId('record-event-inline-button');
+    await expect(inlineBtn).toBeVisible({ timeout: 10000 });
+    await inlineBtn.click();
+
+    // Verify dialog opens
+    await expect(page.getByTestId('record-event-dialog')).toBeVisible();
+
+    // Select a player
+    await page.locator('[data-testid^="event-player-item-"]').first().click();
+
+    // Select custom event type: drible
+    await page.getByTestId('event-type-card-drible').click();
+
+    // Click confirm
+    await page.getByTestId('confirm-event-button').click();
+
+    // Dialog should close
+    await expect(page.getByTestId('record-event-dialog')).not.toBeVisible();
+
+    // Switch to Timeline tab
+    await page.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
+
+    // Intercept window.alert
+    let dialogMessage = '';
+    page.on('dialog', async dialog => {
+      dialogMessage = dialog.message();
+      await dialog.accept();
+    });
+
+    // Grant clipboard read/write permission to browser context
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    // Click on Copy Table button
+    await page.getByRole('button', { name: /Copiar Tabela|Copy Table/i }).click();
+
+    // Verify the alert dialog was triggered with success message
+    await expect.poll(() => dialogMessage).toMatch(/copiada|copied/i);
+
+    // Verify clipboard content
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText.toLowerCase()).toContain('drible');
+  });
 });
 
