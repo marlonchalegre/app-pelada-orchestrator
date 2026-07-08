@@ -941,6 +941,10 @@ test.describe('Pelada Lifecycle & Matches', () => {
     // Pause match timer as well
     const pauseMatchBtn = page.getByTestId('pause-match-timer-button');
     await pauseMatchBtn.click();
+    await expect(page.getByTestId('start-match-timer-button')).toBeVisible();
+
+    // Wait a brief moment for any pending API updates/refreshes to settle
+    await page.waitForTimeout(1000);
 
     // Let's get the paused time
     const globalTimePaused = await globalTimerText.innerText();
