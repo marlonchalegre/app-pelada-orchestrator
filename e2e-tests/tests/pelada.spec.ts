@@ -892,5 +892,73 @@ test.describe('Pelada Lifecycle & Matches', () => {
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText.toLowerCase()).toContain('drible');
   });
+
+  test('should synchronize global session timer and match timer on start, play/pause and reset correctly', async ({ page }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 15000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: 'E2E Timer Sync',
+      username: 'e2e_timers_' + Math.random().toString(36).substring(7),
+      email: `e2e_timers_${ts}@test.com`,
+      password: 'password123',
+    };
+    const orgName = 'Timer Sync Org';
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    const peladaId = await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: true });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    // Initial state: both timers are stopped/not running
+    const globalTimerText = page.getByTestId('global-timer-text');
+    const matchTimerText = page.getByTestId('match-timer-text');
+
+    await expect(globalTimerText).toContainText('00:00:00');
+    await expect(matchTimerText).toContainText('00:00');
+
+    // 1. Play global session timer -> should also start match timer
+    const startGlobalBtn = page.getByTestId('start-global-timer-button');
+    await expect(startGlobalBtn).toBeVisible();
+    await startGlobalBtn.click();
+
+    // Verify global timer starts running (the play button changes to pause button)
+    await expect(page.getByTestId('pause-global-timer-button')).toBeVisible();
+    // Verify match timer starts running too (the play button changes to pause button)
+    await expect(page.getByTestId('pause-match-timer-button')).toBeVisible();
+
+    // Let the timers tick a bit
+    await page.waitForTimeout(2000);
+
+    // 2. Pause global session timer
+    const pauseGlobalBtn = page.getByTestId('pause-global-timer-button');
+    await pauseGlobalBtn.click();
+
+    // Verify global timer is paused (pause button changes back to start button)
+    await expect(page.getByTestId('start-global-timer-button')).toBeVisible();
+
+    // Pause match timer as well
+    const pauseMatchBtn = page.getByTestId('pause-match-timer-button');
+    await pauseMatchBtn.click();
+
+    // Let's get the paused time
+    const globalTimePaused = await globalTimerText.innerText();
+    const matchTimePaused = await matchTimerText.innerText();
+
+    // Wait 2 seconds (timers are paused, so they should NOT advance)
+    await page.waitForTimeout(2000);
+
+    // Verify times did not change
+    expect(await globalTimerText.innerText()).toBe(globalTimePaused);
+    expect(await matchTimerText.innerText()).toBe(matchTimePaused);
+
+    // 3. Reset timers to ensure they go back to zero
+    const resetGlobalBtn = page.getByTestId('reset-global-timer-button');
+    await resetGlobalBtn.click();
+    // Confirm reset
+    await page.getByTestId('pretty-confirm-button').click();
+    await expect(globalTimerText).toContainText('00:00:00');
+  });
 });
 
