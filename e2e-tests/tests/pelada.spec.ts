@@ -266,7 +266,7 @@ test.describe('Pelada Lifecycle & Matches', () => {
       // Verify Champion in Standings
       await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
       await expect(ownerPage.getByText(/Campeão|Champion/i)).toBeVisible();
-      await expect(ownerPage.getByTestId('standings-table').or(ownerPage.locator('table'))).toBeVisible();
+      await expect(ownerPage.getByTestId('standings-table')).toBeVisible();
 
       // Voting
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
