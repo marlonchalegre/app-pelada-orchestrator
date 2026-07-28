@@ -1,0 +1,483 @@
+import os
+import time
+import json
+import urllib.request
+import urllib.error
+import socket
+import shutil
+import ssl
+import threading
+import datetime
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+# Config from environment variables
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+WAHA_API_URL = os.environ.get("WAHA_API_URL", "http://waha.peladaapp.svc.cluster.local:3000")
+WAHA_API_KEY = os.environ.get("WAHA_API_KEY")
+WAHA_SESSION = os.environ.get("WAHA_SESSION", "default")
+BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://backend.peladaapp.svc.cluster.local:8000")
+
+# Kubernetes Service Account Configs
+try:
+    with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace", "r") as f:
+        K8S_NAMESPACE = f.read().strip()
+except:
+    K8S_NAMESPACE = "peladaapp"
+
+try:
+    with open("/var/run/secrets/kubernetes.io/serviceaccount/token", "r") as f:
+        K8S_TOKEN = f.read().strip()
+except:
+    K8S_TOKEN = ""
+
+def send_telegram_message(text):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Telegram configuration is missing. Cannot send message.")
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "parse_mode": "HTML"
+    }
+    data = json.dumps(payload).encode('utf-8')
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req) as resp:
+            print("Telegram alert sent successfully.")
+    except Exception as e:
+        print(f"Error sending Telegram message: {e}")
+
+def send_telegram_photo(photo_bytes, filename="qr.png", caption=None):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return False
+    boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW"
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    
+    parts = []
+    parts.append(f"--{boundary}".encode('utf-8'))
+    parts.append(f'Content-Disposition: form-data; name="chat_id"'.encode('utf-8'))
+    parts.append("".encode('utf-8'))
+    parts.append(str(TELEGRAM_CHAT_ID).encode('utf-8'))
+    
+    if caption:
+        parts.append(f"--{boundary}".encode('utf-8'))
+        parts.append(f'Content-Disposition: form-data; name="caption"'.encode('utf-8'))
+        parts.append("".encode('utf-8'))
+        parts.append(caption.encode('utf-8'))
+        
+    parts.append(f"--{boundary}".encode('utf-8'))
+    parts.append(f'Content-Disposition: form-data; name="photo"; filename="{filename}"'.encode('utf-8'))
+    parts.append(f'Content-Type: image/png'.encode('utf-8'))
+    parts.append("".encode('utf-8'))
+    parts.append(photo_bytes)
+    
+    parts.append(f"--{boundary}--".encode('utf-8'))
+    
+    body = b"\r\n".join(parts)
+    req = urllib.request.Request(url, data=body, method="POST")
+    req.add_header("Content-Type", f"multipart/form-data; boundary={boundary}")
+    
+    try:
+        with urllib.request.urlopen(req) as resp:
+            print("Telegram photo sent successfully.")
+            return True
+    except Exception as e:
+        print(f"Error sending Telegram photo: {e}")
+        return False
+
+def make_k8s_request(path, method="GET", payload=None):
+    if not K8S_TOKEN:
+        return 500, "Kubernetes API token is missing"
+    
+    url = f"https://kubernetes.default.svc{path}"
+    headers = {
+        "Authorization": f"Bearer {K8S_TOKEN}",
+        "Accept": "application/json"
+    }
+    data = None
+    if payload:
+        data = json.dumps(payload).encode('utf-8')
+        headers["Content-Type"] = "application/strategic-merge-patch+json" if method == "PATCH" else "application/json"
+        
+    ssl_context = ssl._create_unverified_context()
+    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    
+    try:
+        with urllib.request.urlopen(req, context=ssl_context) as resp:
+            return resp.getcode(), resp.read().decode('utf-8')
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode('utf-8')
+    except Exception as e:
+        return 500, str(e)
+
+def get_backend_pod_name():
+    path = f"/api/v1/namespaces/{K8S_NAMESPACE}/pods?labelSelector=app=backend"
+    status, body = make_k8s_request(path)
+    if status == 200:
+        data = json.loads(body)
+        items = data.get("items", [])
+        for pod in items:
+            if pod.get("status", {}).get("phase") == "Running":
+                return pod.get("metadata", {}).get("name")
+    return None
+
+def get_backend_logs(since_seconds=60):
+    pod_name = get_backend_pod_name()
+    if not pod_name:
+        return ""
+    path = f"/api/v1/namespaces/{K8S_NAMESPACE}/pods/{pod_name}/log?sinceSeconds={since_seconds}"
+    status, body = make_k8s_request(path)
+    if status == 200:
+        return body
+    return ""
+
+def restart_waha_deployment():
+    path = f"/apis/apps/v1/namespaces/{K8S_NAMESPACE}/deployments/waha"
+    now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    payload = {
+        "spec": {
+            "template": {
+                "metadata": {
+                    "annotations": {
+                        "kubectl.kubernetes.io/restartedAt": now_iso
+                    }
+                }
+            }
+        }
+    }
+    status, body = make_k8s_request(path, method="PATCH", payload=payload)
+    return status == 200, body
+
+def check_waha_session():
+    url = f"{WAHA_API_URL}/api/sessions/{WAHA_SESSION}"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Accept", "application/json")
+    if WAHA_API_KEY:
+        req.add_header("X-Api-Key", WAHA_API_KEY)
+    
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.getcode() == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                status = data.get("status")
+                if status == "WORKING":
+                    return True, "Working"
+                else:
+                    return False, f"Session status is {status}"
+            else:
+                return False, f"HTTP status code {resp.getcode()}"
+    except urllib.error.HTTPError as e:
+        try:
+            err_data = json.loads(e.read().decode('utf-8'))
+            return False, f"HTTP Error {e.code}: {err_data.get('message', e.reason)}"
+        except:
+            return False, f"HTTP Error {e.code}"
+    except Exception as e:
+        return False, str(e)
+
+def get_waha_qr_image():
+    url = f"{WAHA_API_URL}/api/{WAHA_SESSION}/auth/qr"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Accept", "image/png")
+    if WAHA_API_KEY:
+        req.add_header("X-Api-Key", WAHA_API_KEY)
+    
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.getcode() == 200:
+                return resp.read()
+    except Exception as e:
+        print(f"Error fetching QR image: {e}")
+    return None
+
+def check_backend_api():
+    url = f"{BACKEND_API_URL}/api/health"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Accept", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.getcode() == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                if data.get("status") == "OK":
+                    return True, "OK", data.get("version")
+                else:
+                    return False, f"Unexpected response status: {data.get('status')}", None
+            else:
+                return False, f"HTTP status code {resp.getcode()}", None
+    except Exception as e:
+        return False, str(e), None
+
+def check_postgres_conn(host, port=5432):
+    try:
+        with socket.create_connection((host, port), timeout=5):
+            return True, "Connection successful"
+    except Exception as e:
+        return False, str(e)
+
+def get_disk_usage(path):
+    try:
+        total, used, free = shutil.disk_usage(path)
+        percent = (used / total) * 100
+        return True, f"{percent:.1f}% used ({used/(1024**3):.1f}GB/{total/(1024**3):.1f}GB)"
+    except Exception as e:
+        return False, f"Not mounted/readable ({e})"
+
+def get_dir_size(path):
+    total_size = 0
+    try:
+        if not os.path.exists(path):
+            return False, "Not mounted"
+        for dirpath, dirnames, filenames in os.walk(path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                try:
+                    if not os.path.islink(fp):
+                        total_size += os.path.getsize(fp)
+                except OSError:
+                    pass
+        # Format human readable size
+        for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if total_size < 1024.0:
+                return True, f"{total_size:.1f} {unit}"
+            total_size /= 1024.0
+        return True, f"{total_size:.1f} TB"
+    except Exception as e:
+        return False, str(e)
+
+def process_command(text):
+    print(f"Received command: {text}")
+    if text == "/status":
+        is_waha_ok, waha_msg = check_waha_session()
+        is_backend_ok, backend_msg, version = check_backend_api()
+        
+        postgres_host = os.environ.get("POSTGRES_HOST", "postgres")
+        is_db_ok, db_msg = check_postgres_conn(postgres_host)
+        
+        _, host_usage = get_disk_usage("/")
+        _, uploads_size = get_dir_size("/data/uploads")
+        _, waha_size = get_dir_size("/data/waha")
+        
+        status_waha = "✅ WORKING" if is_waha_ok else f"❌ DOWN ({waha_msg})"
+        status_api = f"✅ OK (v{version})" if is_backend_ok else f"❌ DOWN ({backend_msg})"
+        status_db = "✅ CONNECTED" if is_db_ok else f"❌ ERROR ({db_msg})"
+        
+        msg = (
+            f"📊 <b>System Status Report</b>\n\n"
+            f"🖥️ <b>Clojure API:</b> {status_api}\n"
+            f"💬 <b>WAHA Session:</b> {status_waha}\n"
+            f"🗄️ <b>Postgres DB:</b> {status_db}\n\n"
+            f"💾 <b>Storage & Disk Usage:</b>\n"
+            f" • VPS Host Disk: <code>{host_usage}</code>\n"
+            f" • Uploads size: <code>{uploads_size}</code>\n"
+            f" • WAHA data size: <code>{waha_size}</code>"
+        )
+        send_telegram_message(msg)
+
+    elif text == "/qr":
+        is_waha_ok, waha_msg = check_waha_session()
+        if is_waha_ok:
+            send_telegram_message("✅ WAHA is already connected (WORKING). No QR code needed.")
+            return
+            
+        send_telegram_message("🔄 Fetching QR Code from WAHA...")
+        photo_bytes = get_waha_qr_image()
+        if photo_bytes:
+            send_telegram_photo(photo_bytes, caption="Scan this QR code with WhatsApp to connect.")
+        else:
+            send_telegram_message("❌ Failed to fetch QR code. Check if WAHA is starting or has errors.")
+
+    elif text == "/logs":
+        send_telegram_message("📋 Fetching last 20 lines of Clojure API logs...")
+        logs = get_backend_logs(since_seconds=3600)
+        if logs:
+            lines = logs.strip().split('\n')[-20:]
+            log_snippet = '\n'.join(lines)
+            escaped_snippet = log_snippet.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            msg = f"📋 <b>Clojure API Logs (Last 20 lines):</b>\n<pre>{escaped_snippet}</pre>"
+            if len(msg) > 4000:
+                msg = msg[:3900] + "\n... (truncated)</pre>"
+            send_telegram_message(msg)
+        else:
+            send_telegram_message("❌ No backend logs found or failed to fetch.")
+
+    elif text == "/restart_waha":
+        send_telegram_message("🔄 Restarting WAHA deployment on Kubernetes...")
+        success, detail = restart_waha_deployment()
+        if success:
+            send_telegram_message("✅ WAHA deployment restart triggered successfully! It will take a moment to restart.")
+        else:
+            send_telegram_message(f"❌ Failed to restart WAHA: {detail}")
+            
+    elif text == "/start":
+        msg = (
+            f"🤖 <b>PeladaApp Health Monitor Bot</b>\n\n"
+            f"Use the following commands to interact with the monitor:\n"
+            f" • /status - View current API, DB, and WAHA status and disk space\n"
+            f" • /qr - Fetch current WAHA QR code to login\n"
+            f" • /logs - Fetch last 20 lines of Clojure API logs\n"
+            f" • /restart_waha - Restart the WAHA container"
+        )
+        send_telegram_message(msg)
+
+def handle_telegram_updates():
+    offset = 0
+    print("Starting Telegram update poller...")
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates?offset={offset}&timeout=30"
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=35) as resp:
+                if resp.getcode() == 200:
+                    data = json.loads(resp.read().decode('utf-8'))
+                    if data.get("ok"):
+                        for update in data.get("result", []):
+                            offset = update["update_id"] + 1
+                            message = update.get("message")
+                            if not message:
+                                continue
+                            chat_id = message.get("chat", {}).get("id")
+                            if str(chat_id) != str(TELEGRAM_CHAT_ID):
+                                continue
+                            text = message.get("text", "").strip()
+                            if text.startswith("/"):
+                                process_command(text)
+        except Exception as e:
+            print(f"Error in Telegram poller: {e}")
+        time.sleep(1)
+
+class PortainerWebhookHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Suppress request logs to stdout to keep stdout clean
+        pass
+        
+    def do_POST(self):
+        if self.path == "/webhook":
+            try:
+                content_length = int(self.headers['Content-Length'])
+                post_data = self.rfile.read(content_length)
+                payload = json.loads(post_data.decode('utf-8'))
+                
+                print("Received webhook payload:", json.dumps(payload))
+                
+                alerts = payload.get("alerts", [])
+                if alerts:
+                    for alert in alerts:
+                        status = alert.get("status", "unknown").upper()
+                        labels = alert.get("labels", {})
+                        annotations = alert.get("annotations", {})
+                        
+                        alertname = labels.get("alertname", "Unknown Alert")
+                        description = annotations.get("description", annotations.get("summary", "No description provided"))
+                        
+                        icon = "🚨" if status == "FIRING" else "✅"
+                        msg = (
+                            f"{icon} <b>Portainer Alert ({status})</b>\n\n"
+                            f"<b>Alert:</b> <code>{alertname}</code>\n"
+                            f"<b>Description:</b> <i>{description}</i>"
+                        )
+                        send_telegram_message(msg)
+                else:
+                    title = payload.get("title", "Portainer Alert")
+                    message = payload.get("message", json.dumps(payload))
+                    msg = (
+                        f"🔔 <b>{title}</b>\n\n"
+                        f"{message}"
+                    )
+                    send_telegram_message(msg)
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "success"}).encode('utf-8'))
+            except Exception as e:
+                print(f"Error handling webhook: {e}")
+                self.send_response(500)
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+def run_webhook_server(port=9090):
+    server = HTTPServer(('0.0.0.0', port), PortainerWebhookHandler)
+    print(f"Portainer Webhook Server listening on port {port}...")
+    server.serve_forever()
+
+def main():
+    print("Starting Health Monitor...")
+    waha_healthy = True
+    backend_healthy = True
+    current_version = None
+    
+    if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
+        t = threading.Thread(target=handle_telegram_updates, daemon=True)
+        t.start()
+        print("Telegram poller thread started.")
+        
+        w_thread = threading.Thread(target=run_webhook_server, args=(9090,), daemon=True)
+        w_thread.start()
+        print("Portainer Webhook server thread started on port 9090.")
+
+    while True:
+        # Check WAHA
+        is_waha_ok, waha_msg = check_waha_session()
+        print(f"WAHA health: ok={is_waha_ok}, message={waha_msg}")
+        if is_waha_ok != waha_healthy:
+            waha_healthy = is_waha_ok
+            if not waha_healthy:
+                alert_msg = f"⚠️ <b>WAHA Alert</b>\nSession <code>{WAHA_SESSION}</code> is down/unhealthy!\nReason: <i>{waha_msg}</i>"
+                send_telegram_message(alert_msg)
+            else:
+                alert_msg = f"✅ <b>WAHA Alert</b>\nSession <code>{WAHA_SESSION}</code> is back online (WORKING)."
+                send_telegram_message(alert_msg)
+
+        # Check Backend API
+        is_backend_ok, backend_msg, version = check_backend_api()
+        print(f"Backend health: ok={is_backend_ok}, message={backend_msg}, version={version}")
+        
+        if is_backend_ok:
+            if current_version is None:
+                current_version = version
+                print(f"Initialized API version tracking at version: {current_version}")
+            elif version != current_version:
+                alert_msg = f"🚀 <b>Backend API Updated</b>\nClojure API has been updated!\nFrom: <code>{current_version}</code>\nTo: <code>{version}</code>"
+                send_telegram_message(alert_msg)
+                current_version = version
+
+        # Handle health state transition
+        if is_backend_ok != backend_healthy:
+            backend_healthy = is_backend_ok
+            if not backend_healthy:
+                alert_msg = f"⚠️ <b>Backend Alert</b>\nClojure API is down/unhealthy!\nReason: <i>{backend_msg}</i>"
+                send_telegram_message(alert_msg)
+            else:
+                alert_msg = f"✅ <b>Backend Alert</b>\nClojure API is back online."
+                send_telegram_message(alert_msg)
+
+        # Auditing backend logs for errors
+        try:
+            log_data = get_backend_logs(since_seconds=60)
+            if log_data:
+                error_lines = []
+                for line in log_data.strip().split('\n'):
+                    if "ERROR" in line or "Exception" in line or "RuntimeException" in line:
+                        error_lines.append(line)
+                
+                if len(error_lines) > 0:
+                    error_snippet = '\n'.join(error_lines[:5])
+                    escaped_err = error_snippet.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                    alert_msg = (
+                        f"⚠️ <b>Backend Log Alert</b>\n"
+                        f"Detected <b>{len(error_lines)}</b> error(s) in backend logs in the last minute:\n"
+                        f"<pre>{escaped_err}</pre>"
+                    )
+                    send_telegram_message(alert_msg)
+            except Exception as e:
+                print(f"Error auditing logs: {e}")
+
+        time.sleep(60)
+
+if __name__ == "__main__":
+    main()

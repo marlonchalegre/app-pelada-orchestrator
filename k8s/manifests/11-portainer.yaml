@@ -71,11 +71,17 @@ spec:
       serviceAccountName: portainer-sa-clusteradmin
       containers:
       - name: portainer
-        image: portainer/portainer-ce:latest
+        image: portainer/portainer-ee:lts
         imagePullPolicy: Always
         ports:
           - containerPort: 9000
           - containerPort: 8000
+        env:
+          - name: PORTAINER_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                name: portainer-secrets
+                key: PORTAINER_LICENSE_KEY
         volumeMounts:
           - name: portainer-data
             mountPath: /data
