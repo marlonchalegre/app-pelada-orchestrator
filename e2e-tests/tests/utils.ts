@@ -1,7 +1,13 @@
-import { Browser, Page, TestInfo, APIRequestContext, expect } from '@playwright/test';
-import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import {
+  Browser,
+  Page,
+  TestInfo,
+  APIRequestContext,
+  expect,
+} from "@playwright/test";
+import { execSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -33,8 +39,11 @@ export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
     await video.saveAs(newPath);
     try {
       const originalPath = await video.path();
-      if (originalPath && fs.existsSync(originalPath)) fs.unlinkSync(originalPath);
-    } catch { /* ignore */ }
+      if (originalPath && fs.existsSync(originalPath))
+        fs.unlinkSync(originalPath);
+    } catch {
+      /* ignore */
+    }
   } catch (err) {
     console.error(`Failed to save video ${name}:`, err);
   }
@@ -43,18 +52,18 @@ export async function saveVideo(page: Page, name: string, testInfo: TestInfo) {
 // ─── Auth & Registration ─────────────────────────────────────────────────────
 
 export async function loginUser(page: Page, user: UserData) {
-  await page.goto('/login');
-  await page.getByTestId('login-email').fill(user.username);
-  await page.getByTestId('login-password').fill(user.password);
-  await page.getByTestId('login-submit').click();
+  await page.goto("/login");
+  await page.getByTestId("login-email").fill(user.username);
+  await page.getByTestId("login-password").fill(user.password);
+  await page.getByTestId("login-submit").click();
   await expect(page).toHaveURL(/\/home/, { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState("networkidle");
 }
 
 export async function registerUser(page: Page, user: UserData) {
-  await page.goto('/register');
-  await page.getByTestId('register-name').fill(user.name);
-  await page.getByTestId('register-username').fill(user.username);
+  await page.goto("/register");
+  await page.getByTestId("register-name").fill(user.name);
+  await page.getByTestId("register-username").fill(user.username);
   await page.getByTestId("register-email").fill(user.email);
 
   if (user.phone) {
@@ -64,31 +73,35 @@ export async function registerUser(page: Page, user: UserData) {
   await page.getByTestId("register-password").fill(user.password);
 
   if (user.position) {
-    await page.getByLabel('Position').or(page.getByLabel('Posição')).click();
+    await page.getByLabel("Position").or(page.getByLabel("Posição")).click();
+    await page.waitForTimeout(250);
     const option = page.getByTestId(`position-option-${user.position}`);
     await expect(option).toBeVisible();
     await option.click();
   }
 
-  await page.getByTestId('register-submit').click();
-  await expect(page).toHaveURL('/home', { timeout: 10000 });
-  await page.waitForLoadState('networkidle');
+  await page.getByTestId("register-submit").click();
+  await expect(page).toHaveURL("/home", { timeout: 10000 });
+  await page.waitForLoadState("networkidle");
 }
 
-export async function getApiContext(page: Page, _request: APIRequestContext): Promise<ApiContext> {
+export async function getApiContext(
+  page: Page,
+  _request: APIRequestContext,
+): Promise<ApiContext> {
   // Try to get token from localStorage first (might still be there in some flows or dev)
-  let token = await page.evaluate(() => localStorage.getItem('authToken'));
+  let token = await page.evaluate(() => localStorage.getItem("authToken"));
 
   if (!token) {
     const cookies = await page.context().cookies();
-    const authCookie = cookies.find(c => c.name === 'authToken');
-    token = authCookie?.value || '';
+    const authCookie = cookies.find((c) => c.name === "authToken");
+    token = authCookie?.value || "";
   }
 
   return {
     request: page.request, // ALWAYS use page.request for shared cookies
     token: token!,
-    apiBaseUrl: '', // Use relative paths to take advantage of cookies
+    apiBaseUrl: "", // Use relative paths to take advantage of cookies
   };
 }
 // ─── Organization ────────────────────────────────────────────────────────────
@@ -98,7 +111,7 @@ export async function getApiContext(page: Page, _request: APIRequestContext): Pr
  * Required because new users default to allow_org_creation=false.
  */
 export function grantOrgCreation(email: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"` ;
+  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"`;
   execSync(cmd);
 }
 
@@ -106,117 +119,132 @@ export function grantOrgCreation(email: string) {
  * Enable premium feature flags for an organization in the E2E schema.
  */
 export function enableFeatureFlags(orgId: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"` ;
+  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"`;
   execSync(cmd);
 }
 
-
 export async function createOrganization(page: Page, orgName: string) {
-  await page.goto('/home');
-  await page.waitForLoadState('networkidle');
-  await page.getByTestId('create-org-open-dialog').or(page.getByTestId('create-org-button')).click();
-  await page.getByTestId('org-name-input').fill(orgName);
-  await page.getByTestId('org-submit-button').click();
+  await page.goto("/home");
+  await page.waitForLoadState("networkidle");
+  await page
+    .getByTestId("create-org-open-dialog")
+    .or(page.getByTestId("create-org-button"))
+    .click();
+  await page.getByTestId("org-name-input").fill(orgName);
+  await page.getByTestId("org-submit-button").click();
 
-  await expect(page.getByTestId(`org-link-${orgName}`)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId(`org-link-${orgName}`)).toBeVisible({
+    timeout: 15000,
+  });
   await page.getByTestId(`org-link-${orgName}`).click();
   await expect(page).toHaveURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState("networkidle");
 }
 
 /** Register user + create org in one call. Returns the org URL. */
-export async function registerAndCreateOrg(page: Page, user: UserData, orgName: string): Promise<string> {
+export async function registerAndCreateOrg(
+  page: Page,
+  user: UserData,
+  orgName: string,
+): Promise<string> {
   await registerUser(page, user);
   // Grant org creation permission since new users default to false.
   grantOrgCreation(user.email);
   await page.reload();
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState("networkidle");
   await createOrganization(page, orgName);
 
   // Enable feature flags to unlock all tabs for tests by default
   const orgId = getOrgIdFromUrl(page.url());
   enableFeatureFlags(orgId);
   await page.reload();
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState("networkidle");
 
   return page.url();
 }
 
 export function getOrgIdFromUrl(url: string): string {
-  const parts = url.split('/');
-  const idx = parts.indexOf('organizations');
+  const parts = url.split("/");
+  const idx = parts.indexOf("organizations");
   if (idx !== -1 && parts[idx + 1]) {
-    return parts[idx + 1].split('?')[0];
+    return parts[idx + 1].split("?")[0];
   }
   throw new Error(`Could not extract organization ID from URL: ${url}`);
 }
 
 export function getPeladaIdFromUrl(url: string): string {
-  const parts = url.split('/');
-  const idx = parts.indexOf('peladas');
+  const parts = url.split("/");
+  const idx = parts.indexOf("peladas");
   if (idx !== -1 && parts[idx + 1]) {
-    return parts[idx + 1].split('?')[0].split('/')[0];
+    return parts[idx + 1].split("?")[0].split("/")[0];
   }
   throw new Error(`Could not extract pelada ID from URL: ${url}`);
 }
 
 // ─── Invitation & Player Setup ───────────────────────────────────────────────
 
-export async function invitePlayerByEmail(page: Page, email: string): Promise<string> {
-  const inviteBtn = page.getByTestId('members-invite-button');
+export async function invitePlayerByEmail(
+  page: Page,
+  email: string,
+): Promise<string> {
+  const inviteBtn = page.getByTestId("members-invite-button");
 
   // If we're already on the management page, skip navigation
-  if (!await inviteBtn.isVisible()) {
-    const mgmtBtn = page.getByTestId('org-management-button');
-    const mgmtLink = page.getByRole('link', { name: /MANAGEMENT|GERENCIAMENTO/i });
+  if (!(await inviteBtn.isVisible())) {
+    const mgmtBtn = page.getByTestId("org-management-button");
+    const mgmtLink = page.getByRole("link", {
+      name: /MANAGEMENT|GERENCIAMENTO/i,
+    });
 
-    if (!await mgmtBtn.isVisible() && !await mgmtLink.isVisible()) {
+    if (!(await mgmtBtn.isVisible()) && !(await mgmtLink.isVisible())) {
       await page.waitForTimeout(3000);
       await page.reload();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState("networkidle");
     }
 
     await mgmtBtn.or(mgmtLink).click();
   }
 
   await inviteBtn.click();
-  await page.getByTestId('invite-email-input').fill(email);
-  await page.getByTestId('send-invite-button').click();
-  await expect(page.getByTestId('invite-success-alert')).toBeVisible({ timeout: 15000 });
-  
+  await page.getByTestId("invite-email-input").fill(email);
+  await page.getByTestId("send-invite-button").click();
+  await expect(page.getByTestId("invite-success-alert")).toBeVisible({
+    timeout: 15000,
+  });
+
   // The UI displays the token/link in 'invitation-link-text'
-  const linkText = await page.getByTestId('invitation-link-text').innerText();
-  await page.getByTestId('invite-dialog-close-button').click();
-  
+  const linkText = await page.getByTestId("invitation-link-text").innerText();
+  await page.getByTestId("invite-dialog-close-button").click();
+
   const rawText = linkText.trim();
-  let token = '';
-  
-  if (rawText.includes('token=')) {
+  let token = "";
+
+  if (rawText.includes("token=")) {
     const match = rawText.match(/[?&]token=([^&?#]+)/);
     if (match) token = match[1];
-  } else if (rawText.includes('t=')) {
+  } else if (rawText.includes("t=")) {
     const match = rawText.match(/[?&]t=([^&?#]+)/);
     if (match) token = match[1];
-  } else if (rawText.startsWith('http')) {
+  } else if (rawText.startsWith("http")) {
     try {
       const url = new URL(rawText);
-      token = url.searchParams.get('token') || url.searchParams.get('t') || '';
+      token = url.searchParams.get("token") || url.searchParams.get("t") || "";
       if (!token) {
-        const segments = url.pathname.split('/').filter(s => s !== '');
+        const segments = url.pathname.split("/").filter((s) => s !== "");
         const last = segments.pop();
-        if (last && last !== 'first-access') token = last;
+        if (last && last !== "first-access") token = last;
       }
     } catch (e) {
-      const parts = rawText.split('/').filter(s => s !== '');
-      const last = parts.pop() || '';
-      token = last.split('?')[0];
+      const parts = rawText.split("/").filter((s) => s !== "");
+      const last = parts.pop() || "";
+      token = last.split("?")[0];
     }
   } else {
     token = rawText;
   }
-  
+
   // Cleanup if we somehow took 'first-access' as token
-  if (token === 'first-access') token = '';
+  if (token === "first-access") token = "";
 
   // Return the relative link with ONLY the clean token
   return `/first-access?token=${token}&email=${encodeURIComponent(email)}`;
@@ -232,44 +260,46 @@ export async function setupInvitedPlayer(
 ): Promise<void> {
   const ctx = await browser.newContext(videoOptions);
   const page = await ctx.newPage();
-  
+
   // Navigate to the invite link (relative or absolute)
   await page.goto(inviteLink);
-  
+
   // Robust wait for form
-  await expect(page.getByTestId('first-access-name')).toBeVisible({ timeout: 15000 });
-  
+  await expect(page.getByTestId("first-access-name")).toBeVisible({
+    timeout: 15000,
+  });
+
   // Extra check: ensure we didn't end up on a broken URL
   const currentUrl = page.url();
 
-  await page.getByTestId('first-access-name').fill(player.name);
-  await page.getByTestId('first-access-username').fill(player.username);
-  await page.getByTestId('first-access-password').fill(player.password);
-  
+  await page.getByTestId("first-access-name").fill(player.name);
+  await page.getByTestId("first-access-username").fill(player.username);
+  await page.getByTestId("first-access-password").fill(player.password);
+
   if (player.position) {
-    const posLabel = page.getByTestId('first-access-position-select');
+    const posLabel = page.getByTestId("first-access-position-select");
     if (await posLabel.isVisible()) {
       await posLabel.click();
       await page.getByTestId(`position-option-${player.position}`).click();
     }
   }
 
-  await page.getByTestId('first-access-submit').click();
-  
+  await page.getByTestId("first-access-submit").click();
+
   // Wait for success and redirect
   try {
     await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
   } catch (e) {
     throw e;
   }
-  
+
   await acceptPendingInvitation(page, orgName);
   await ctx.close();
 }
 
 export async function acceptPendingInvitation(page: Page, orgName: string) {
-  await page.goto('/home');
-  await page.waitForLoadState('networkidle');
+  await page.goto("/home");
+  await page.waitForLoadState("networkidle");
 
   const orgLink = page.getByTestId(`org-link-${orgName}`);
   const inviteCard = page.getByTestId(`invitation-card-${orgName}`);
@@ -277,17 +307,19 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
   await expect(async () => {
     if (!(await inviteCard.isVisible()) && !(await orgLink.isVisible())) {
       await page.reload();
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState("networkidle");
     }
-    expect(await inviteCard.isVisible() || await orgLink.isVisible()).toBeTruthy();
+    expect(
+      (await inviteCard.isVisible()) || (await orgLink.isVisible()),
+    ).toBeTruthy();
   }).toPass({ timeout: 15000 });
 
   if (await inviteCard.isVisible()) {
     await page.getByTestId(`accept-invitation-${orgName}`).click();
     await expect(async () => {
-      if (!await orgLink.isVisible()) {
-        await page.goto('/home');
-        await page.waitForLoadState('networkidle');
+      if (!(await orgLink.isVisible())) {
+        await page.goto("/home");
+        await page.waitForLoadState("networkidle");
       }
       await expect(orgLink).toBeVisible({ timeout: 5000 });
     }).toPass({ timeout: 15000 });
@@ -297,10 +329,17 @@ export async function acceptPendingInvitation(page: Page, orgName: string) {
 }
 
 /** Create players via API (faster than UI invitation flow). */
-export async function createPlayerViaApi(api: ApiContext, orgId: string, name: string): Promise<number> {
-  const res = await api.request.post(`${api.apiBaseUrl}/api/organizations/${orgId}/invite`, {
-    data: { name },
-  });
+export async function createPlayerViaApi(
+  api: ApiContext,
+  orgId: string,
+  name: string,
+): Promise<number> {
+  const res = await api.request.post(
+    `${api.apiBaseUrl}/api/organizations/${orgId}/invite`,
+    {
+      data: { name },
+    },
+  );
   const data = await res.json();
   const userId = data.user_id;
 
@@ -314,73 +353,91 @@ export async function createPlayerViaApi(api: ApiContext, orgId: string, name: s
 // ─── Membership ──────────────────────────────────────────────────────────────
 
 export async function makeMensalista(page: Page, playerName: string) {
-  const mgmtBtn = page.getByTestId('org-management-button');
-  const mgmtContainer = page.getByTestId('org-mgmt-container');
-  
-  if (!await mgmtContainer.isVisible()) {
+  const mgmtBtn = page.getByTestId("org-management-button");
+  const mgmtContainer = page.getByTestId("org-mgmt-container");
+
+  if (!(await mgmtContainer.isVisible())) {
     await mgmtBtn.click();
-    await expect(page.getByTestId('org-mgmt-container')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("org-mgmt-container")).toBeVisible({
+      timeout: 10000,
+    });
   }
-  
+
   // Make sure we are on the members tab (default)
-  const membersTab = page.getByTestId('mgmt-tab-members');
+  const membersTab = page.getByTestId("mgmt-tab-members");
   if (await membersTab.isVisible()) {
     await membersTab.click();
   }
 
-  const memberRow = page.locator('li').filter({ hasText: playerName });
+  const memberRow = page.locator("li").filter({ hasText: playerName });
   await expect(memberRow).toBeVisible({ timeout: 10000 });
-  
-  const combobox = memberRow.getByRole('combobox');
+
+  const combobox = memberRow.getByRole("combobox");
   const currentValue = await combobox.innerText();
-  if (currentValue.trim() === 'Mensalista') {
+  if (currentValue.trim() === "Mensalista") {
     return;
   }
 
   await combobox.click();
 
   const responsePromise = page.waitForResponse(
-    resp => resp.url().includes('/api/players/') && resp.request().method() === 'PUT' && resp.status() === 200,
-    { timeout: 15000 }
+    (resp) =>
+      resp.url().includes("/api/players/") &&
+      resp.request().method() === "PUT" &&
+      resp.status() === 200,
+    { timeout: 15000 },
   );
 
-  await page.getByRole('option', { name: 'Mensalista', exact: true }).click();
+  await page.getByRole("option", { name: "Mensalista", exact: true }).click();
   await responsePromise;
 }
 
 export async function addPlayerBySearch(page: Page, query: string) {
-  const mgmtBtn = page.getByTestId('org-management-button').or(page.getByRole('link', { name: /MANAGEMENT|GERENCIAMENTO/i }));
+  const mgmtBtn = page
+    .getByTestId("org-management-button")
+    .or(page.getByRole("link", { name: /MANAGEMENT|GERENCIAMENTO/i }));
   await expect(mgmtBtn).toBeVisible({ timeout: 10000 });
   await mgmtBtn.click();
-  await page.getByTestId('members-add-button').click();
+  await page.getByTestId("members-add-button").click();
 
   const searchInput = page.locator('input[placeholder="Name / Email"]');
   await searchInput.fill(query);
   await page.waitForTimeout(1000); // Debounce
-  await page.getByRole('checkbox').first().click();
-  await page.getByRole('button', { name: /Add selected|Adicionar selecionados/i }).click();
+  await page.getByRole("checkbox").first().click();
+  await page
+    .getByRole("button", { name: /Add selected|Adicionar selecionados/i })
+    .click();
 }
 
 // ─── Pelada Lifecycle ────────────────────────────────────────────────────────
 
 /** Creates a pelada from the org detail page. Returns the pelada ID. */
 export async function createPelada(page: Page): Promise<string> {
-  await page.getByTestId('create-pelada-submit').or(page.getByRole('button', { name: /Criar pelada|Create pelada/i })).click();
-  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/attendance/, { timeout: 15000 });
+  await page
+    .getByTestId("create-pelada-submit")
+    .or(page.getByRole("button", { name: /Criar pelada|Create pelada/i }))
+    .click();
+  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/attendance/, {
+    timeout: 15000,
+  });
   return getPeladaIdFromUrl(page.url());
 }
 
 /** Confirms the current user's attendance and closes the attendance list. */
 export async function confirmAndCloseAttendance(page: Page): Promise<void> {
-  await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
-  await page.getByTestId('close-attendance-button').click();
-  await page.getByTestId('confirm-close-attendance-button').click();
+  await page
+    .getByTestId("attendance-confirm-button")
+    .or(page.getByTestId("attendance-card-confirm"))
+    .first()
+    .click();
+  await page.getByTestId("close-attendance-button").click();
+  await page.getByTestId("confirm-close-attendance-button").click();
 }
 
 /** Close attendance without confirming (for tests that don't need the owner confirmed). */
 export async function closeAttendance(page: Page): Promise<void> {
-  await page.getByTestId('close-attendance-button').click();
-  await page.getByTestId('confirm-close-attendance-button').click();
+  await page.getByTestId("close-attendance-button").click();
+  await page.getByTestId("confirm-close-attendance-button").click();
 }
 /** Batch-confirm players and close attendance via API. */
 export async function confirmAndCloseAttendanceViaApi(
@@ -388,42 +445,67 @@ export async function confirmAndCloseAttendanceViaApi(
   orgId: string,
   peladaId: string,
 ): Promise<void> {
-  const playersRes = await api.request.get(`${api.apiBaseUrl}/api/organizations/${orgId}/players`);
+  const playersRes = await api.request.get(
+    `${api.apiBaseUrl}/api/organizations/${orgId}/players`,
+  );
   if (!playersRes.ok()) {
-    throw new Error(`Failed to fetch players: ${playersRes.status()} ${await playersRes.text()}`);
+    throw new Error(
+      `Failed to fetch players: ${playersRes.status()} ${await playersRes.text()}`,
+    );
   }
   const players = await playersRes.json();
 
-  await api.request.post(`${api.apiBaseUrl}/api/peladas/${peladaId}/attendance/batch`, {
-    data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' },
-  });
+  await api.request.post(
+    `${api.apiBaseUrl}/api/peladas/${peladaId}/attendance/batch`,
+    {
+      data: { player_ids: players.map((p: any) => p.id), status: "confirmed" },
+    },
+  );
 
-  const closeRes = await api.request.put(`${api.apiBaseUrl}/api/peladas/${peladaId}`, {
-    data: { status: 'open' },
-  });
+  const closeRes = await api.request.put(
+    `${api.apiBaseUrl}/api/peladas/${peladaId}`,
+    {
+      data: { status: "open" },
+    },
+  );
   if (!closeRes.ok()) {
-    throw new Error(`Failed to close attendance: ${closeRes.status()} ${await closeRes.text()}`);
+    throw new Error(
+      `Failed to close attendance: ${closeRes.status()} ${await closeRes.text()}`,
+    );
   }
 }
 
 // ─── Teams & Schedule ────────────────────────────────────────────────────────
 
-export async function setupTeams(page: Page, options: { count?: number; playersPerTeam?: number; randomize?: boolean } = {}) {
+export async function setupTeams(
+  page: Page,
+  options: {
+    count?: number;
+    playersPerTeam?: number;
+    randomize?: boolean;
+  } = {},
+) {
   const { count = 2, playersPerTeam, randomize = false } = options;
 
   // Use the placeholder button to create teams
   for (let i = 0; i < count; i++) {
-    await page.getByText(/Adicionar Time|Add Team/i).first().click();
+    await page
+      .getByText(/Adicionar Time|Add Team/i)
+      .first()
+      .click();
     await page.waitForTimeout(300);
   }
 
   if (playersPerTeam) {
-    const perTeamValueLoc = page.locator('text=/PER TEAM|POR TIME/i').locator('xpath=..').locator('h6');
+    const perTeamValueLoc = page
+      .locator("text=/PER TEAM|POR TIME/i")
+      .locator("xpath=..")
+      .locator("h6");
     let currentValueStr = await perTeamValueLoc.innerText();
     let currentValue = parseInt(currentValueStr, 10);
 
-    const incrementBtn = page.getByTestId('players-per-team-increment');
-    const decrementBtn = page.getByTestId('players-per-team-decrement');
+    const incrementBtn = page.getByTestId("players-per-team-increment");
+    const decrementBtn = page.getByTestId("players-per-team-decrement");
 
     while (currentValue < playersPerTeam) {
       await incrementBtn.click();
@@ -438,45 +520,55 @@ export async function setupTeams(page: Page, options: { count?: number; playersP
   }
 
   if (randomize) {
-    await page.getByTestId('randomize-teams-button').click();
+    await page.getByTestId("randomize-teams-button").click();
     // Handle the confirmation dialog
-    const confirmBtn = page.getByTestId('pretty-confirm-button');
+    const confirmBtn = page.getByTestId("pretty-confirm-button");
     if (await confirmBtn.isVisible({ timeout: 2000 })) {
       await confirmBtn.click();
     }
-    await expect(page.getByTestId('team-card-name').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("team-card-name").first()).toBeVisible({
+      timeout: 10000,
+    });
   }
 }
 
 export async function buildAndUseSchedule(page: Page) {
-  await page.getByTestId('build-schedule-button').click();
-  await page.getByTestId('add-match-button').click();
-  await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 15000 });
+  await page.getByTestId("build-schedule-button").click();
+  await page.getByTestId("add-match-button").click();
+  await expect(page.locator("tbody tr").first()).toBeVisible({
+    timeout: 15000,
+  });
 
-  const useBtn = page.getByTestId('save-schedule-button');
+  const useBtn = page.getByTestId("save-schedule-button");
   await expect(useBtn).toBeEnabled({ timeout: 15000 });
   await useBtn.click();
   await expect(page).toHaveURL(/\/peladas\/[^\/]+$/, { timeout: 15000 });
 }
 
 export async function startPelada(page: Page) {
-  const startBtn = page.getByTestId('start-pelada-button');
+  const startBtn = page.getByTestId("start-pelada-button");
   await expect(startBtn).toBeVisible({ timeout: 10000 });
   await expect(startBtn).toBeEnabled({ timeout: 10000 });
   await startBtn.click();
-  await page.getByRole('button', { name: /Confirmar|Confirm/i }).click();
-  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/matches/, { timeout: 15000 });
+  await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
+  await expect(page).toHaveURL(/\/peladas\/[^\/]+\/matches/, {
+    timeout: 15000,
+  });
 }
 
 // ─── Composite Setup Helpers ─────────────────────────────────────────────────
 
 /** Full setup: register, create org, create pelada, confirm attendance, close attendance. */
-export async function setupOrgAndPelada(page: Page, user: UserData, orgName: string): Promise<{ orgUrl: string; peladaId: string }> {
+export async function setupOrgAndPelada(
+  page: Page,
+  user: UserData,
+  orgName: string,
+): Promise<{ orgUrl: string; peladaId: string }> {
   await registerAndCreateOrg(page, user, orgName);
   const orgUrl = page.url();
 
   // Navigate to org detail to create pelada
-  await page.goto('/home');
+  await page.goto("/home");
   await page.getByTestId(`org-link-${orgName}`).click();
   await page.waitForURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
 
@@ -497,16 +589,20 @@ export async function setupMatchDay(
   const p2Invite = await invitePlayerByEmail(page, player2.email);
   await setupInvitedPlayer(browser, p2Invite, player2, orgName);
 
-  await page.goto('/home');
+  await page.goto("/home");
   await page.getByTestId(`org-link-${orgName}`).click();
   await page.waitForURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
 
   const peladaId = await createPelada(page);
 
   // Confirm owner + confirm pending player
-  await page.getByTestId('attendance-confirm-button').or(page.getByTestId('attendance-card-confirm')).first().click();
-  await page.getByRole('tab', { name: /Pendente|Pending/i }).click();
-  await page.getByTestId('attendance-card-confirm').first().click();
+  await page
+    .getByTestId("attendance-confirm-button")
+    .or(page.getByTestId("attendance-card-confirm"))
+    .first()
+    .click();
+  await page.getByRole("tab", { name: /Pendente|Pending/i }).click();
+  await page.getByTestId("attendance-card-confirm").first().click();
 
   await closeAttendance(page);
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 import {
   saveVideo,
   registerAndCreateOrg,
@@ -19,40 +19,44 @@ import {
   closeAttendance,
   setupMatchDay,
   UserData,
-} from './utils';
+} from "./utils";
 
-test.describe('Pelada Lifecycle & Matches', () => {
+test.describe("Pelada Lifecycle & Matches", () => {
   const timestamp = Date.now() + Math.floor(Math.random() * 1000000);
   const owner = {
     name: `Owner ${timestamp}`,
     username: `user_${timestamp}`,
     email: `owner-${timestamp}@example.com`,
-    password: 'password123',
-    position: 'Defender'
+    password: "password123",
+    position: "Defender",
   };
   const player2 = {
     name: `Player ${timestamp}`,
     username: `p2_${timestamp}`,
     email: `player-${timestamp}@example.com`,
-    password: 'password123'
+    password: "password123",
   };
   const player3 = {
     name: `Bench ${timestamp}`,
     username: `p3_${timestamp}`,
     email: `bench-${timestamp}@example.com`,
-    password: 'password123'
+    password: "password123",
   };
   const orgName = `Pelada Org ${timestamp}`;
 
-  test('should manage full pelada lifecycle: attendance, teams, matches, and voting', async ({ browser }, testInfo) => {
+  test("should manage full pelada lifecycle: attendance, teams, matches, and voting", async ({
+    browser,
+  }, testInfo) => {
     test.setTimeout(120000);
-    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
+    const videoOptions = process.env.VIDEO
+      ? { recordVideo: { dir: testInfo.outputPath("raw-videos") } }
+      : {};
 
     const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
-    let peladaId = '';
+    let peladaId = "";
 
-    await test.step('Setup Org and Invite Players', async () => {
+    await test.step("Setup Org and Invite Players", async () => {
       await registerAndCreateOrg(ownerPage, owner, orgName);
 
       // Invite both players
@@ -60,151 +64,235 @@ test.describe('Pelada Lifecycle & Matches', () => {
       const p3Invite = await invitePlayerByEmail(ownerPage, player3.email);
 
       // Register invited players in parallel contexts
-      await setupInvitedPlayer(browser, p2Invite, player2, orgName, videoOptions);
-      await setupInvitedPlayer(browser, p3Invite, player3, orgName, videoOptions);
+      await setupInvitedPlayer(
+        browser,
+        p2Invite,
+        player2,
+        orgName,
+        videoOptions,
+      );
+      await setupInvitedPlayer(
+        browser,
+        p3Invite,
+        player3,
+        orgName,
+        videoOptions,
+      );
     });
 
-    await test.step('Attendance Phase', async () => {
+    await test.step("Attendance Phase", async () => {
       // Make owner Mensalista so they go to Confirmed
-      await ownerPage.goto('/home');
+      await ownerPage.goto("/home");
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       await makeMensalista(ownerPage, owner.name);
 
-      await ownerPage.goto('/home');
+      await ownerPage.goto("/home");
       await ownerPage.getByTestId(`org-link-${orgName}`).click();
       peladaId = await createPelada(ownerPage);
       await confirmAndCloseAttendance(ownerPage);
       await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}$`));
     });
 
-    await test.step('Teams & Manual Add Players', async () => {
+    await test.step("Teams & Manual Add Players", async () => {
       await ownerPage.reload();
-      await ownerPage.waitForLoadState('networkidle');
+      await ownerPage.waitForLoadState("networkidle");
 
       // Add players from dialog
-      await ownerPage.getByTestId('invite-player-button').or(ownerPage.getByRole('button', { name: /Adicionar jogadores|Add players/i })).click();
-      await ownerPage.getByRole('dialog').getByText(player2.name).click();
-      await ownerPage.getByRole('dialog').getByText(player3.name).click();
-      await ownerPage.getByRole('button', { name: /Add Selected|Adicionar Selecionados/i }).click();
+      await ownerPage
+        .getByTestId("invite-player-button")
+        .or(
+          ownerPage.getByRole("button", {
+            name: /Adicionar jogadores|Add players/i,
+          }),
+        )
+        .click();
+      await ownerPage.getByRole("dialog").getByText(player2.name).click();
+      await ownerPage.getByRole("dialog").getByText(player3.name).click();
+      await ownerPage
+        .getByRole("button", { name: /Add Selected|Adicionar Selecionados/i })
+        .click();
 
-      await expect(ownerPage.getByTestId('player-row').filter({ hasText: player2.name })).toBeVisible();
+      await expect(
+        ownerPage.getByTestId("player-row").filter({ hasText: player2.name }),
+      ).toBeVisible();
 
-      await setupTeams(ownerPage, { count: 2, playersPerTeam: 2, randomize: true });
+      await setupTeams(ownerPage, {
+        count: 2,
+        playersPerTeam: 2,
+        randomize: true,
+      });
       await buildAndUseSchedule(ownerPage);
     });
 
-    await test.step('Start Pelada and Record Events', async () => {
+    await test.step("Start Pelada and Record Events", async () => {
       await startPelada(ownerPage);
 
       // Wait for match content
-      await expect(ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first()).toBeVisible({ timeout: 15000 });
+      await expect(
+        ownerPage
+          .locator("#pelada-matches-tabs-content")
+          .getByTestId("player-row")
+          .first(),
+      ).toBeVisible({ timeout: 15000 });
 
       // Record a goal
-      const anyPlayerRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
-      await anyPlayerRow.getByTestId('stat-goals-increment').click();
-      await ownerPage.getByTestId('without-assistance-option').click();
-      await expect(anyPlayerRow.getByTestId('stat-goals-value')).toHaveText('1');
+      const anyPlayerRow = ownerPage
+        .locator("#pelada-matches-tabs-content")
+        .getByTestId("player-row")
+        .first();
+      await anyPlayerRow.getByTestId("stat-goals-increment").click();
+      await ownerPage.getByTestId("without-assistance-option").click();
+      await expect(anyPlayerRow.getByTestId("stat-goals-value")).toHaveText(
+        "1",
+      );
 
       // Record a custom event (drible)
-      await expect(ownerPage.getByTestId('record-event-fab')).toBeVisible();
-      await ownerPage.getByTestId('record-event-fab').click();
-      await expect(ownerPage.getByTestId('record-event-dialog')).toBeVisible();
-      const firstPlayerItem = ownerPage.getByTestId(/event-player-item-.*/).first();
+      await expect(ownerPage.getByTestId("record-event-fab")).toBeVisible();
+      await ownerPage.getByTestId("record-event-fab").click();
+      await expect(ownerPage.getByTestId("record-event-dialog")).toBeVisible();
+      const firstPlayerItem = ownerPage
+        .getByTestId(/event-player-item-.*/)
+        .first();
       await expect(firstPlayerItem).toBeVisible();
       await firstPlayerItem.click();
-      await ownerPage.getByTestId('event-type-card-drible').click();
-      await ownerPage.getByTestId('confirm-event-button').click();
-      await expect(ownerPage.getByTestId('record-event-dialog')).not.toBeVisible();
+      await ownerPage.getByTestId("event-type-card-drible").click();
+      await ownerPage.getByTestId("confirm-event-button").click();
+      await expect(
+        ownerPage.getByTestId("record-event-dialog"),
+      ).not.toBeVisible();
 
       // Record a substitution
-      await anyPlayerRow.getByTestId('sub-button').click();
-      await expect(ownerPage.getByTestId('player-select-dialog')).toBeVisible();
+      await anyPlayerRow.getByTestId("sub-button").click();
+      await expect(ownerPage.getByTestId("player-select-dialog")).toBeVisible();
       const benchItem = ownerPage.getByTestId(/bench-player-item-.*/).first();
       if (await benchItem.isVisible()) {
         await benchItem.click();
       } else {
-        await ownerPage.keyboard.press('Escape');
+        await ownerPage.keyboard.press("Escape");
       }
 
-      // End match
-      await ownerPage.getByTestId('end-match-button').click();
-      const confirmBtn = ownerPage.getByTestId('pretty-confirm-button');
+      await ownerPage.getByTestId("end-match-button").click();
+      const confirmBtn = ownerPage.getByTestId("pretty-confirm-button");
       await expect(confirmBtn).toBeVisible({ timeout: 15000 });
-      await confirmBtn.click({ force: true });
+      await expect(confirmBtn).toBeEnabled({ timeout: 15000 });
+      await confirmBtn.click();
 
       // Match Summary Modal
-      await expect(ownerPage.getByTestId('match-finished-title')).toBeVisible({ timeout: 30000 });
+      await expect(ownerPage.getByTestId("match-finished-title")).toBeVisible({
+        timeout: 30000,
+      });
       await ownerPage.waitForTimeout(2000);
-      const nextMatchBtn = ownerPage.getByTestId('summary-next-match-button');
+      const nextMatchBtn = ownerPage.getByTestId("summary-next-match-button");
       if (await nextMatchBtn.isVisible()) {
         await nextMatchBtn.click();
       } else {
-        await ownerPage.getByTestId('summary-close-button').click();
+        await ownerPage.getByTestId("summary-close-button").click();
       }
 
       // Verify finished match in history
-      await ownerPage.getByTestId('toggle-history-drawer').click();
-      const drawer = ownerPage.getByTestId('history-drawer');
-      await expect(drawer.getByTestId('match-history-item-1')).toBeVisible({ timeout: 10000 });
-      await drawer.getByTestId('match-history-item-1').click();
-      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId("toggle-history-drawer").click();
+      const drawer = ownerPage.getByTestId("history-drawer");
+      await expect(drawer.getByTestId("match-history-item-1")).toBeVisible({
+        timeout: 10000,
+      });
+      await drawer.getByTestId("match-history-item-1").click();
+      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
+      await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
-      await expect(ownerPage.getByTestId('match-status-text').first()).toBeVisible({ timeout: 20000 });
-      await expect(ownerPage.getByTestId('match-status-text').first()).toContainText(/Finished|Encerrada/i);
+      await expect(
+        ownerPage.getByTestId("match-status-text").first(),
+      ).toBeVisible({ timeout: 20000 });
+      await expect(
+        ownerPage.getByTestId("match-status-text").first(),
+      ).toContainText(/Finished|Encerrada/i);
     });
 
-    await test.step('Verify Timeline and Export', async () => {
-      await ownerPage.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
-      const timeline = ownerPage.locator('.MuiTimeline-root');
+    await test.step("Verify Timeline and Export", async () => {
+      await ownerPage
+        .getByRole("tab", { name: /Linha do Tempo|Timeline/i })
+        .click();
+      const timeline = ownerPage.locator(".MuiTimeline-root");
       await expect(timeline).toBeVisible({ timeout: 10000 });
       await timeline.scrollIntoViewIfNeeded();
-      await expect(timeline.getByText(/GOL|GOAL|Gol/i).first()).toBeVisible({ timeout: 15000 });
-      await expect(timeline.getByText(/Dribble|Drible/i).first()).toBeVisible({ timeout: 15000 });
+      await expect(timeline.getByText(/GOL|GOAL|Gol/i).first()).toBeVisible({
+        timeout: 15000,
+      });
+      await expect(timeline.getByText(/Dribble|Drible/i).first()).toBeVisible({
+        timeout: 15000,
+      });
 
       // Check export dropdown
-      await ownerPage.getByTestId('share-dropdown-button').click();
-      await expect(ownerPage.getByRole('menuitem', { name: /Compartilhar Resumo|Share Summary/i })).toBeVisible();
-      await expect(ownerPage.getByRole('menuitem', { name: /Escalação \(Sem Notas\)|Lineup \(No Grades\)/i })).toBeVisible();
-      await expect(ownerPage.getByRole('menuitem', { name: /Escalação \(Com Notas\)|Lineup \(With Grades\)/i })).toBeVisible();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId("share-dropdown-button").click();
+      await expect(
+        ownerPage.getByRole("menuitem", {
+          name: /Compartilhar Resumo|Share Summary/i,
+        }),
+      ).toBeVisible();
+      await expect(
+        ownerPage.getByRole("menuitem", {
+          name: /Escalação \(Sem Notas\)|Lineup \(No Grades\)/i,
+        }),
+      ).toBeVisible();
+      await expect(
+        ownerPage.getByRole("menuitem", {
+          name: /Escalação \(Com Notas\)|Lineup \(With Grades\)/i,
+        }),
+      ).toBeVisible();
+      await ownerPage.keyboard.press("Escape");
     });
 
-    await test.step('Edit Match', async () => {
-      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
+    await test.step("Edit Match", async () => {
+      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
 
-      await ownerPage.getByTestId('toggle-history-drawer').click();
-      const drawer = ownerPage.getByTestId('history-drawer');
-      await expect(drawer.getByTestId('match-history-item-1')).toBeVisible({ timeout: 10000 });
-      await drawer.getByTestId('match-history-item-1').click();
-      await ownerPage.getByRole('tab', { name: /Dashboard|Match/i }).click();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId("toggle-history-drawer").click();
+      const drawer = ownerPage.getByTestId("history-drawer");
+      await expect(drawer.getByTestId("match-history-item-1")).toBeVisible({
+        timeout: 10000,
+      });
+      await drawer.getByTestId("match-history-item-1").click();
+      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
+      await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
-      await ownerPage.getByTestId('edit-match-button').click();
+      await ownerPage.getByTestId("edit-match-button").click();
 
-      const editPlayerRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
-      const currentGoals = await editPlayerRow.getByTestId('stat-goals-value').innerText();
+      const editPlayerRow = ownerPage
+        .locator("#pelada-matches-tabs-content")
+        .getByTestId("player-row")
+        .first();
+      const currentGoals = await editPlayerRow
+        .getByTestId("stat-goals-value")
+        .innerText();
       const expectedGoals = (parseInt(currentGoals) + 1).toString();
-      await editPlayerRow.getByTestId('stat-goals-increment').click();
-      await ownerPage.getByTestId('without-assistance-option').click();
-      await ownerPage.getByTestId('finish-editing-button').click();
+      await editPlayerRow.getByTestId("stat-goals-increment").click();
+      await ownerPage.getByTestId("without-assistance-option").click();
+      await ownerPage.getByTestId("finish-editing-button").click();
       await ownerPage.waitForTimeout(500);
 
       // Re-select match 1 to verify
-      await ownerPage.getByTestId('toggle-history-drawer').click();
-      await expect(drawer.getByTestId('match-history-item-1')).toBeVisible({ timeout: 10000 });
-      await drawer.getByTestId('match-history-item-1').click();
-      await ownerPage.keyboard.press('Escape');
+      await ownerPage.getByTestId("toggle-history-drawer").click();
+      await expect(drawer.getByTestId("match-history-item-1")).toBeVisible({
+        timeout: 10000,
+      });
+      await drawer.getByTestId("match-history-item-1").click();
+      await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
-      const updatedRow = ownerPage.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
-      await expect(updatedRow.getByTestId('stat-goals-value')).toHaveText(expectedGoals, { timeout: 15000 });
+      const updatedRow = ownerPage
+        .locator("#pelada-matches-tabs-content")
+        .getByTestId("player-row")
+        .first();
+      await expect(updatedRow.getByTestId("stat-goals-value")).toHaveText(
+        expectedGoals,
+        { timeout: 15000 },
+      );
     });
 
-    await test.step('Timeline Edit and Delete', async () => {
-      await ownerPage.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
+    await test.step("Timeline Edit and Delete", async () => {
+      await ownerPage
+        .getByRole("tab", { name: /Linha do Tempo|Timeline/i })
+        .click();
       await ownerPage.waitForTimeout(500);
 
       // Verify custom event exists and can be edited
@@ -213,84 +301,134 @@ test.describe('Pelada Lifecycle & Matches', () => {
 
       // Edit the custom event (drible, at index 1)
       await editButtons.nth(1).click();
-      await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
-      await expect(ownerPage.getByTestId('edit-assistant-select')).not.toBeVisible();
-      await expect(ownerPage.getByRole('heading', { name: /Edit Event|Editar Evento/i })).toBeVisible();
-      await ownerPage.getByRole('button', { name: /Cancelar|Cancel/i }).click();
-      await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
+      await expect(ownerPage.getByTestId("edit-event-dialog")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        ownerPage.getByTestId("edit-assistant-select"),
+      ).not.toBeVisible();
+      await expect(
+        ownerPage.getByRole("heading", { name: /Edit Event|Editar Evento/i }),
+      ).toBeVisible();
+      await ownerPage.getByRole("button", { name: /Cancelar|Cancel/i }).click();
+      await expect(
+        ownerPage.getByTestId("edit-event-dialog"),
+      ).not.toBeVisible();
 
       // Verify edit dialog opening for the goal event (at index 0)
       const firstEditBtn = editButtons.first();
       await expect(firstEditBtn).toBeVisible({ timeout: 10000 });
       await firstEditBtn.click();
-      await expect(ownerPage.getByTestId('edit-event-dialog')).toBeVisible({ timeout: 10000 });
-      
+      await expect(ownerPage.getByTestId("edit-event-dialog")).toBeVisible({
+        timeout: 10000,
+      });
+
       // Select an assistant if any other player is on the same team
-      await ownerPage.getByTestId('edit-assistant-select').click();
-      const options = ownerPage.getByRole('option');
+      await ownerPage.getByTestId("edit-assistant-select").click();
+      const options = ownerPage.getByRole("option");
       const optionsCount = await options.count();
       if (optionsCount > 1) {
         await options.nth(1).click();
       } else {
-        await ownerPage.getByRole('option', { name: /Sem assistência|Without assistance/i }).click();
+        await ownerPage
+          .getByRole("option", { name: /Sem assistência|Without assistance/i })
+          .click();
       }
 
-      await ownerPage.getByTestId('save-event-edit-button').click();
-      await expect(ownerPage.getByTestId('edit-event-dialog')).not.toBeVisible();
+      await ownerPage.getByTestId("save-event-edit-button").click();
+      await expect(
+        ownerPage.getByTestId("edit-event-dialog"),
+      ).not.toBeVisible();
 
       // Delete the custom event (at index 1)
       const deleteButtons = ownerPage.locator('[data-testid^="delete-event-"]');
       await expect(deleteButtons).toHaveCount(3);
       const customDeleteBtn = deleteButtons.nth(1);
       await customDeleteBtn.click();
-      await ownerPage.getByTestId('pretty-confirm-button').click();
+      await ownerPage.getByTestId("pretty-confirm-button").click();
 
       // Verify count decreases to 2
       await expect(deleteButtons).toHaveCount(2, { timeout: 10000 });
     });
 
-    await test.step('Close Pelada and Vote', async () => {
-      await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
+    await test.step("Close Pelada and Vote", async () => {
+      await ownerPage
+        .getByRole("tab", { name: /Classificação|Standings/i })
+        .click();
 
-      const closeBtn = ownerPage.getByTestId('close-pelada-button');
-      await expect(closeBtn).toBeVisible({ timeout: 10000 });
+      const closeBtn = ownerPage.getByTestId("close-pelada-button");
       await closeBtn.click();
-      await ownerPage.getByTestId('pretty-confirm-button').click();
-      await expect(ownerPage).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+      await Promise.all([
+        ownerPage.waitForResponse(
+          (resp) => resp.url().includes("/close") && resp.status() === 200,
+        ),
+        ownerPage.getByTestId("pretty-confirm-button").click(),
+      ]);
+      await expect(ownerPage).toHaveURL(
+        new RegExp(`/peladas/${peladaId}/matches`),
+      );
 
       // Verify Performance tab is active
-      const performanceTab = ownerPage.getByRole('tab', { name: /Desempenho|Performance/i });
-      await expect(performanceTab).toHaveAttribute('aria-selected', 'true');
-      await expect(ownerPage.getByText(/Destaques|Highlights/i).first()).toBeVisible();
+      const performanceTab = ownerPage.getByRole("tab", {
+        name: /Desempenho|Performance/i,
+      });
+      await expect(performanceTab).toHaveAttribute("aria-selected", "true");
+      await expect(
+        ownerPage.getByText(/Destaques|Highlights/i).first(),
+      ).toBeVisible();
 
       // Verify Champion in Standings
-      await ownerPage.getByRole('tab', { name: /Classificação|Standings/i }).click();
+      await ownerPage
+        .getByRole("tab", { name: /Classificação|Standings/i })
+        .click();
       await expect(ownerPage.getByText(/Campeão|Champion/i)).toBeVisible();
-      await expect(ownerPage.getByTestId('standings-table')).toBeVisible();
+      await expect(ownerPage.getByTestId("standings-table")).toBeVisible();
 
       // Voting
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
-      await expect(ownerPage.getByText(/Votação/i).or(ownerPage.getByText(/Voting/i)).first()).toBeVisible();
+      await expect(
+        ownerPage
+          .getByText(/Votação/i)
+          .or(ownerPage.getByText(/Voting/i))
+          .first(),
+      ).toBeVisible();
 
       // Explicitly wait for both player voting cards to be visible to avoid race conditions
-      const card2 = ownerPage.getByTestId(/voting-card-.*/).filter({ hasText: player2.name });
-      const card3 = ownerPage.getByTestId(/voting-card-.*/).filter({ hasText: player3.name });
+      const card2 = ownerPage
+        .getByTestId(/voting-card-.*/)
+        .filter({ hasText: player2.name });
+      const card3 = ownerPage
+        .getByTestId(/voting-card-.*/)
+        .filter({ hasText: player3.name });
       await expect(card2).toBeVisible({ timeout: 15000 });
       await expect(card3).toBeVisible({ timeout: 15000 });
 
+      // Verify that secure avatar elements are rendered in the voting cards
+      await expect(card2.getByTestId("secure-avatar")).toBeVisible();
+      await expect(card3.getByTestId("secure-avatar")).toBeVisible();
+
+      // Verify that secure avatar elements are rendered in the status sidebar
+      await expect(
+        ownerPage.getByTestId("secure-avatar").first(),
+      ).toBeVisible();
+
       // Click the 5 Stars rating for each player
       await card2.scrollIntoViewIfNeeded();
-      await card2.locator('label').nth(4).click();
+      await card2.locator("label").nth(4).click();
       await card3.scrollIntoViewIfNeeded();
-      await card3.locator('label').nth(4).click();
+      await card3.locator("label").nth(4).click();
 
-      await ownerPage.getByTestId('save-votes-button').click();
-      await expect(ownerPage.getByText(/Votos registrados|Votes saved/i).first()).toBeVisible();
+      await ownerPage.getByTestId("save-votes-button").click();
+      await expect(
+        ownerPage.getByText(/Votos registrados|Votes saved/i).first(),
+      ).toBeVisible();
     });
 
-    await test.step('Verify Restricted Results for Non-Voting Participant', async () => {
-      const { execSync } = require('child_process');
-      const out = execSync(`docker compose exec postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}'"`).toString();
+    await test.step("Verify Restricted Results for Non-Voting Participant", async () => {
+      const { execSync } = require("child_process");
+      const out = execSync(
+        `docker compose exec postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}'"`,
+      ).toString();
       console.log(`DB UPDATE OUTPUT FOR ID ${peladaId}:`, out);
 
       const p2Context = await browser.newContext(videoOptions);
@@ -303,33 +441,63 @@ test.describe('Pelada Lifecycle & Matches', () => {
       await p2Page.goto(`/peladas/${peladaId}/results`);
 
       // Verify that the restricted modal dialog is visible
-      await expect(p2Page.getByText(/Resultados Restritos|Restricted/i).first()).toBeVisible({ timeout: 15000 });
-      await expect(p2Page.getByText(/Você participou desta pelada mas não votou|did not vote/i).first()).toBeVisible();
+      await expect(
+        p2Page.getByText(/Resultados Restritos|Restricted/i).first(),
+      ).toBeVisible({ timeout: 15000 });
+      await expect(
+        p2Page
+          .getByText(/Você participou desta pelada mas não votou|did not vote/i)
+          .first(),
+      ).toBeVisible();
 
       // Verify "Ver Partidas" button is visible
-      const verPartidasBtn = p2Page.getByRole('link', { name: /Ver Partidas|View Matches/i });
+      const verPartidasBtn = p2Page.getByRole("link", {
+        name: /Ver Partidas|View Matches/i,
+      });
       await expect(verPartidasBtn).toBeVisible();
 
       // Verify "Voltar para Organização" button is visible
-      const voltarBtn = p2Page.getByRole('link', { name: /Voltar para Organização|Voltar para Peladas|Back to Organization/i });
+      const voltarBtn = p2Page.getByRole("link", {
+        name: /Voltar para Organização|Voltar para Peladas|Back to Organization/i,
+      });
       await expect(voltarBtn).toBeVisible();
 
       // Click "Ver Partidas" to verify navigation works without loop
       await verPartidasBtn.click();
-      await expect(p2Page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
+      await expect(p2Page).toHaveURL(
+        new RegExp(`/peladas/${peladaId}/matches`),
+      );
 
       await p2Context.close();
     });
 
     await ownerContext.close();
-    await saveVideo(ownerPage, 'full-pelada-lifecycle', testInfo);
+    await saveVideo(ownerPage, "full-pelada-lifecycle", testInfo);
   });
 
-  test('should sort attendance by time (FIFO)', async ({ browser }) => {
+  test("should sort attendance by time (FIFO)", async ({ browser }) => {
     const ts = Date.now() + 4000 + Math.floor(Math.random() * 1000000);
-    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p', position: 'Midfielder' };
-    const zebraUser = { name: `Zebra ${ts}`, username: `zebra_${ts}`, email: `zebra-${ts}@example.com`, password: 'p', position: 'Striker' };
-    const albatrossUser = { name: `Albatross ${ts}`, username: `albatross_${ts}`, email: `albatross-${ts}@example.com`, password: 'p', position: 'Goalkeeper' };
+    const adminUser = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: "p",
+      position: "Midfielder",
+    };
+    const zebraUser = {
+      name: `Zebra ${ts}`,
+      username: `zebra_${ts}`,
+      email: `zebra-${ts}@example.com`,
+      password: "p",
+      position: "Striker",
+    };
+    const albatrossUser = {
+      name: `Albatross ${ts}`,
+      username: `albatross_${ts}`,
+      email: `albatross-${ts}@example.com`,
+      password: "p",
+      position: "Goalkeeper",
+    };
     const fifoOrgName = `FIFO Org ${ts}`;
 
     const adminContext = await browser.newContext();
@@ -347,42 +515,62 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await setupInvitedPlayer(browser, zInvite, zebraUser, fifoOrgName);
     await setupInvitedPlayer(browser, aInvite, albatrossUser, fifoOrgName);
 
-    await adminPage.goto('/home');
+    await adminPage.goto("/home");
     await adminPage.getByTestId(`org-link-${fifoOrgName}`).click();
     await createPelada(adminPage);
     const peladaUrl = adminPage.url();
 
-    await adminPage.getByTestId('attendance-confirm-button').click();
+    await adminPage.getByTestId("attendance-confirm-button").click();
 
     await loginUser(zebraPage, zebraUser);
     await zebraPage.goto(peladaUrl);
-    await expect(zebraPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
-    await zebraPage.getByTestId('attendance-confirm-button').click();
+    await expect(
+      zebraPage.getByTestId("attendance-list-container"),
+    ).toBeVisible({ timeout: 15000 });
+    await zebraPage.getByTestId("attendance-confirm-button").click();
 
     await loginUser(albatrossPage, albatrossUser);
     await albatrossPage.goto(peladaUrl);
-    await expect(albatrossPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
-    await albatrossPage.getByTestId('attendance-confirm-button').click();
+    await expect(
+      albatrossPage.getByTestId("attendance-list-container"),
+    ).toBeVisible({ timeout: 15000 });
+    await albatrossPage.getByTestId("attendance-confirm-button").click();
 
     await adminPage.reload();
-    await expect(adminPage.getByTestId('attendance-list-container')).toBeVisible({ timeout: 15000 });
+    await expect(
+      adminPage.getByTestId("attendance-list-container"),
+    ).toBeVisible({ timeout: 15000 });
 
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(adminPage.getByTestId('attendance-card-name')).toHaveCount(1);
-    await expect(adminPage.getByTestId('attendance-card-name')).toHaveText(adminUser.name);
+    await adminPage
+      .getByRole("tab", { name: /Confirm/i })
+      .first()
+      .click();
+    await expect(adminPage.getByTestId("attendance-card-name")).toHaveCount(1);
+    await expect(adminPage.getByTestId("attendance-card-name")).toHaveText(
+      adminUser.name,
+    );
 
-    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
-    const waitlistNames = adminPage.getByTestId('attendance-card-name');
+    await adminPage.getByRole("tab", { name: /Espera|Waitlist/i }).click();
+    const waitlistNames = adminPage.getByTestId("attendance-card-name");
     await expect(waitlistNames).toHaveCount(2, { timeout: 15000 });
     await expect(waitlistNames.nth(0)).toHaveText(zebraUser.name);
     await expect(waitlistNames.nth(1)).toHaveText(albatrossUser.name);
 
-    await adminPage.getByTestId(`attendance-card-${zebraUser.username}`).getByTestId('attendance-card-confirm').click();
+    await adminPage
+      .getByTestId(`attendance-card-${zebraUser.username}`)
+      .getByTestId("attendance-card-confirm")
+      .click();
     await adminPage.waitForTimeout(1000);
-    await adminPage.getByTestId(`attendance-card-${albatrossUser.username}`).getByTestId('attendance-card-confirm').click();
+    await adminPage
+      .getByTestId(`attendance-card-${albatrossUser.username}`)
+      .getByTestId("attendance-card-confirm")
+      .click();
 
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    const confirmedNames = adminPage.getByTestId('attendance-card-name');
+    await adminPage
+      .getByRole("tab", { name: /Confirm/i })
+      .first()
+      .click();
+    const confirmedNames = adminPage.getByTestId("attendance-card-name");
     await expect(confirmedNames).toHaveCount(3, { timeout: 15000 });
     await expect(confirmedNames.nth(0)).toHaveText(adminUser.name);
     await expect(confirmedNames.nth(1)).toHaveText(zebraUser.name);
@@ -393,9 +581,16 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await albatrossContext.close();
   });
 
-  test('should produce different team compositions on consecutive randomizations', async ({ browser }) => {
+  test("should produce different team compositions on consecutive randomizations", async ({
+    browser,
+  }) => {
     const ts = Date.now() + 5000 + Math.floor(Math.random() * 1000000);
-    const admin = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
+    const admin = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: "p",
+    };
     const varietyOrgName = `Variety Org ${ts}`;
 
     const context = await browser.newContext();
@@ -404,42 +599,90 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await registerAndCreateOrg(page, admin, varietyOrgName);
     await expect(page).toHaveURL(/\/organizations\/[^\/]+$/);
     const orgUrl = page.url();
-    const orgId = orgUrl.split('/').pop();
+    const orgId = orgUrl.split("/").pop();
 
     const playerConfigs = [
-      { pos: 1, grade: 8 }, { pos: 1, grade: 7 },
-      { pos: 2, grade: 9 }, { pos: 2, grade: 8 }, { pos: 2, grade: 7 }, { pos: 2, grade: 6 },
-      { pos: 3, grade: 9 }, { pos: 3, grade: 8 }, { pos: 3, grade: 7 }, { pos: 3, grade: 6 },
-      { pos: 4, grade: 9 }, { pos: 4, grade: 8 }
+      { pos: 1, grade: 8 },
+      { pos: 1, grade: 7 },
+      { pos: 2, grade: 9 },
+      { pos: 2, grade: 8 },
+      { pos: 2, grade: 7 },
+      { pos: 2, grade: 6 },
+      { pos: 3, grade: 9 },
+      { pos: 3, grade: 8 },
+      { pos: 3, grade: 7 },
+      { pos: 3, grade: 6 },
+      { pos: 4, grade: 9 },
+      { pos: 4, grade: 8 },
     ];
 
     const posMap: Record<number, string> = {
-      1: 'Goalkeeper',
-      2: 'Defender',
-      3: 'Midfielder',
-      4: 'Striker'
+      1: "Goalkeeper",
+      2: "Defender",
+      3: "Midfielder",
+      4: "Striker",
     };
 
     for (let i = 0; i < playerConfigs.length; i++) {
-      const invite = await (await page.request.post(`/api/organizations/${orgId}/invite`, { data: { name: `P${i}` } })).json();
-      await page.request.post('/api/players', {
-        data: { organization_id: orgId, user_id: invite.user_id, grade: playerConfigs[i].grade, position: posMap[playerConfigs[i].pos] }
+      const invite = await (
+        await page.request.post(`/api/organizations/${orgId}/invite`, {
+          data: { name: `P${i}` },
+        })
+      ).json();
+      await page.request.post("/api/players", {
+        data: {
+          organization_id: orgId,
+          user_id: invite.user_id,
+          grade: playerConfigs[i].grade,
+          position: posMap[playerConfigs[i].pos],
+        },
       });
     }
 
-    const pelada = await (await page.request.post('/api/peladas', { data: { organization_id: orgId, scheduled_at: new Date().toISOString() } })).json();
+    const pelada = await (
+      await page.request.post("/api/peladas", {
+        data: {
+          organization_id: orgId,
+          scheduled_at: new Date().toISOString(),
+        },
+      })
+    ).json();
     const peladaId = pelada.id;
-    const players = await (await page.request.get(`/api/organizations/${orgId}/players`)).json();
-    await page.request.post(`/api/peladas/${peladaId}/attendance/batch`, { data: { player_ids: players.map((p: any) => p.id), status: 'confirmed' } });
+    const players = await (
+      await page.request.get(`/api/organizations/${orgId}/players`)
+    ).json();
+    await page.request.post(`/api/peladas/${peladaId}/attendance/batch`, {
+      data: { player_ids: players.map((p: any) => p.id), status: "confirmed" },
+    });
 
-    await page.request.put(`/api/peladas/${peladaId}`, { data: { status: 'open', players_per_team: 6 } });
-    await page.request.post('/api/teams', { data: { pelada_id: peladaId, name: 'T1' } });
-    await page.request.post('/api/teams', { data: { pelada_id: peladaId, name: 'T2' } });
+    await page.request.put(`/api/peladas/${peladaId}`, {
+      data: { status: "open", players_per_team: 6 },
+    });
+    await page.request.post("/api/teams", {
+      data: { pelada_id: peladaId, name: "T1" },
+    });
+    await page.request.post("/api/teams", {
+      data: { pelada_id: peladaId, name: "T2" },
+    });
 
     const getLineup = async () => {
-      await page.request.post(`/api/peladas/${peladaId}/teams/randomize`, { data: { player_ids: players.map((p: any) => p.id), players_per_team: 6 } });
-      const data = await (await page.request.get(`/api/peladas/${peladaId}/full-details`)).json();
-      return data.teams.map((t: any) => t.players.map((p: any) => p.id).sort().join(',')).sort();
+      await page.request.post(`/api/peladas/${peladaId}/teams/randomize`, {
+        data: {
+          player_ids: players.map((p: any) => p.id),
+          players_per_team: 6,
+        },
+      });
+      const data = await (
+        await page.request.get(`/api/peladas/${peladaId}/full-details`)
+      ).json();
+      return data.teams
+        .map((t: any) =>
+          t.players
+            .map((p: any) => p.id)
+            .sort()
+            .join(","),
+        )
+        .sort();
     };
 
     const l1 = await getLineup();
@@ -451,55 +694,57 @@ test.describe('Pelada Lifecycle & Matches', () => {
     } else {
       expect(l1).not.toEqual(l2);
     }
-    
+
     await context.close();
   });
 
-  test('should verify player sorting and available players copy button', async ({ page }) => {
+  test("should verify player sorting and available players copy button", async ({
+    page,
+  }) => {
     const ts = Date.now() + 6000 + Math.floor(Math.random() * 1000000);
     const adminUser = {
       name: `Admin ${ts}`,
       username: `admin_${ts}`,
       email: `admin-${ts}@example.com`,
-      password: 'password123',
-      position: 'Defender',
+      password: "password123",
+      position: "Defender",
     };
     const featureOrgName = `Feature Org ${ts}`;
 
     await registerAndCreateOrg(page, adminUser, featureOrgName);
     await makeMensalista(page, adminUser.name);
 
-    await page.goto('/home');
+    await page.goto("/home");
     await page.getByTestId(`org-link-${featureOrgName}`).click();
 
     await createPelada(page);
     await confirmAndCloseAttendance(page);
 
-    await expect(page.getByTestId('player-row')).toBeVisible();
-    const copyBtn = page.getByTestId('copy-players-button');
+    await expect(page.getByTestId("player-row")).toBeVisible();
+    const copyBtn = page.getByTestId("copy-players-button");
     await expect(copyBtn).toBeVisible();
 
-    page.on('dialog', async dialog => {
+    page.on("dialog", async (dialog) => {
       expect(dialog.message()).toMatch(/common.actions.copy_success/i);
       await dialog.accept();
     });
     await copyBtn.click();
   });
 
-  test('should verify merged header buttons logic', async ({ page }) => {
+  test("should verify merged header buttons logic", async ({ page }) => {
     const ts = Date.now() + 7000 + Math.floor(Math.random() * 1000000);
     const adminUser = {
       name: `Admin ${ts}`,
       username: `admin_${ts}`,
       email: `admin-${ts}@example.com`,
-      password: 'password123',
-      position: 'Goalkeeper',
+      password: "password123",
+      position: "Goalkeeper",
     };
     const headerOrgName = `Header Org ${ts}`;
 
     await registerAndCreateOrg(page, adminUser, headerOrgName);
 
-    await page.goto('/home');
+    await page.goto("/home");
     await page.getByTestId(`org-link-${headerOrgName}`).click();
 
     await createPelada(page);
@@ -507,15 +752,15 @@ test.describe('Pelada Lifecycle & Matches', () => {
 
     await setupTeams(page, { count: 2 });
 
-    const buildBtn = page.getByTestId('build-schedule-button');
+    const buildBtn = page.getByTestId("build-schedule-button");
     await expect(buildBtn).toBeVisible();
-    await expect(page.getByTestId('start-pelada-button')).not.toBeVisible();
+    await expect(page.getByTestId("start-pelada-button")).not.toBeVisible();
 
     await buildBtn.click();
-    await page.getByTestId('save-schedule-button').click();
+    await page.getByTestId("save-schedule-button").click();
 
-    await expect(page.getByTestId('start-pelada-button')).toBeVisible();
-    await expect(page.getByTestId('build-schedule-button-edit')).toBeVisible();
+    await expect(page.getByTestId("start-pelada-button")).toBeVisible();
+    await expect(page.getByTestId("build-schedule-button-edit")).toBeVisible();
 
     await startPelada(page);
     const peladaId = getPeladaIdFromUrl(page.url());
@@ -523,10 +768,23 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
   });
 
-  test('should handle diarista vs mensalista attendance waitlist', async ({ browser }) => {
+  test("should handle diarista vs mensalista attendance waitlist", async ({
+    browser,
+  }) => {
     const ts = Date.now() + 8000 + Math.floor(Math.random() * 1000000);
-    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p', position: 'Defender' };
-    const diaristaUser = { name: `Diarista ${ts}`, username: `diarista_${ts}`, email: `diarista-${ts}@example.com`, password: 'p' };
+    const adminUser = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: "p",
+      position: "Defender",
+    };
+    const diaristaUser = {
+      name: `Diarista ${ts}`,
+      username: `diarista_${ts}`,
+      email: `diarista-${ts}@example.com`,
+      password: "p",
+    };
     const waitlistOrgName = `Waitlist Org ${ts}`;
 
     const adminContext = await browser.newContext();
@@ -538,35 +796,58 @@ test.describe('Pelada Lifecycle & Matches', () => {
 
     const link = await invitePlayerByEmail(adminPage, diaristaUser.email);
     await setupInvitedPlayer(browser, link, diaristaUser, waitlistOrgName);
-    
+
     await loginUser(diaristaPage, diaristaUser);
 
-    await adminPage.goto('/home');
+    await adminPage.goto("/home");
     await adminPage.getByTestId(`org-link-${waitlistOrgName}`).click();
     await createPelada(adminPage);
     const peladaUrl = adminPage.url();
 
     await diaristaPage.goto(peladaUrl);
-    await diaristaPage.getByTestId('attendance-confirm-button').click();
-    await expect(diaristaPage.getByText(/Lista de Espera|waitlist/i).first()).toBeVisible({ timeout: 10000 });
+    await diaristaPage.getByTestId("attendance-confirm-button").click();
+    await expect(
+      diaristaPage.getByText(/Lista de Espera|waitlist/i).first(),
+    ).toBeVisible({ timeout: 10000 });
 
     await adminPage.reload();
-    await adminPage.getByRole('tab', { name: /Lista de Espera|Waitlist/i }).click();
-    const diaristaCard = adminPage.getByTestId(`attendance-card-${diaristaUser.username}`);
+    await adminPage
+      .getByRole("tab", { name: /Lista de Espera|Waitlist/i })
+      .click();
+    const diaristaCard = adminPage.getByTestId(
+      `attendance-card-${diaristaUser.username}`,
+    );
     await expect(diaristaCard).toBeVisible();
-    await diaristaCard.getByTestId('attendance-card-confirm').click();
+    await diaristaCard.getByTestId("attendance-card-confirm").click();
 
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(adminPage.getByTestId(`attendance-card-${diaristaUser.username}`)).toBeVisible();
+    await adminPage
+      .getByRole("tab", { name: /Confirm/i })
+      .first()
+      .click();
+    await expect(
+      adminPage.getByTestId(`attendance-card-${diaristaUser.username}`),
+    ).toBeVisible();
 
     await adminContext.close();
     await diaristaContext.close();
   });
 
-  test('should allow admin to move confirmed player to waitlist', async ({ browser }) => {
+  test("should allow admin to move confirmed player to waitlist", async ({
+    browser,
+  }) => {
     const ts = Date.now() + 9000 + Math.floor(Math.random() * 1000000);
-    const adminUser = { name: `Admin ${ts}`, username: `admin_${ts}`, email: `admin-${ts}@example.com`, password: 'p' };
-    const playerUser = { name: `Player ${ts}`, username: `player_${ts}`, email: `player-${ts}@example.com`, password: 'p' };
+    const adminUser = {
+      name: `Admin ${ts}`,
+      username: `admin_${ts}`,
+      email: `admin-${ts}@example.com`,
+      password: "p",
+    };
+    const playerUser = {
+      name: `Player ${ts}`,
+      username: `player_${ts}`,
+      email: `player-${ts}@example.com`,
+      password: "p",
+    };
     const toolsOrgName = `Admin Tools Org ${ts}`;
 
     const adminContext = await browser.newContext();
@@ -577,204 +858,253 @@ test.describe('Pelada Lifecycle & Matches', () => {
     const inviteLink = await invitePlayerByEmail(adminPage, playerUser.email);
     await setupInvitedPlayer(browser, inviteLink, playerUser, toolsOrgName);
 
-    await adminPage.goto('/home');
+    await adminPage.goto("/home");
     await adminPage.getByTestId(`org-link-${toolsOrgName}`).click();
     await createPelada(adminPage);
 
-    await adminPage.getByRole('tab', { name: /Pendente|Pending/i }).click();
-    const playerCard = adminPage.getByTestId(`attendance-card-${playerUser.username}`);
-    await playerCard.getByTestId('attendance-card-confirm').click();
+    await adminPage.getByRole("tab", { name: /Pendente|Pending/i }).click();
+    const playerCard = adminPage.getByTestId(
+      `attendance-card-${playerUser.username}`,
+    );
+    await playerCard.getByTestId("attendance-card-confirm").click();
 
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+    await adminPage
+      .getByRole("tab", { name: /Confirm/i })
+      .first()
+      .click();
+    await expect(
+      adminPage.getByTestId(`attendance-card-${playerUser.username}`),
+    ).toBeVisible();
 
-    await adminPage.getByTestId('attendance-card-waitlist').click();
+    await adminPage.getByTestId("attendance-card-waitlist").click();
 
-    await adminPage.getByRole('tab', { name: /Espera|Waitlist/i }).click();
-    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+    await adminPage.getByRole("tab", { name: /Espera|Waitlist/i }).click();
+    await expect(
+      adminPage.getByTestId(`attendance-card-${playerUser.username}`),
+    ).toBeVisible();
 
-    await adminPage.getByTestId('attendance-card-confirm').click();
-    await adminPage.getByRole('tab', { name: /Confirm/i }).first().click();
-    await expect(adminPage.getByTestId(`attendance-card-${playerUser.username}`)).toBeVisible();
+    await adminPage.getByTestId("attendance-card-confirm").click();
+    await adminPage
+      .getByRole("tab", { name: /Confirm/i })
+      .first()
+      .click();
+    await expect(
+      adminPage.getByTestId(`attendance-card-${playerUser.username}`),
+    ).toBeVisible();
 
     await adminContext.close();
   });
 
-
-  test('should build, customize and use a manual schedule', async ({ browser }, testInfo) => {
+  test("should build, customize and use a manual schedule", async ({
+    browser,
+  }, testInfo) => {
     test.setTimeout(120000);
     const ts = Date.now() + 11000 + Math.floor(Math.random() * 1000000);
     const adminUser = {
       name: `Admin ${ts}`,
       username: `admin_${ts}`,
       email: `admin-${ts}@example.com`,
-      password: 'password123',
-      position: 'Defender',
+      password: "password123",
+      position: "Defender",
     };
     const schedOrgName = `Schedule Org ${ts}`;
 
-    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
+    const videoOptions = process.env.VIDEO
+      ? { recordVideo: { dir: testInfo.outputPath("raw-videos") } }
+      : {};
     const ownerContext = await browser.newContext(videoOptions);
     const ownerPage = await ownerContext.newPage();
-    ownerPage.on('dialog', dialog => dialog.accept());
+    ownerPage.on("dialog", (dialog) => dialog.accept());
 
-    await test.step('Setup Org and Pelada', async () => {
+    await test.step("Setup Org and Pelada", async () => {
       await registerAndCreateOrg(ownerPage, adminUser, schedOrgName);
-      await ownerPage.goto('/home');
+      await ownerPage.goto("/home");
       await ownerPage.getByTestId(`org-link-${schedOrgName}`).click();
       await createPelada(ownerPage);
       await closeAttendance(ownerPage);
     });
 
-    await test.step('Customize Schedule', async () => {
+    await test.step("Customize Schedule", async () => {
       await setupTeams(ownerPage, { count: 2 });
 
-      await ownerPage.getByTestId('build-schedule-button').click();
+      await ownerPage.getByTestId("build-schedule-button").click();
       await expect(ownerPage).toHaveURL(/\/build-schedule/);
 
-      const select = ownerPage.getByTestId('matches-per-team-select').getByRole('combobox');
+      const select = ownerPage
+        .getByTestId("matches-per-team-select")
+        .getByRole("combobox");
       await expect(select).toBeEnabled();
       await select.click();
-      await ownerPage.getByRole('option', { name: /^3/ }).click();
-      await expect(ownerPage.getByRole('row')).toHaveCount(4);
+      await ownerPage.getByRole("option", { name: /^3/ }).click();
+      await expect(ownerPage.getByRole("row")).toHaveCount(4);
 
-      await ownerPage.getByTestId('add-match-button').click();
-      await expect(ownerPage.getByRole('row')).toHaveCount(5);
+      await ownerPage.getByTestId("add-match-button").click();
+      await expect(ownerPage.getByRole("row")).toHaveCount(5);
 
-      const homeSelect = ownerPage.getByTestId('home-select-0');
-      const awaySelect = ownerPage.getByTestId('away-select-0');
+      const homeSelect = ownerPage.getByTestId("home-select-0");
+      const awaySelect = ownerPage.getByTestId("away-select-0");
       const homeText = await homeSelect.textContent();
       const awayText = await awaySelect.textContent();
 
-      await ownerPage.getByTestId('swap-button-0').click();
+      await ownerPage.getByTestId("swap-button-0").click();
       await expect(homeSelect).toHaveText(awayText!);
       await expect(awaySelect).toHaveText(homeText!);
 
-      await ownerPage.getByTestId('save-schedule-button').click();
+      await ownerPage.getByTestId("save-schedule-button").click();
       await expect(ownerPage).toHaveURL(/\/peladas\/[^\/]+$/);
     });
 
-    await test.step('Start with Built Schedule', async () => {
+    await test.step("Start with Built Schedule", async () => {
       await startPelada(ownerPage);
 
-      await ownerPage.getByTestId('toggle-history-drawer').click();
-      const drawer = ownerPage.getByTestId('history-drawer');
-      await expect(drawer.getByTestId('match-history-item-1')).toBeVisible({ timeout: 10000 });
-      await expect(drawer.getByTestId('match-history-item-4')).toBeVisible();
+      await ownerPage.getByTestId("toggle-history-drawer").click();
+      const drawer = ownerPage.getByTestId("history-drawer");
+      await expect(drawer.getByTestId("match-history-item-1")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(drawer.getByTestId("match-history-item-4")).toBeVisible();
     });
 
     await ownerContext.close();
-    await saveVideo(ownerPage, 'schedule-management', testInfo);
+    await saveVideo(ownerPage, "schedule-management", testInfo);
   });
 
-  test('should queue actions when offline, load from cache and sync when online', async ({ browser }, testInfo) => {
+  test("should queue actions when offline, load from cache and sync when online", async ({
+    browser,
+  }, testInfo) => {
     test.setTimeout(240000);
     const ts = Date.now() + 12000 + Math.floor(Math.random() * 1000000);
     const adminUser = {
       name: `Owner ${ts}`,
       username: `user_${ts}`,
       email: `owner-${ts}@example.com`,
-      password: 'password123',
-      position: 'Midfielder'
+      password: "password123",
+      position: "Midfielder",
     };
     const playerUser = {
       name: `Player ${ts}`,
       username: `p2_${ts}`,
       email: `player-${ts}@example.com`,
-      password: 'password123',
-      position: 'Striker'
+      password: "password123",
+      position: "Striker",
     };
     const offlineOrgName = `Offline Org ${ts}`;
 
-    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
+    const videoOptions = process.env.VIDEO
+      ? { recordVideo: { dir: testInfo.outputPath("raw-videos") } }
+      : {};
     const context = await browser.newContext(videoOptions);
     const page = await context.newPage();
 
     await setupMatchDay(page, browser, adminUser, offlineOrgName, playerUser);
 
-    await expect(page.getByTestId('player-row').first()).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId("player-row").first()).toBeVisible({
+      timeout: 20000,
+    });
     await page.waitForTimeout(3000);
 
     await context.setOffline(true);
-    await expect(page.getByTestId('offline-banner')).toBeVisible();
+    await expect(page.getByTestId("offline-banner")).toBeVisible();
 
-    await page.getByTestId('start-match-timer-button').click();
-    await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
+    await page.getByTestId("start-match-timer-button").click();
+    await expect(page.getByTestId("pending-actions-count")).toContainText(
+      "Existem alterações pendentes",
+    );
 
-    await page.getByTestId('stat-goals-increment').first().click();
-    await page.getByTestId('without-assistance-option').click();
-    await expect(page.getByTestId('pending-actions-count')).toContainText('Existem alterações pendentes');
-    const scoreBoard = page.getByTestId('match-score-display');
-    await expect(scoreBoard).toContainText('1');
+    await page.getByTestId("stat-goals-increment").first().click();
+    await page.getByTestId("without-assistance-option").click();
+    await expect(page.getByTestId("pending-actions-count")).toContainText(
+      "Existem alterações pendentes",
+    );
+    const scoreBoard = page.getByTestId("match-score-display");
+    await expect(scoreBoard).toContainText("1");
 
-    await expect(page.getByRole('tab', { name: /Dashboard|Match/i })).toBeVisible();
-    await expect(scoreBoard).toContainText('1');
+    await expect(
+      page.getByRole("tab", { name: /Dashboard|Match/i }),
+    ).toBeVisible();
+    await expect(scoreBoard).toContainText("1");
 
     await context.setOffline(false);
-    await expect(page.getByTestId('offline-banner')).not.toBeVisible();
-    await expect(page.getByTestId('pending-actions-alert')).not.toBeVisible({ timeout: 20000 });
-    await expect(scoreBoard).toContainText('1');
+    await expect(page.getByTestId("offline-banner")).not.toBeVisible();
+    await expect(page.getByTestId("pending-actions-alert")).not.toBeVisible({
+      timeout: 20000,
+    });
+    await expect(scoreBoard).toContainText("1");
 
     await page.reload();
-    await expect(page.getByTestId('match-score-display')).toContainText('1');
+    await expect(page.getByTestId("match-score-display")).toContainText("1");
 
-    await saveVideo(page, 'offline-match-day-sync', testInfo);
+    await saveVideo(page, "offline-match-day-sync", testInfo);
     await context.close();
   });
 
-  test('voting_enabled status is displayed in voting page', async ({ page }) => {
+  test("voting_enabled status is displayed in voting page", async ({
+    page,
+  }) => {
     const ts = Date.now() + 13000 + Math.floor(Math.random() * 1000000);
     const adminUser: UserData = {
-      name: 'Voting Admin Status',
-      username: 'voting_admin_status_' + Math.random().toString(36).substring(7),
+      name: "Voting Admin Status",
+      username:
+        "voting_admin_status_" + Math.random().toString(36).substring(7),
       email: `voting_admin_status_${ts}@test.com`,
-      password: 'password123',
+      password: "password123",
     };
-    const voteOrgName = 'Voting Status Test';
+    const voteOrgName = "Voting Status Test";
 
     await registerAndCreateOrg(page, adminUser, voteOrgName);
     const peladaId = await createPelada(page);
-    
+
     await confirmAndCloseAttendance(page);
-    
+
     await setupTeams(page, { count: 2 });
     await buildAndUseSchedule(page);
     await startPelada(page);
-    
-    await page.getByRole('tab', { name: /Classificação|Standings/i }).click();
-    
-    const closeBtn = page.getByTestId('close-pelada-button');
-    await expect(closeBtn).toBeVisible({ timeout: 10000 });
+
+    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+
+    const closeBtn = page.getByTestId("close-pelada-button");
     await closeBtn.click();
-    await page.getByRole('button', { name: /Confirmar|Confirm/i }).click();
+    await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes("/close") && resp.status() === 200,
+      ),
+      page.getByTestId("pretty-confirm-button").click(),
+    ]);
     await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
-    
+
     await page.goto(`/peladas/${peladaId}/voting`);
-    await expect(page.getByText(/Votação|Voting/i).first()).toBeVisible({ timeout: 10000 });
-    
+    await expect(page.getByText(/Votação|Voting/i).first()).toBeVisible({
+      timeout: 10000,
+    });
+
     const votingCards = page.getByTestId(/^voting-card-/);
     let cardCount = await votingCards.count({ timeout: 5000 }).catch(() => 0);
-    
+
     if (cardCount > 0) {
       for (let i = 0; i < cardCount && i < 3; i++) {
         const card = votingCards.nth(i);
         const disabledBadge = card.getByText(/Disabled|Desativado/i);
-        const isBadgeVisible = await disabledBadge.isVisible({ timeout: 500 }).catch(() => false);
+        const isBadgeVisible = await disabledBadge
+          .isVisible({ timeout: 500 })
+          .catch(() => false);
         expect(isBadgeVisible).toBe(false);
       }
     }
   });
 
-  test('fixed goalkeepers are blocked from voting by default and can be unblocked by admin', async ({ page, request }) => {
+  test("fixed goalkeepers are blocked from voting by default and can be unblocked by admin", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const ts = Date.now() + 14000 + Math.floor(Math.random() * 1000000);
     const adminUser: UserData = {
-      name: 'GK Admin',
-      username: 'gk_admin_' + Math.random().toString(36).substring(7),
+      name: "GK Admin",
+      username: "gk_admin_" + Math.random().toString(36).substring(7),
       email: `gk_admin_${ts}@test.com`,
-      password: 'password123',
+      password: "password123",
     };
-    const voteOrgName = 'GK E2E Org';
+    const voteOrgName = "GK E2E Org";
 
     await registerAndCreateOrg(page, adminUser, voteOrgName);
     const orgId = getOrgIdFromUrl(page.url());
@@ -788,59 +1118,82 @@ test.describe('Pelada Lifecycle & Matches', () => {
 
     await confirmAndCloseAttendanceViaApi(api, orgId, peladaId);
     await page.goto(`/peladas/${peladaId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState("networkidle");
 
     await page.getByLabel(/Goleiros Fixos|Fixed Goalkeepers/i).click();
-    await expect(page.getByTestId('fixed-goalkeepers-title')).toBeVisible();
+    await expect(page.getByTestId("fixed-goalkeepers-title")).toBeVisible();
 
-    await page.getByTestId('player-row').filter({ hasText: gkName }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByTestId('move-to-home-gk-item').click();
+    await page
+      .getByTestId("player-row")
+      .filter({ hasText: gkName })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page.getByTestId("move-to-home-gk-item").click();
 
-    const homeGkSlot = page.getByTestId('gk-slot-home');
+    const homeGkSlot = page.getByTestId("gk-slot-home");
     await expect(homeGkSlot.getByText(gkName)).toBeVisible();
 
     await setupTeams(page, { count: 2 });
     await buildAndUseSchedule(page);
     await startPelada(page);
 
-    const anyPlayerRow = page.locator('#pelada-matches-tabs-content').getByTestId('player-row').first();
-    await anyPlayerRow.getByTestId('stat-goals-increment').click();
-    await page.getByTestId('without-assistance-option').click();
-    await page.getByTestId('end-match-button').click();
-    await page.getByTestId('pretty-confirm-button').click();
-    await page.getByTestId('summary-close-button').click();
+    const anyPlayerRow = page
+      .locator("#pelada-matches-tabs-content")
+      .getByTestId("player-row")
+      .first();
+    await anyPlayerRow.getByTestId("stat-goals-increment").click();
+    await page.getByTestId("without-assistance-option").click();
+    await page.getByTestId("end-match-button").click();
+    await page.getByTestId("pretty-confirm-button").click();
+    await page.getByTestId("summary-close-button").click();
 
-    await page.getByRole('tab', { name: /Classificação|Standings/i }).click();
-    const closeBtn = page.getByTestId('close-pelada-button');
+    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+    const closeBtn = page.getByTestId("close-pelada-button");
     await expect(closeBtn).toBeVisible({ timeout: 10000 });
     await closeBtn.click();
-    await page.getByTestId('pretty-confirm-button').click();
+    await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes("/close") && resp.status() === 200,
+      ),
+      page.getByTestId("pretty-confirm-button").click(),
+    ]);
     await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`));
 
     await page.goto(`/peladas/${peladaId}/voting`);
-    await expect(page.getByText(/Votação|Voting/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Votação|Voting/i).first()).toBeVisible({
+      timeout: 10000,
+    });
 
-    const gkCard = page.getByTestId(/^voting-card-/).filter({ hasText: gkName });
-    await expect(gkCard.getByText(/Desativar|Disable|Desabilitar/i)).toBeVisible({ timeout: 10000 });
+    const gkCard = page
+      .getByTestId(/^voting-card-/)
+      .filter({ hasText: gkName });
+    await expect(
+      gkCard.getByText(/Desativar|Disable|Desabilitar/i),
+    ).toBeVisible({ timeout: 10000 });
 
-    await gkCard.getByRole('button', { name: /Habilitar|Enable/i }).click();
-    
-    await expect(gkCard.getByText(/Desativar|Disable|Desabilitar/i).first()).toBeVisible({ timeout: 10000 });
-    
+    await gkCard.getByRole("button", { name: /Habilitar|Enable/i }).click();
+
+    await expect(
+      gkCard.getByText(/Desativar|Disable|Desabilitar/i).first(),
+    ).toBeVisible({ timeout: 10000 });
+
     const rating = gkCard.getByTestId(/^rating-/);
     await expect(rating).toBeEnabled();
   });
 
-  test('should verify inline event recording and timeline copy table features', async ({ page, context }) => {
+  test("should verify inline event recording and timeline copy table features", async ({
+    page,
+    context,
+  }) => {
     test.setTimeout(120000);
     const ts = Date.now() + 15000 + Math.floor(Math.random() * 1000000);
     const adminUser: UserData = {
-      name: 'E2E Custom Events',
-      username: 'e2e_events_' + Math.random().toString(36).substring(7),
+      name: "E2E Custom Events",
+      username: "e2e_events_" + Math.random().toString(36).substring(7),
       email: `e2e_events_${ts}@test.com`,
-      password: 'password123',
+      password: "password123",
     };
-    const orgName = 'Custom Events Org';
+    const orgName = "Custom Events Org";
 
     await registerAndCreateOrg(page, adminUser, orgName);
     const peladaId = await createPelada(page);
@@ -850,59 +1203,65 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await startPelada(page);
 
     // Verify inline record event button is present and click it
-    const inlineBtn = page.getByTestId('record-event-inline-button');
+    const inlineBtn = page.getByTestId("record-event-inline-button");
     await expect(inlineBtn).toBeVisible({ timeout: 10000 });
     await inlineBtn.click();
 
     // Verify dialog opens
-    await expect(page.getByTestId('record-event-dialog')).toBeVisible();
+    await expect(page.getByTestId("record-event-dialog")).toBeVisible();
 
     // Select a player
     await page.locator('[data-testid^="event-player-item-"]').first().click();
 
     // Select custom event type: drible
-    await page.getByTestId('event-type-card-drible').click();
+    await page.getByTestId("event-type-card-drible").click();
 
     // Click confirm
-    await page.getByTestId('confirm-event-button').click();
+    await page.getByTestId("confirm-event-button").click();
 
     // Dialog should close
-    await expect(page.getByTestId('record-event-dialog')).not.toBeVisible();
+    await expect(page.getByTestId("record-event-dialog")).not.toBeVisible();
 
     // Switch to Timeline tab
-    await page.getByRole('tab', { name: /Linha do Tempo|Timeline/i }).click();
+    await page.getByRole("tab", { name: /Linha do Tempo|Timeline/i }).click();
 
     // Intercept window.alert
-    let dialogMessage = '';
-    page.on('dialog', async dialog => {
+    let dialogMessage = "";
+    page.on("dialog", async (dialog) => {
       dialogMessage = dialog.message();
       await dialog.accept();
     });
 
     // Grant clipboard read/write permission to browser context
-    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
 
     // Click on Copy Table button
-    await page.getByRole('button', { name: /Copiar Tabela|Copy Table/i }).click();
+    await page
+      .getByRole("button", { name: /Copiar Tabela|Copy Table/i })
+      .click();
 
     // Verify the alert dialog was triggered with success message
     await expect.poll(() => dialogMessage).toMatch(/copiada|copied/i);
 
     // Verify clipboard content
-    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-    expect(clipboardText.toLowerCase()).toContain('drible');
+    const clipboardText = await page.evaluate(() =>
+      navigator.clipboard.readText(),
+    );
+    expect(clipboardText.toLowerCase()).toContain("drible");
   });
 
-  test('should synchronize global session timer and match timer on start, play/pause and reset correctly', async ({ page }) => {
+  test("should synchronize global session timer and match timer on start, play/pause and reset correctly", async ({
+    page,
+  }) => {
     test.setTimeout(120000);
     const ts = Date.now() + 15000 + Math.floor(Math.random() * 1000000);
     const adminUser: UserData = {
-      name: 'E2E Timer Sync',
-      username: 'e2e_timers_' + Math.random().toString(36).substring(7),
+      name: "E2E Timer Sync",
+      username: "e2e_timers_" + Math.random().toString(36).substring(7),
       email: `e2e_timers_${ts}@test.com`,
-      password: 'password123',
+      password: "password123",
     };
-    const orgName = 'Timer Sync Org';
+    const orgName = "Timer Sync Org";
 
     await registerAndCreateOrg(page, adminUser, orgName);
     const peladaId = await createPelada(page);
@@ -912,36 +1271,36 @@ test.describe('Pelada Lifecycle & Matches', () => {
     await startPelada(page);
 
     // Initial state: both timers are stopped/not running
-    const globalTimerText = page.getByTestId('global-timer-text');
-    const matchTimerText = page.getByTestId('match-timer-text');
+    const globalTimerText = page.getByTestId("global-timer-text");
+    const matchTimerText = page.getByTestId("match-timer-text");
 
-    await expect(globalTimerText).toContainText('00:00:00');
-    await expect(matchTimerText).toContainText('00:00');
+    await expect(globalTimerText).toContainText("00:00:00");
+    await expect(matchTimerText).toContainText("00:00");
 
     // 1. Play global session timer -> should also start match timer
-    const startGlobalBtn = page.getByTestId('start-global-timer-button');
+    const startGlobalBtn = page.getByTestId("start-global-timer-button");
     await expect(startGlobalBtn).toBeVisible();
     await startGlobalBtn.click();
 
     // Verify global timer starts running (the play button changes to pause button)
-    await expect(page.getByTestId('pause-global-timer-button')).toBeVisible();
+    await expect(page.getByTestId("pause-global-timer-button")).toBeVisible();
     // Verify match timer starts running too (the play button changes to pause button)
-    await expect(page.getByTestId('pause-match-timer-button')).toBeVisible();
+    await expect(page.getByTestId("pause-match-timer-button")).toBeVisible();
 
     // Let the timers tick a bit
     await page.waitForTimeout(2000);
 
     // 2. Pause global session timer
-    const pauseGlobalBtn = page.getByTestId('pause-global-timer-button');
+    const pauseGlobalBtn = page.getByTestId("pause-global-timer-button");
     await pauseGlobalBtn.click();
 
     // Verify global timer is paused (pause button changes back to start button)
-    await expect(page.getByTestId('start-global-timer-button')).toBeVisible();
+    await expect(page.getByTestId("start-global-timer-button")).toBeVisible();
 
     // Pause match timer as well
-    const pauseMatchBtn = page.getByTestId('pause-match-timer-button');
+    const pauseMatchBtn = page.getByTestId("pause-match-timer-button");
     await pauseMatchBtn.click();
-    await expect(page.getByTestId('start-match-timer-button')).toBeVisible();
+    await expect(page.getByTestId("start-match-timer-button")).toBeVisible();
 
     // Wait a brief moment for any pending API updates/refreshes to settle
     await page.waitForTimeout(1000);
@@ -958,11 +1317,10 @@ test.describe('Pelada Lifecycle & Matches', () => {
     expect(await matchTimerText.innerText()).toBe(matchTimePaused);
 
     // 3. Reset timers to ensure they go back to zero
-    const resetGlobalBtn = page.getByTestId('reset-global-timer-button');
+    const resetGlobalBtn = page.getByTestId("reset-global-timer-button");
     await resetGlobalBtn.click();
     // Confirm reset
-    await page.getByTestId('pretty-confirm-button').click();
-    await expect(globalTimerText).toContainText('00:00:00');
+    await page.getByTestId("pretty-confirm-button").click();
+    await expect(globalTimerText).toContainText("00:00:00");
   });
 });
-
