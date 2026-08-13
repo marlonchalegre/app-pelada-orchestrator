@@ -287,11 +287,8 @@ export async function setupInvitedPlayer(
   await page.getByTestId("first-access-submit").click();
 
   // Wait for success and redirect
-  try {
-    await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
-  } catch (e) {
-    throw e;
-  }
+  await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
+
 
   await acceptPendingInvitation(page, orgName);
   await ctx.close();
@@ -412,7 +409,17 @@ export async function addPlayerBySearch(page: Page, query: string) {
 // ─── Pelada Lifecycle ────────────────────────────────────────────────────────
 
 /** Creates a pelada from the org detail page. Returns the pelada ID. */
-export async function createPelada(page: Page): Promise<string> {
+export async function createPelada(
+  page: Page,
+  notifyCasualPlayers?: boolean,
+): Promise<string> {
+  const switchInput = page.locator('input[name="notifyCasualPlayers"]');
+  if (await switchInput.isVisible()) {
+    await expect(switchInput).toBeChecked();
+    if (notifyCasualPlayers === false) {
+      await switchInput.uncheck();
+    }
+  }
   await page
     .getByTestId("create-pelada-submit")
     .or(page.getByRole("button", { name: /Criar pelada|Create pelada/i }))
@@ -422,6 +429,7 @@ export async function createPelada(page: Page): Promise<string> {
   });
   return getPeladaIdFromUrl(page.url());
 }
+
 
 /** Confirms the current user's attendance and closes the attendance list. */
 export async function confirmAndCloseAttendance(page: Page): Promise<void> {

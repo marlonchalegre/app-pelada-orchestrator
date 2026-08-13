@@ -38,6 +38,14 @@ test.describe('Auth & Profile', () => {
       
       await page.getByTestId('profile-name').fill(updatedName);
       await page.getByTestId('profile-phone').fill(updatedPhone);
+
+      // Toggle non-mensalista notification updates preference
+      const switchLabel = page.getByText(/Notificações para Diaristas e Convidados|Notifications for Casual Players/i);
+      const nonMensalistaSwitch = page.getByTestId('receive-non-mensalista-updates-switch');
+      await expect(nonMensalistaSwitch).not.toBeChecked();
+      await switchLabel.click();
+      await expect(nonMensalistaSwitch).toBeChecked();
+
       
       await page.getByTestId('profile-save-button').click();
       await expect(page.getByText(/Profile updated successfully|Perfil atualizado com sucesso/i)).toBeVisible();
@@ -46,7 +54,10 @@ test.describe('Auth & Profile', () => {
       await page.reload();
       await expect(page.getByTestId('profile-name')).toHaveValue(updatedName);
       await expect(page.getByTestId('profile-phone')).toHaveValue("(55) 11888-8888");
+      await expect(page.getByTestId('receive-non-mensalista-updates-switch')).toBeChecked();
     });
+
+
 
     await test.step('Delete Account', async () => {
       await page.getByTestId('profile-delete-account-button').click();
