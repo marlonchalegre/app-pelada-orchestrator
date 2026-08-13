@@ -378,4 +378,37 @@ test.describe('Organization Management', () => {
     
     await userContext.close();
   });
+
+  test('should configure priority confirmation limit hours in organization settings', async ({ browser }) => {
+    const timestamp = Date.now() + Math.floor(Math.random() * 1000000);
+    const owner = {
+      name: `Owner ${timestamp}`,
+      username: `owner_${timestamp}`,
+      email: `owner-${timestamp}@example.com`,
+      password: 'password123',
+      position: 'Defender'
+    };
+    const orgName = `Settings Org ${timestamp}`;
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await registerAndCreateOrg(page, owner, orgName);
+
+    await page.getByTestId('org-management-button').click();
+    await page.getByTestId('mgmt-tab-settings').click();
+
+    const limitInput = page.getByTestId('priority-confirmation-limit-input');
+    await expect(limitInput).toBeVisible();
+    await limitInput.fill('24');
+
+    await page.getByTestId('save-general-settings-btn').click();
+    await expect(page.getByTestId('settings-save-success')).toBeVisible();
+
+    await page.reload();
+    await page.getByTestId('mgmt-tab-settings').click();
+    await expect(limitInput).toHaveValue('24');
+
+    await context.close();
+  });
 });
