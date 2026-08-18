@@ -95,10 +95,8 @@ test.describe('Organization Management', () => {
       await ownerPage.getByTestId('send-invite-button').click();
       await expect(ownerPage.getByTestId('invite-success-alert')).toBeVisible();
       await ownerPage.getByTestId('invite-dialog-close-button').click({ force: true });
-      await expect(ownerPage.getByRole('dialog')).toBeHidden({ timeout: 15000 });
-      await ownerPage.waitForTimeout(1000);
-
       const revokeBtn = ownerPage.locator('li').filter({ hasText: dummyEmail }).getByTestId(/^revoke-invitation-/);
+      await expect(revokeBtn).toBeVisible({ timeout: 10000 });
       await revokeBtn.click();
       await expect(revokeBtn).toBeHidden({ timeout: 10000 });
     });
@@ -135,7 +133,6 @@ test.describe('Organization Management', () => {
 
       await ownerPage.getByTestId('invite-dialog-close-button').click({ force: true });
       await expect(ownerPage.getByRole('dialog', { name: /invite/i })).toBeHidden({ timeout: 15000 });
-      await ownerPage.waitForTimeout(1000);
     });
 
     await test.step('5. Public Link Reset and List Filtering', async () => {
@@ -379,7 +376,7 @@ test.describe('Organization Management', () => {
     await userContext.close();
   });
 
-  test('should configure priority confirmation limit hours in organization settings', async ({ browser }) => {
+  test('should configure priority confirmation limit hours and default max players in organization settings', async ({ browser }) => {
     const timestamp = Date.now() + Math.floor(Math.random() * 1000000);
     const owner = {
       name: `Owner ${timestamp}`,
@@ -402,12 +399,22 @@ test.describe('Organization Management', () => {
     await expect(limitInput).toBeVisible();
     await limitInput.fill('24');
 
+    const maxPlayersInput = page.getByTestId('default-max-players-input');
+    await expect(maxPlayersInput).toBeVisible();
+    await maxPlayersInput.fill('14');
+
     await page.getByTestId('save-general-settings-btn').click();
     await expect(page.getByTestId('settings-save-success')).toBeVisible();
 
     await page.reload();
     await page.getByTestId('mgmt-tab-settings').click();
     await expect(limitInput).toHaveValue('24');
+    await expect(maxPlayersInput).toHaveValue('14');
+
+    // Go back to organization detail page and verify Create Pelada form pre-fills max_players
+    await page.goto(`/organizations/${getOrgIdFromUrl(page.url())}`);
+    const createPeladaMaxInput = page.getByTestId('create-pelada-max-players').locator('input');
+    await expect(createPeladaMaxInput).toHaveValue('14');
 
     await context.close();
   });
