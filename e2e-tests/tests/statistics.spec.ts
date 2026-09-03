@@ -128,6 +128,14 @@ test.describe("Organization Statistics", () => {
       await expect(row.getByText("5").first()).toBeVisible();
       await expect(row.getByText("3").first()).toBeVisible();
       await expect(row.getByText("1").first()).toBeVisible();
+
+      // Verify search trims input before searching
+      const searchInput = page.getByPlaceholder(/Nome do Jogador|Player Name/i);
+      await searchInput.fill(`   ${owner.name}   `);
+      await expect(row).toBeVisible();
+      await searchInput.fill("   ");
+      await expect(row).toBeVisible();
+      await searchInput.fill("");
     });
 
     await context.close();
