@@ -383,6 +383,9 @@ test.describe("Pelada Lifecycle & Matches", () => {
         .click();
       await expect(ownerPage.getByText(/Campeão|Champion/i)).toBeVisible();
       await expect(ownerPage.getByTestId("standings-table")).toBeVisible();
+      await expect(
+        ownerPage.getByTestId("champion-trophy-icon").first(),
+      ).toBeVisible();
 
       // Voting
       await ownerPage.goto(`/peladas/${peladaId}/voting`);
@@ -1322,5 +1325,118 @@ test.describe("Pelada Lifecycle & Matches", () => {
     // Confirm reset
     await page.getByTestId("pretty-confirm-button").click();
     await expect(globalTimerText).toContainText("00:00:00");
+  });
+
+  test("should handle initial draw, close pelada from last match summary, and show champion trophy", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 20000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: "E2E Close Pelada",
+      username: "e2e_close_" + Math.random().toString(36).substring(7),
+      email: `e2e_close_${ts}@test.com`,
+      password: "password123",
+    };
+    const orgName = "Close Pelada Org";
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: true });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    // 1. Start match timer to trigger active match state
+    const startMatchBtn = page.getByTestId("start-match-timer-button");
+    await expect(startMatchBtn).toBeVisible();
+    await startMatchBtn.click();
+    await expect(page.getByTestId("pause-match-timer-button")).toBeVisible();
+
+    // 2. Verify Standings shows the initial draw (both teams have 1 point, 1 draw)
+    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+    const standingsTable = page.getByTestId("standings-table");
+    await expect(standingsTable).toBeVisible();
+    await expect(page.getByTestId("champion-trophy-icon")).not.toBeVisible();
+
+    // 3. Return to Dashboard tab, score a goal for home team to establish a winner
+    await page.getByRole("tab", { name: /Dashboard|Partidas/i }).click();
+    const firstPlayerRow = page
+      .locator("#pelada-matches-tabs-content")
+      .getByTestId("player-row")
+      .first();
+    await expect(firstPlayerRow).toBeVisible({ timeout: 10000 });
+    await firstPlayerRow.getByTestId("stat-goals-increment").click();
+    await Promise.all([
+      page.waitForResponse(
+        (resp) => resp.url().includes("/events") && resp.status() === 200,
+      ),
+      page.getByTestId("without-assistance-option").click(),
+    ]);
+    await expect(firstPlayerRow.getByTestId("stat-goals-value")).toHaveText(
+      "1",
+      { timeout: 10000 },
+    );
+
+    // 4. End match #1
+    await page.getByTestId("end-match-button").click();
+    const confirmBtn = page.getByTestId("pretty-confirm-button");
+    await expect(confirmBtn).toBeVisible({ timeout: 10000 });
+    await confirmBtn.click();
+
+    // 5. Match Summary Modal appears
+    await expect(page.getByTestId("match-finished-title")).toBeVisible({
+      timeout: 30000,
+    });
+
+    // 6. Advance through any remaining matches until the last match is reached
+    while (
+      !(await page.getByTestId("summary-end-pelada-section").isVisible())
+    ) {
+      const nextMatchBtn = page.getByTestId("summary-next-match-button");
+      if (await nextMatchBtn.isVisible()) {
+        await nextMatchBtn.click();
+        await expect(page.getByTestId("match-finished-title")).not.toBeVisible({
+          timeout: 10000,
+        });
+        const endBtn = page.getByTestId("end-match-button");
+        await expect(endBtn).toBeVisible({ timeout: 10000 });
+        await endBtn.click();
+        await page.getByTestId("pretty-confirm-button").click();
+        await expect(page.getByTestId("match-finished-title")).toBeVisible({
+          timeout: 30000,
+        });
+      } else {
+        break;
+      }
+    }
+
+    // 7. Verify end pelada section is present on the last match summary
+    await expect(page.getByTestId("summary-end-pelada-section")).toBeVisible({
+      timeout: 10000,
+    });
+
+    const closePeladaSummaryBtn = page.getByTestId(
+      "summary-close-pelada-button",
+    );
+    await expect(closePeladaSummaryBtn).toBeVisible();
+
+    // 8. Click close pelada from summary and confirm
+    await closePeladaSummaryBtn.click();
+    const confirmCloseBtn = page.getByTestId("pretty-confirm-button");
+    await expect(confirmCloseBtn).toBeVisible();
+    await confirmCloseBtn.click();
+
+    // 9. Verify summary closes and user is redirected to Standings & Highlights tab
+    await expect(page.getByTestId("match-finished-title")).not.toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText(/Campeão|Champion/i)).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByTestId("standings-table")).toBeVisible();
+
+    // 10. Verify the champion trophy icon is visible in the standings table
+    await expect(page.getByTestId("champion-trophy-icon")).toBeVisible();
   });
 });

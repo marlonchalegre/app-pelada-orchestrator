@@ -289,7 +289,6 @@ export async function setupInvitedPlayer(
   // Wait for success and redirect
   await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
 
-
   await acceptPendingInvitation(page, orgName);
   await ctx.close();
 }
@@ -429,7 +428,6 @@ export async function createPelada(
   });
   return getPeladaIdFromUrl(page.url());
 }
-
 
 /** Confirms the current user's attendance and closes the attendance list. */
 export async function confirmAndCloseAttendance(page: Page): Promise<void> {

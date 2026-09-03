@@ -7,7 +7,10 @@ import {
 } from "./utils";
 
 test.describe("Monthly Player Substitution", () => {
-  test("should manage monthly substitutions lifecycle", async ({ page, request }) => {
+  test("should manage monthly substitutions lifecycle", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const timestamp = Date.now() + Math.floor(Math.random() * 10000);
     const admin = {
@@ -24,28 +27,39 @@ test.describe("Monthly Player Substitution", () => {
     const api = await getApiContext(page, request);
 
     await createPlayerViaApi(api, orgId, player2Name);
-    
+
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
     await page.waitForURL(/\/organizations\/[^\/]+\/management/);
-    
-    await expect(page.getByTestId("player-item").first()).toBeVisible({ timeout: 30000 });
 
-    const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
+    await expect(page.getByTestId("player-item").first()).toBeVisible({
+      timeout: 30000,
+    });
+
+    const adminItem = page
+      .getByTestId("player-item")
+      .filter({ hasText: admin.name });
     await expect(adminItem).toBeVisible();
-    
+
     const adminSelect = adminItem.getByTestId(/member-type-select-.*/).first();
     await adminSelect.click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await expect(
-      page.getByText(/Nenhuma substituição registrada|No substitutions recorded/i),
+      page.getByText(
+        /Nenhuma substituição registrada|No substitutions recorded/i,
+      ),
     ).toBeVisible();
 
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
 
     await page.getByTestId("permanent-player-select").click();
-    await page.getByRole("option", { name: new RegExp(admin.name, "i") }).click();
+    await page
+      .getByRole("option", { name: new RegExp(admin.name, "i") })
+      .click();
 
     await page.getByTestId("temporary-player-select").click();
     const options = page.getByRole("option");
@@ -66,7 +80,11 @@ test.describe("Monthly Player Substitution", () => {
 
     await expect(page.getByText(admin.name)).toBeVisible();
     await expect(page.getByText(player2Name)).toBeVisible();
-    await expect(page.locator('#org-mgmt-tabpanel-substitutions').getByText(/Ativo|Active/i)).toBeVisible();
+    await expect(
+      page
+        .locator("#org-mgmt-tabpanel-substitutions")
+        .getByText(/Ativo|Active/i),
+    ).toBeVisible();
 
     await page.getByTestId("mgmt-tab-members").click();
     await expect(page.getByText(/Diarista \(Subst\.\)/i)).toBeVisible();
@@ -85,7 +103,10 @@ test.describe("Monthly Player Substitution", () => {
     await expect(page.getByText(/Diarista/i)).toHaveCount(1); // Only player 2
   });
 
-  test("UI Substitutions - show API error when creating conflicting substitution", async ({ page, request }) => {
+  test("UI Substitutions - show API error when creating conflicting substitution", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const timestamp = Date.now() + Math.floor(Math.random() * 10000) + 10000;
     const admin = {
@@ -107,16 +128,26 @@ test.describe("Monthly Player Substitution", () => {
 
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
     await page.waitForURL(/\/organizations\/[^\/]+\/management/);
-    const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-    await adminItem.getByTestId(/member-type-select-.*/).first().click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    const adminItem = page
+      .getByTestId("player-item")
+      .filter({ hasText: admin.name });
+    await adminItem
+      .getByTestId(/member-type-select-.*/)
+      .first()
+      .click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
     await page.getByTestId("permanent-player-select").click();
     {
       const options = page.getByRole("option");
-      await expect(page.getByRole('listbox').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("listbox").first()).toBeVisible({
+        timeout: 10000,
+      });
       const count = await options.count();
       let clicked = false;
       for (let i = 0; i < count; i++) {
@@ -132,7 +163,9 @@ test.describe("Monthly Player Substitution", () => {
     await page.getByTestId("temporary-player-select").click();
     {
       const options = page.getByRole("option");
-      await expect(page.getByRole('listbox').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("listbox").first()).toBeVisible({
+        timeout: 10000,
+      });
       const count = await options.count();
       let clicked = false;
       for (let i = 0; i < count; i++) {
@@ -143,7 +176,8 @@ test.describe("Monthly Player Substitution", () => {
           break;
         }
       }
-      if (!clicked) throw new Error("No suitable temporary player option found");
+      if (!clicked)
+        throw new Error("No suitable temporary player option found");
     }
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
@@ -151,7 +185,9 @@ test.describe("Monthly Player Substitution", () => {
     await page.getByTestId("permanent-player-select").click();
     {
       const options = page.getByRole("option");
-      await expect(page.getByRole('listbox').first()).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole("listbox").first()).toBeVisible({
+        timeout: 10000,
+      });
       const count = await options.count();
       let found = false;
       for (let i = 0; i < count; i++) {
@@ -165,7 +201,10 @@ test.describe("Monthly Player Substitution", () => {
     }
   });
 
-  test("UI Substitutions - end substitution via UI reverts statuses", async ({ page, request }) => {
+  test("UI Substitutions - end substitution via UI reverts statuses", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const timestamp = Date.now() + Math.floor(Math.random() * 10000) + 20000;
     const admin = {
@@ -185,26 +224,39 @@ test.describe("Monthly Player Substitution", () => {
 
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
     await page.waitForURL(/\/organizations\/[^\/]+\/management/);
-    const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-    await adminItem.getByTestId(/member-type-select-.*/).first().click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    const adminItem = page
+      .getByTestId("player-item")
+      .filter({ hasText: admin.name });
+    await adminItem
+      .getByTestId(/member-type-select-.*/)
+      .first()
+      .click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
     await page.getByTestId("permanent-player-select").click();
-    await page.getByRole("option", { name: new RegExp(admin.name, "i") }).click();
+    await page
+      .getByRole("option", { name: new RegExp(admin.name, "i") })
+      .click();
     await page.getByTestId("temporary-player-select").click();
     await page.getByRole("option", { name: new RegExp(p2, "i") }).click();
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
     await page.locator('button:has(svg[data-testid="StopIcon"])').click();
 
-    await page.getByTestId('mgmt-tab-members').click();
+    await page.getByTestId("mgmt-tab-members").click();
     await expect(page.getByText(/Mensalista/i)).toHaveCount(1);
     await expect(page.getByText(/Diarista/i)).toHaveCount(1);
   });
 
-  test("UI Substitutions - history shows start and end dates for multiple substitutions", async ({ page, request }) => {
+  test("UI Substitutions - history shows start and end dates for multiple substitutions", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const timestamp = Date.now() + Math.floor(Math.random() * 10000) + 30000;
     const admin = {
@@ -226,14 +278,24 @@ test.describe("Monthly Player Substitution", () => {
 
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
     await page.waitForURL(/\/organizations\/[^\/]+\/management/);
-    const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
-    await adminItem.getByTestId(/member-type-select-.*/).first().click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    const adminItem = page
+      .getByTestId("player-item")
+      .filter({ hasText: admin.name });
+    await adminItem
+      .getByTestId(/member-type-select-.*/)
+      .first()
+      .click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
     await page.getByTestId("permanent-player-select").click();
-    await page.getByRole("option", { name: new RegExp(admin.name, "i") }).click();
+    await page
+      .getByRole("option", { name: new RegExp(admin.name, "i") })
+      .click();
     await page.getByTestId("temporary-player-select").click();
     {
       const options = page.getByRole("option");
@@ -248,7 +310,8 @@ test.describe("Monthly Player Substitution", () => {
           break;
         }
       }
-      if (!clicked) throw new Error("No suitable temporary player option found");
+      if (!clicked)
+        throw new Error("No suitable temporary player option found");
     }
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
@@ -256,13 +319,21 @@ test.describe("Monthly Player Substitution", () => {
     await expect(page.getByText(/Encerrado|Ended/i)).toBeVisible();
 
     await page.getByTestId("mgmt-tab-members").click();
-    await adminItem.getByTestId(/member-type-select-.*/).first().click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    await adminItem
+      .getByTestId(/member-type-select-.*/)
+      .first()
+      .click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
     await page.getByTestId("permanent-player-select").click();
-    await page.getByRole("option", { name: new RegExp(admin.name, "i") }).click();
+    await page
+      .getByRole("option", { name: new RegExp(admin.name, "i") })
+      .click();
     await page.getByTestId("temporary-player-select").click();
     {
       const options = page.getByRole("option");
@@ -277,16 +348,20 @@ test.describe("Monthly Player Substitution", () => {
           break;
         }
       }
-      if (!clicked) throw new Error("No suitable temporary player option found");
+      if (!clicked)
+        throw new Error("No suitable temporary player option found");
     }
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
-    const items = page.locator('#org-mgmt-tabpanel-substitutions ul li');
+    const items = page.locator("#org-mgmt-tabpanel-substitutions ul li");
     await expect(items).toHaveCount(2, { timeout: 10000 });
     await expect(page.getByText(/2026|2025|2024/).first()).toBeVisible();
   });
 
-  test("UI Substitutions - permanent excluded after active substitution", async ({ page, request }) => {
+  test("UI Substitutions - permanent excluded after active substitution", async ({
+    page,
+    request,
+  }) => {
     test.setTimeout(120000);
     const timestamp = Date.now() + Math.floor(Math.random() * 10000) + 40000;
     const admin = {
@@ -307,17 +382,24 @@ test.describe("Monthly Player Substitution", () => {
     await page.getByText(/GERENCIAMENTO|MANAGEMENT/i).click();
     await page.waitForURL(/\/organizations\/[^\/]+\/management/);
 
-    const adminItem = page.getByTestId("player-item").filter({ hasText: admin.name });
+    const adminItem = page
+      .getByTestId("player-item")
+      .filter({ hasText: admin.name });
     await expect(adminItem).toBeVisible();
     const adminSelect = adminItem.getByTestId(/member-type-select-.*/).first();
     await adminSelect.click();
-    await page.getByRole("option", { name: /Mensalista/i }).first().click();
+    await page
+      .getByRole("option", { name: /Mensalista/i })
+      .first()
+      .click();
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
 
     await page.getByTestId("permanent-player-select").click();
-    await page.getByRole("option", { name: new RegExp(admin.name, "i") }).click();
+    await page
+      .getByRole("option", { name: new RegExp(admin.name, "i") })
+      .click();
 
     await page.getByTestId("temporary-player-select").click();
     await page.getByRole("option", { name: new RegExp(p2Name, "i") }).click();
@@ -326,6 +408,8 @@ test.describe("Monthly Player Substitution", () => {
 
     await page.getByRole("button", { name: /Adicionar|Add/i }).click();
     await page.getByTestId("permanent-player-select").click();
-    await expect(page.getByRole("option", { name: new RegExp(admin.name, "i") })).toHaveCount(0);
+    await expect(
+      page.getByRole("option", { name: new RegExp(admin.name, "i") }),
+    ).toHaveCount(0);
   });
 });

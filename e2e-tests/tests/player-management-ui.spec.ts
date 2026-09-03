@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from "@playwright/test";
 import {
   registerAndCreateOrg,
   createPlayerViaApi,
@@ -6,9 +6,9 @@ import {
   createPelada,
   confirmAndCloseAttendanceViaApi,
   getOrgIdFromUrl,
-} from './utils';
+} from "./utils";
 
-test.describe('New UI Features: Control Panel and Player Movement', () => {
+test.describe("New UI Features: Control Panel and Player Movement", () => {
   let admin: any;
   let player1Name: string;
   let player2Name: string;
@@ -22,8 +22,8 @@ test.describe('New UI Features: Control Panel and Player Movement', () => {
       name: `Admin ${timestamp}`,
       username: `admin_${timestamp}`,
       email: `admin-${timestamp}@example.com`,
-      password: 'password123',
-      position: 'Defender',
+      password: "password123",
+      position: "Defender",
     };
     player1Name = `P1 ${timestamp}`;
     player2Name = `P2 ${timestamp}`;
@@ -44,129 +44,235 @@ test.describe('New UI Features: Control Panel and Player Movement', () => {
     const peladaId = await createPelada(page);
     await confirmAndCloseAttendanceViaApi(api, orgId, peladaId);
     await page.goto(`/peladas/${peladaId}`);
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState("networkidle");
   });
 
-  test('should manage players per team and randomize via new header panel', async ({ page }) => {
+  test("should manage players per team and randomize via new header panel", async ({
+    page,
+  }) => {
     // Check initial state
-    const perTeamValue = page.locator('text=/PER TEAM|POR TIME/i').locator('xpath=..').locator('h6');
-    await expect(perTeamValue).toHaveText('5');
+    const perTeamValue = page
+      .locator("text=/PER TEAM|POR TIME/i")
+      .locator("xpath=..")
+      .locator("h6");
+    await expect(perTeamValue).toHaveText("5");
 
     // Increase players per team
-    const addButton = page.getByTestId('players-per-team-increment');
+    const addButton = page.getByTestId("players-per-team-increment");
     await addButton.click();
-    await expect(perTeamValue).toHaveText('6');
+    await expect(perTeamValue).toHaveText("6");
 
     // Decrease players per team
-    const removeButton = page.getByTestId('players-per-team-decrement');
+    const removeButton = page.getByTestId("players-per-team-decrement");
     await removeButton.click();
-    await expect(perTeamValue).toHaveText('5');
+    await expect(perTeamValue).toHaveText("5");
 
     // Randomize button
-    const randomizeBtn = page.getByTestId('randomize-teams-button');
+    const randomizeBtn = page.getByTestId("randomize-teams-button");
     await expect(randomizeBtn).toBeVisible();
     await randomizeBtn.click();
     // (Wait for any potential loading or toast if applicable)
   });
 
-  test('should move player between bench and teams via action menu', async ({ page }) => {
+  test("should move player between bench and teams via action menu", async ({
+    page,
+  }) => {
     // 1. Add a team first
-    await page.getByText(/Adicionar Time|Add Team/i).first().click();
-    await expect(page.getByTestId('team-card')).toHaveCount(1);
-    const teamName = await page.getByTestId('team-card-name').first().innerText();
+    await page
+      .getByText(/Adicionar Time|Add Team/i)
+      .first()
+      .click();
+    await expect(page.getByTestId("team-card")).toHaveCount(1);
+    const teamName = await page
+      .getByTestId("team-card-name")
+      .first()
+      .innerText();
 
     // 2. Open action menu for a player on the bench
-    const playerOnBench = page.getByTestId('player-row').filter({ hasText: player1Name });
-    await playerOnBench.locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
+    const playerOnBench = page
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name });
+    await playerOnBench
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
 
     // 3. Move to the team
-    await page.getByRole('menuitem', { name: new RegExp(`Mover para ${teamName}|Move to ${teamName}`, 'i') }).click();
+    await page
+      .getByRole("menuitem", {
+        name: new RegExp(`Mover para ${teamName}|Move to ${teamName}`, "i"),
+      })
+      .click();
 
     // 4. Verify player moved to team
-    const teamCard = page.getByTestId('team-card').first();
-    await expect(teamCard.getByTestId('player-row').filter({ hasText: player1Name })).toBeVisible();
+    const teamCard = page.getByTestId("team-card").first();
+    await expect(
+      teamCard.getByTestId("player-row").filter({ hasText: player1Name }),
+    ).toBeVisible();
 
     // 5. Move back to bench
-    await teamCard.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: /Enviar para o Banco|Send to Bench/i }).click();
+    await teamCard
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page
+      .getByRole("menuitem", { name: /Enviar para o Banco|Send to Bench/i })
+      .click();
 
     // 6. Verify player is back on bench
-    await expect(page.getByTestId('available-players-container').or(page.locator('body')).getByTestId('player-row').filter({ hasText: player1Name })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("available-players-container")
+        .or(page.locator("body"))
+        .getByTestId("player-row")
+        .filter({ hasText: player1Name }),
+    ).toBeVisible();
   });
 
-  test('should show swap dialog when moving player to a full team', async ({ page }) => {
+  test("should show swap dialog when moving player to a full team", async ({
+    page,
+  }) => {
     // 1. Set players per team to 1 for easy testing
-    const removeButton = page.getByTestId('players-per-team-decrement');
+    const removeButton = page.getByTestId("players-per-team-decrement");
     for (let i = 0; i < 4; i++) {
       await removeButton.click();
       await page.waitForTimeout(500); // Wait for API and UI update
     }
 
-    const perTeamValue = page.locator('text=/PER TEAM|POR TIME/i').locator('xpath=..').locator('h6');
-    await expect(perTeamValue).toHaveText('1');
+    const perTeamValue = page
+      .locator("text=/PER TEAM|POR TIME/i")
+      .locator("xpath=..")
+      .locator("h6");
+    await expect(perTeamValue).toHaveText("1");
 
     // 2. Add two teams
-    await page.getByText(/Adicionar Time|Add Team/i).first().click();
-    await page.getByText(/Adicionar Time|Add Team/i).first().click();
-    await expect(page.getByTestId('team-card')).toHaveCount(2);
+    await page
+      .getByText(/Adicionar Time|Add Team/i)
+      .first()
+      .click();
+    await page
+      .getByText(/Adicionar Time|Add Team/i)
+      .first()
+      .click();
+    await expect(page.getByTestId("team-card")).toHaveCount(2);
 
-    const team1Name = await page.getByTestId('team-card-name').nth(0).innerText();
-    const team2Name = await page.getByTestId('team-card-name').nth(1).innerText();
+    const team1Name = await page
+      .getByTestId("team-card-name")
+      .nth(0)
+      .innerText();
+    const team2Name = await page
+      .getByTestId("team-card-name")
+      .nth(1)
+      .innerText();
 
     // 3. Put player1 in Team 1 and player2 in Team 2
     // Move Player 1 to Team 1
-    await page.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: new RegExp(`Mover para ${team1Name}|Move to ${team1Name}`, 'i') }).click();
-    
-    // Move Player 2 to Team 2
-    await page.getByTestId('player-row').filter({ hasText: player2Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: new RegExp(`Mover para ${team2Name}|Move to ${team2Name}`, 'i') }).click();
+    await page
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page
+      .getByRole("menuitem", {
+        name: new RegExp(`Mover para ${team1Name}|Move to ${team1Name}`, "i"),
+      })
+      .click();
 
-    await expect(page.getByTestId('team-card').nth(0).getByTestId('player-row')).toHaveCount(1);
-    await expect(page.getByTestId('team-card').nth(1).getByTestId('player-row')).toHaveCount(1);
+    // Move Player 2 to Team 2
+    await page
+      .getByTestId("player-row")
+      .filter({ hasText: player2Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page
+      .getByRole("menuitem", {
+        name: new RegExp(`Mover para ${team2Name}|Move to ${team2Name}`, "i"),
+      })
+      .click();
+
+    await expect(
+      page.getByTestId("team-card").nth(0).getByTestId("player-row"),
+    ).toHaveCount(1);
+    await expect(
+      page.getByTestId("team-card").nth(1).getByTestId("player-row"),
+    ).toHaveCount(1);
 
     // 4. Try to move Player 1 from Team 1 to Team 2 (which is full)
-    await page.getByTestId('team-card').nth(0).getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByRole('menuitem', { name: new RegExp(`Mover para ${team2Name}|Move to ${team2Name}`, 'i') }).click();
+    await page
+      .getByTestId("team-card")
+      .nth(0)
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page
+      .getByRole("menuitem", {
+        name: new RegExp(`Mover para ${team2Name}|Move to ${team2Name}`, "i"),
+      })
+      .click();
 
     // 5. Verify Swap Dialog appears
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByText(/Substituir Jogador|Substitute Player/i)).toBeVisible();
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByText(/Substituir Jogador|Substitute Player/i),
+    ).toBeVisible();
     await expect(dialog.getByText(player2Name)).toBeVisible(); // Should list player2 as an option to be replaced
 
     // 6. Perform swap
-    await dialog.getByRole('button', { name: player2Name }).click();
+    await dialog.getByRole("button", { name: player2Name }).click();
 
     // 7. Verify positions swapped
-    await expect(page.getByTestId('team-card').nth(1).getByTestId('player-row').filter({ hasText: player1Name })).toBeVisible();
-    await expect(page.getByTestId('team-card').nth(0).getByTestId('player-row').filter({ hasText: player2Name })).toBeVisible();
+    await expect(
+      page
+        .getByTestId("team-card")
+        .nth(1)
+        .getByTestId("player-row")
+        .filter({ hasText: player1Name }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByTestId("team-card")
+        .nth(0)
+        .getByTestId("player-row")
+        .filter({ hasText: player2Name }),
+    ).toBeVisible();
   });
 
-  test('should handle fixed goalkeepers via action menu', async ({ page }) => {
+  test("should handle fixed goalkeepers via action menu", async ({ page }) => {
     // 1. Enable fixed goalkeepers
     // Use label to click the switch reliably
     await page.getByLabel(/Goleiros Fixos|Fixed Goalkeepers/i).click();
-    
-    await expect(page.getByTestId('fixed-goalkeepers-title')).toBeVisible();
+
+    await expect(page.getByTestId("fixed-goalkeepers-title")).toBeVisible();
 
     // 2. Move player to Home GK via menu
-    await page.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByTestId('move-to-home-gk-item').click();
+    await page
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page.getByTestId("move-to-home-gk-item").click();
 
     // 3. Verify player is in fixed GK slot
-    const homeGkSlot = page.getByTestId('gk-slot-home');
+    const homeGkSlot = page.getByTestId("gk-slot-home");
     await expect(homeGkSlot.getByText(player1Name)).toBeVisible();
 
     // 4. Move player from Fixed GK to Away GK
     // Move from Home GK back to Bench (using the delete/remove button in Fixed GK section)
-    await homeGkSlot.locator('button:has(svg[data-testid="DeleteOutlinedIcon"])').click();
+    await homeGkSlot
+      .locator('button:has(svg[data-testid="DeleteOutlinedIcon"])')
+      .click();
     await expect(homeGkSlot.getByText(player1Name)).not.toBeVisible();
-    
-    // Move from Bench to Away GK
-    await page.getByTestId('player-row').filter({ hasText: player1Name }).locator('button:has(svg[data-testid="SwapHorizIcon"])').click();
-    await page.getByTestId('move-to-away-gk-item').click();
 
-    const awayGkSlot = page.getByTestId('gk-slot-away');
+    // Move from Bench to Away GK
+    await page
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name })
+      .locator('button:has(svg[data-testid="SwapHorizIcon"])')
+      .click();
+    await page.getByTestId("move-to-away-gk-item").click();
+
+    const awayGkSlot = page.getByTestId("gk-slot-away");
     await expect(awayGkSlot.getByText(player1Name)).toBeVisible();
   });
 });
