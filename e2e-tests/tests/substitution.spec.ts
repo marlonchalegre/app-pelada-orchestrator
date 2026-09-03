@@ -9,8 +9,8 @@ import {
   buildAndUseSchedule,
   startPelada,
   getOrgIdFromUrl,
-  getPeladaIdFromUrl,
 } from "./utils";
+
 
 test.describe("Substitution and Empty Spots", () => {
   const timestamp = Date.now();
@@ -101,5 +101,56 @@ test.describe("Substitution and Empty Spots", () => {
     await expect(homeTeamSection.getByTestId("player-row-empty")).toHaveCount(
       initialEmptySlotsCount - 1,
     );
+
+    // Reproduce bug: Substitute Player 1 (X) by Player 2 (Y)
+    const player1Row = homeTeamSection
+      .getByTestId("player-row")
+      .filter({ hasText: player1Name });
+    await player1Row.getByTestId("sub-button").click();
+    await expect(page.getByTestId("player-select-dialog")).toBeVisible();
+    await page
+      .getByTestId("player-select-dialog")
+      .getByText(player2Name)
+      .click();
+
+    const player2Row = homeTeamSection
+      .getByTestId("player-row")
+      .filter({ hasText: player2Name });
+    await expect(player2Row).toBeVisible();
+
+    // Player 2 (Y) scores a goal
+    const dashPromise = page.waitForResponse(
+      (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+    );
+    await player2Row.getByTestId("stat-goals-increment").click();
+    await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
+    await page.getByTestId("without-assistance-option").click();
+    await dashPromise;
+    await expect(page.getByTestId("assist-select-dialog")).not.toBeVisible();
+
+    const scoreDisplay = page.getByTestId("match-score-display");
+    await expect(scoreDisplay).toHaveText(/1\s*—\s*0/);
+
+    // Substitute Player 2 (Y) back with Player 1 (X)
+    const replaceDashPromise = page.waitForResponse(
+      (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+    );
+    await player2Row.getByTestId("sub-button").click();
+    await expect(page.getByTestId("player-select-dialog")).toBeVisible();
+    await page
+      .getByTestId("player-select-dialog")
+      .getByText(player1Name)
+      .click();
+    await replaceDashPromise;
+
+
+    await expect(
+      homeTeamSection
+        .getByTestId("player-row")
+        .filter({ hasText: player1Name }),
+    ).toBeVisible();
+
+    // Score MUST remain 1 — 0 even after substituting Player 2 (Y) back out
+    await expect(scoreDisplay).toHaveText(/1\s*—\s*0/);
   });
 });
