@@ -92,6 +92,7 @@ test.describe("Monthly Player Substitution", () => {
 
     await page.getByTestId("mgmt-tab-substitutions").click();
     await page.locator('button:has(svg[data-testid="StopIcon"])').click();
+    await page.getByTestId("confirm-end-sub-button").click();
 
     await expect(page.getByText(/Encerrado|Ended/i)).toBeVisible();
     await expect(
@@ -247,6 +248,7 @@ test.describe("Monthly Player Substitution", () => {
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
     await page.locator('button:has(svg[data-testid="StopIcon"])').click();
+    await page.getByTestId("confirm-end-sub-button").click();
 
     await page.getByTestId("mgmt-tab-members").click();
     await expect(page.getByText(/Mensalista/i)).toHaveCount(1);
@@ -316,6 +318,7 @@ test.describe("Monthly Player Substitution", () => {
     await page.getByRole("button", { name: /Confirmar|Confirm/i }).click();
 
     await page.locator('button:has(svg[data-testid="StopIcon"])').click();
+    await page.getByTestId("confirm-end-sub-button").click();
     await expect(page.getByText(/Encerrado|Ended/i)).toBeVisible();
 
     await page.getByTestId("mgmt-tab-members").click();
