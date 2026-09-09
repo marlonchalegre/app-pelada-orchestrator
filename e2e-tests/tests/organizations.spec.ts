@@ -538,4 +538,116 @@ test.describe("Organization Management", () => {
 
     await context.close();
   });
+
+  test("should manage monthly player waitlist: player candidacy, self-leave, and admin promotion", async ({
+    browser,
+  }) => {
+    const timestamp = Date.now() + Math.floor(Math.random() * 1000000);
+    const owner = {
+      name: `Owner Waitlist ${timestamp}`,
+      username: `owner_wl_${timestamp}`,
+      email: `owner-wl-${timestamp}@example.com`,
+      password: "password123",
+      position: "Defender",
+    };
+    const orgName = `Waitlist Org ${timestamp}`;
+
+    const candidateUser = {
+      name: `Candidate ${timestamp}`,
+      username: `candidate_${timestamp}`,
+      email: `candidate-${timestamp}@example.com`,
+      password: "password123",
+      position: "Midfielder",
+    };
+
+    const ownerContext = await browser.newContext();
+    const ownerPage = await ownerContext.newPage();
+
+    // 1. Owner registers and creates organization
+    await registerAndCreateOrg(ownerPage, owner, orgName);
+    const orgUrl = ownerPage.url();
+    const orgId = getOrgIdFromUrl(orgUrl);
+
+    // 2. Owner invites candidate player by email
+    const inviteLink = await invitePlayerByEmail(ownerPage, candidateUser.email);
+
+    // 3. Candidate registers via invite and accepts membership
+    await setupInvitedPlayer(browser, inviteLink, candidateUser, orgName);
+
+    // 4. Candidate logs in and visits organization detail page
+    const candidateContext = await browser.newContext();
+    const candidatePage = await candidateContext.newPage();
+    await loginUser(candidatePage, candidateUser);
+
+    await candidatePage.goto(`/organizations/${orgId}`);
+    await candidatePage.waitForLoadState("networkidle");
+    await expect(
+      candidatePage.getByTestId("join-waitlist-button"),
+    ).toBeVisible({ timeout: 15000 });
+
+    // 5. Candidate joins waitlist
+    await candidatePage.getByTestId("join-waitlist-button").click();
+    await expect(
+      candidatePage.getByTestId("waitlist-in-queue-badge"),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      candidatePage.getByTestId("leave-waitlist-button"),
+    ).toBeVisible({ timeout: 10000 });
+
+    // 6. Candidate leaves waitlist
+    await candidatePage.getByTestId("leave-waitlist-button").click();
+    await expect(candidatePage.getByTestId("pretty-confirm-button")).toBeVisible();
+    await candidatePage.getByTestId("pretty-confirm-button").click();
+    await expect(
+      candidatePage.getByTestId("join-waitlist-button"),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      candidatePage.getByTestId("waitlist-in-queue-badge"),
+    ).not.toBeVisible();
+
+    // 7. Candidate joins waitlist again
+    await candidatePage.getByTestId("join-waitlist-button").click();
+    await expect(
+      candidatePage.getByTestId("waitlist-in-queue-badge"),
+    ).toBeVisible({ timeout: 10000 });
+
+    // 8. Owner visits management -> waitlist tab
+    await ownerPage.goto(`/organizations/${orgId}/management`);
+    await ownerPage.getByTestId("mgmt-tab-waitlist").click();
+
+    // Owner sees candidate row in waitlist table
+    const waitlistRow = ownerPage
+      .getByTestId("waitlist-row")
+      .filter({ hasText: candidateUser.name });
+    await expect(waitlistRow).toBeVisible({ timeout: 15000 });
+
+    // 9. Owner promotes candidate to mensalista
+    await waitlistRow.getByTestId(/^promote-waitlist-btn-/).click();
+    await expect(ownerPage.getByTestId("pretty-confirm-button")).toBeVisible();
+    await ownerPage.getByTestId("pretty-confirm-button").click();
+
+    // Waitlist is now empty
+    await expect(
+      ownerPage.getByTestId("waitlist-empty-message"),
+    ).toBeVisible({ timeout: 10000 });
+
+    // 10. Verify candidate is now Mensalista in members tab
+    await ownerPage.getByTestId("mgmt-tab-members").click();
+    const memberRow = ownerPage
+      .locator("li")
+      .filter({ hasText: candidateUser.name });
+    await expect(memberRow.getByRole("combobox")).toHaveText(/Mensalista/i);
+
+    // 11. Candidate refreshes organization page: neither candidate button nor badge is visible
+    await candidatePage.reload();
+    await expect(
+      candidatePage.getByTestId("join-waitlist-button"),
+    ).not.toBeVisible({ timeout: 10000 });
+    await expect(
+      candidatePage.getByTestId("waitlist-in-queue-badge"),
+    ).not.toBeVisible();
+
+    await candidateContext.close();
+    await ownerContext.close();
+  });
 });

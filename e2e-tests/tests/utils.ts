@@ -111,16 +111,28 @@ export async function getApiContext(
  * Required because new users default to allow_org_creation=false.
  */
 export function grantOrgCreation(email: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"`;
-  execSync(cmd);
+  for (const schema of ["e2e", "public"]) {
+    try {
+      const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"${schema}\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"`;
+      execSync(cmd, { stdio: "ignore" });
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /**
- * Enable premium feature flags for an organization in the E2E schema.
+ * Enable premium feature flags for an organization in the E2E or public schema.
  */
 export function enableFeatureFlags(orgId: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"`;
-  execSync(cmd);
+  for (const schema of ["e2e", "public"]) {
+    try {
+      const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"${schema}\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"`;
+      execSync(cmd, { stdio: "ignore" });
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export async function createOrganization(page: Page, orgName: string) {
