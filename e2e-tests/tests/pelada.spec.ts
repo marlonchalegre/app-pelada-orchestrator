@@ -308,7 +308,9 @@ test.describe("Pelada Lifecycle & Matches", () => {
         ownerPage.getByTestId("edit-assistant-select"),
       ).not.toBeVisible();
       await expect(
-        ownerPage.getByRole("heading", { name: /Edit Event|Editar Evento/i }),
+        ownerPage
+          .getByRole("heading", { name: /Edit Event|Editar Evento/i })
+          .first(),
       ).toBeVisible();
       await ownerPage.getByRole("button", { name: /Cancelar|Cancel/i }).click();
       await expect(
@@ -325,7 +327,9 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
       // Select an assistant if any other player is on the same team
       await ownerPage.getByTestId("edit-assistant-select").click();
-      const options = ownerPage.getByRole("option");
+      const options = ownerPage
+        .getByRole("option")
+        .filter({ hasNotText: /Membros|Banco|Team/i });
       const optionsCount = await options.count();
       if (optionsCount > 1) {
         await options.nth(1).click();
@@ -1251,6 +1255,96 @@ test.describe("Pelada Lifecycle & Matches", () => {
       navigator.clipboard.readText(),
     );
     expect(clipboardText.toLowerCase()).toContain("drible");
+  });
+
+  test("should edit goal and assistant in timeline with visual priority and quick chips", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 15000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: "E2E Timeline Edit",
+      username: "e2e_edit_" + Math.random().toString(36).substring(7),
+      email: `e2e_edit_${ts}@test.com`,
+      password: "password123",
+    };
+    const orgName = "Timeline Edit Org";
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    const peladaId = await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: true });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    // Record a goal on the active match and wait for backend confirmation
+    const eventResponsePromise = page.waitForResponse(
+      (resp) =>
+        resp.url().includes("/events") && resp.request().method() === "POST",
+    );
+    const goalBtn = page.getByTestId("stat-goals-increment").first();
+    await expect(goalBtn).toBeVisible({ timeout: 15000 });
+    await goalBtn.click();
+    await page.getByTestId("without-assistance-option").click();
+    await eventResponsePromise;
+    await page.waitForTimeout(500);
+
+    // Switch to Timeline tab
+    await page.getByRole("tab", { name: /Linha do Tempo|Timeline/i }).click();
+    const timeline = page.locator(".MuiTimeline-root");
+    await expect(timeline).toBeVisible({ timeout: 15000 });
+
+    // Click Edit button on the goal event
+    const editBtn = page.locator('[data-testid^="edit-event-"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 15000 });
+    await editBtn.click();
+
+    // Verify the new EditTimelineEventDialog opens
+    const dialog = page.getByTestId("edit-event-dialog");
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+
+    // Verify quick select chips for team members exist
+    const scorerChips = dialog.locator('[data-testid^="quick-select-scorer-"]');
+    await expect(scorerChips.first()).toBeVisible({ timeout: 5000 });
+    const scorerChipsCount = await scorerChips.count();
+    expect(scorerChipsCount).toBeGreaterThan(0);
+
+    // Change scorer using another chip if available
+    if (scorerChipsCount > 1) {
+      await scorerChips.nth(1).click();
+    }
+
+    // Select an assistant using quick-select chip or assistant dropdown
+    const assistantChips = dialog.locator(
+      '[data-testid^="quick-select-assistant-"]',
+    );
+    if ((await assistantChips.count()) > 0) {
+      await assistantChips.first().click();
+    } else {
+      const assistSelect = dialog.getByTestId("edit-assistant-select");
+      if (await assistSelect.isVisible().catch(() => false)) {
+        await assistSelect.click();
+        const options = page.getByRole("option");
+        if ((await options.count()) > 1) {
+          await options.nth(1).click();
+        } else {
+          await page
+            .getByRole("option", {
+              name: /Sem assistência|Without assistance/i,
+            })
+            .click();
+        }
+      }
+    }
+
+    // Save changes
+    await dialog.getByTestId("save-event-edit-button").click();
+    await expect(dialog).not.toBeVisible({ timeout: 10000 });
+
+    // Verify timeline persists the event
+    await expect(timeline.getByText(/GOL|GOAL|Gol/i).first()).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should synchronize global session timer and match timer on start, play/pause and reset correctly", async ({
