@@ -540,10 +540,15 @@ export async function setupTeams(
   if (randomize) {
     await page.getByTestId("randomize-teams-button").click();
     // Handle the confirmation dialog
+    const confirmRandBtn = page.getByTestId("confirm-randomize-button");
+    if (await confirmRandBtn.isVisible({ timeout: 3000 })) {
+      await confirmRandBtn.click();
+    }
     const confirmBtn = page.getByTestId("pretty-confirm-button");
     if (await confirmBtn.isVisible({ timeout: 2000 })) {
       await confirmBtn.click();
     }
+    await expect(page.getByRole("dialog")).not.toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("team-card-name").first()).toBeVisible({
       timeout: 10000,
     });

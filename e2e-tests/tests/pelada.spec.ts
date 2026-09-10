@@ -1533,4 +1533,125 @@ test.describe("Pelada Lifecycle & Matches", () => {
     // 10. Verify the champion trophy icon is visible in the standings table
     await expect(page.getByTestId("champion-trophy-icon")).toBeVisible();
   });
+
+  test("should display and manage support lineup in active match and support lineup tab", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const timestamp = Date.now() + Math.floor(Math.random() * 100000);
+    const owner = {
+      name: `Support Owner ${timestamp}`,
+      username: `sup_owner_${timestamp}`,
+      email: `sup-owner-${timestamp}@example.com`,
+      password: "password123",
+      position: "Midfielder",
+    };
+    const orgName = `Support Pelada ${timestamp}`;
+
+    // 1. Register & Create Org
+    await registerAndCreateOrg(page, owner, orgName);
+    const orgId = getOrgIdFromUrl(page.url());
+    const api = await getApiContext(page);
+
+    // 2. Create 5 additional players via API (total 6 players = 3 teams of 2)
+    const extraPlayers = [
+      `Lucas Silva ${timestamp}`,
+      `Matheus Costa ${timestamp}`,
+      `Gabriel Santos ${timestamp}`,
+      `Bruno Souza ${timestamp}`,
+      `Rafael Lima ${timestamp}`,
+    ];
+
+    for (const name of extraPlayers) {
+      await createPlayerViaApi(api, orgId, name);
+    }
+
+    // 3. Create Pelada
+    await page.goto(`/organizations/${orgId}`);
+    const peladaId = await createPelada(page);
+
+    // 4. Confirm Attendance for all & Close Attendance
+    await confirmAndCloseAttendanceViaApi(api, orgId, peladaId);
+
+    // 5. Navigate to Pelada detail page
+    await page.goto(`/peladas/${peladaId}`);
+    await page.waitForLoadState("networkidle");
+
+    // 6. Setup 3 Teams with 2 players each and randomize
+    await setupTeams(page, { count: 3, playersPerTeam: 2, randomize: true });
+
+    // 7. Build schedule and start pelada
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}/matches`), {
+      timeout: 15000,
+    });
+    await page.waitForLoadState("networkidle");
+
+    // 8. Verify Active Match Support Lineup Card is displayed
+    const supportCard = page.getByTestId("active-match-support-lineup-card");
+    await expect(supportCard).toBeVisible({ timeout: 20000 });
+
+    const swapRolesBtn = page.getByTestId("swap-active-support-roles");
+    if (await swapRolesBtn.isVisible()) {
+      await swapRolesBtn.click();
+    }
+
+    const nextUpPill = page.locator("text=/A SEGUIR|PRÓXIMO|NEXT/i").first();
+    if (await nextUpPill.isVisible()) {
+      await nextUpPill.click();
+    }
+
+    // 9. Navigate to Support Lineup Tab via button in active card or tab header
+    const viewFullScheduleBtn = page.getByTestId("view-full-support-schedule");
+    if (await viewFullScheduleBtn.isVisible()) {
+      await viewFullScheduleBtn.click();
+    } else {
+      const supportTab = page
+        .getByRole("tab", { name: /Escalação de Suporte|Support Lineup/i })
+        .or(page.getByTestId("tab-support-lineup"));
+      await expect(supportTab).toBeVisible({ timeout: 10000 });
+      await supportTab.click();
+    }
+
+    // Verify support table row is visible
+    const row1 = page.getByTestId("support-lineup-row-1");
+    await expect(row1).toBeVisible({ timeout: 10000 });
+
+    // 10. Open Participation Transparency Dialog
+    const viewParticipationBtn = page.getByTestId("view-participation-button");
+    await expect(viewParticipationBtn).toBeVisible();
+    await viewParticipationBtn.click();
+
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    // Verify search input inside dialog works
+    const searchInput = dialog.getByPlaceholder(
+      /Buscar jogador|Search player/i,
+    );
+    await expect(searchInput).toBeVisible();
+    await searchInput.fill(owner.name);
+    await expect(dialog.getByText(owner.name).first()).toBeVisible();
+
+    // Clear search and test filter chips
+    await searchInput.clear();
+    const allChip = dialog.getByRole("button", { name: /Todos|All/i }).first();
+    if (await allChip.isVisible()) {
+      await allChip.click();
+    }
+
+    // Close Dialog
+    const closeDialogBtn = dialog
+      .getByRole("button", { name: /Fechar|Close/i })
+      .first();
+    if (await closeDialogBtn.isVisible()) {
+      await closeDialogBtn.click();
+    } else {
+      await page.keyboard.press("Escape");
+    }
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+  });
 });
+
