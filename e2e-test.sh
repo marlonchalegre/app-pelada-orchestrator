@@ -29,10 +29,30 @@ done
 # Backup original database if it exists
 TEMP_DB_DIR=$(mktemp -d)
 HAS_BACKUP=false
+HAS_PG_BACKUP=false
+
 if ls api-peladaapp/peladaapp.db* 1> /dev/null 2>&1; then
-  echo "Backing up existing database..."
+  echo "Backing up existing SQLite database..."
   cp api-peladaapp/peladaapp.db* "$TEMP_DB_DIR/"
   HAS_BACKUP=true
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Backup PostgreSQL if db service is running
+if [ -n "$(docker-compose ps -q db 2>/dev/null)" ]; then
+  echo "Backing up existing PostgreSQL database..."
+  if docker-compose exec -T db pg_dump -U peladaapp -d peladaapp_full > "$TEMP_DB_DIR/pg_backup.sql" 2>/dev/null \
+     && grep -q "PostgreSQL database dump" "$TEMP_DB_DIR/pg_backup.sql"; then
+    HAS_PG_BACKUP=true
+  else
+    echo "WARNING: pg_dump failed or produced an invalid backup."
+  fi
+fi
+
+if [ "$HAS_PG_BACKUP" = false ] && [ -f "$SCRIPT_DIR/scripts/backups_db_backup_20260909_030031.sql" ]; then
+  cp "$SCRIPT_DIR/scripts/backups_db_backup_20260909_030031.sql" "$TEMP_DB_DIR/pg_backup.sql"
+  HAS_PG_BACKUP=true
 fi
 
 # Cleanup function
@@ -41,14 +61,43 @@ cleanup() {
   docker-compose down
 
   if [ "$HAS_BACKUP" = true ]; then
-    echo "Restoring original database..."
+    echo "Restoring original SQLite database..."
     rm -f "$SCRIPT_DIR/api-peladaapp/peladaapp.db"*
     cp "$TEMP_DB_DIR"/peladaapp.db* "$SCRIPT_DIR/api-peladaapp/"
   fi
+
+  if [ "$HAS_PG_BACKUP" = true ] && [ -f "$TEMP_DB_DIR/pg_backup.sql" ]; then
+    echo "Restoring PostgreSQL database..."
+    docker-compose up -d db
+    # Wait until Postgres actually accepts connections (sleep alone is racy)
+    PG_READY=false
+    for _ in $(seq 1 30); do
+      if docker-compose exec -T db pg_isready -U peladaapp >/dev/null 2>&1; then
+        PG_READY=true
+        break
+      fi
+      sleep 1
+    done
+    if [ "$PG_READY" = false ]; then
+      echo "WARNING: PostgreSQL did not become ready; attempting restore anyway."
+    fi
+    docker-compose exec -T db psql -U peladaapp -d postgres -c "DROP DATABASE IF EXISTS peladaapp_full; CREATE DATABASE peladaapp_full OWNER peladaapp;" >/dev/null 2>&1 || true
+    if docker-compose exec -T db psql -v ON_ERROR_STOP=1 -U peladaapp -d peladaapp_full < "$TEMP_DB_DIR/pg_backup.sql" >/dev/null 2>&1; then
+      echo "PostgreSQL database restored successfully."
+    else
+      echo ""
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo "WARNING: PostgreSQL restore FAILED. Development data is gone."
+      echo "Run ./scripts/restore_db.sh to restore from the master backup."
+      echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+      echo ""
+    fi
+    docker-compose stop db
+  fi
+
   rm -rf "$TEMP_DB_DIR"
 }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 trap cleanup EXIT
 
 echo "Cleaning up previous database..."

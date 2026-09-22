@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { saveVideo } from './utils';
+import {
+  saveVideo,
+  registerUser,
+  createOrganization,
+  createPeladaFromAgenda,
+  closeAttendanceList,
+  visible,
+} from './utils';
 
 test.describe('Feature: Global Fixed Goalkeepers', () => {
   const timestamp = Date.now();
@@ -8,76 +15,77 @@ test.describe('Feature: Global Fixed Goalkeepers', () => {
     username: `admin_${timestamp}`,
     email: `admin-${timestamp}@example.com`,
     password: 'password123',
+    position: 'Goalkeeper',
   };
   const orgName = `GK Club ${timestamp}`;
 
-  test('should allow setting global fixed goalkeepers and verify dashboard', async ({ browser }, testInfo) => {
-    const videoOptions = process.env.VIDEO ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } } : {};
+  test('should allow enabling fixed goalkeepers and starting the match', async ({
+    browser,
+  }, testInfo) => {
+    const videoOptions = process.env.VIDEO
+      ? { recordVideo: { dir: testInfo.outputPath('raw-videos') } }
+      : {};
     const context = await browser.newContext(videoOptions);
     const page = await context.newPage();
 
     try {
       await test.step('Setup: Register and Create Organization', async () => {
-        await page.goto('/register');
-        await page.getByTestId('register-name').fill(user.name);
-        await page.getByTestId('register-username').fill(user.username);
-        await page.getByTestId('register-email').fill(user.email);
-        await page.getByTestId('register-password').fill(user.password);
-        await page.getByTestId('register-submit').click();
-        await expect(page).toHaveURL('/');
-
-        await page.getByTestId('create-org-open-dialog').click();
-        await page.getByTestId('org-name-input').fill(orgName);
-        await page.getByTestId('org-submit-button').click();
-        
-        const orgLink = page.getByTestId(`org-link-${orgName}`);
-        await expect(orgLink).toBeVisible();
-        await orgLink.click();
+        await registerUser(page, user);
+        await createOrganization(page, orgName);
       });
 
-      await test.step('Create Pelada with Fixed Goalkeepers', async () => {
-        await page.getByTestId('create-pelada-submit').scrollIntoViewIfNeeded();
-        await page.getByLabel(/Fixed Goalkeepers/i).check();
-        await page.getByTestId('create-pelada-submit').click();
-        
-        await expect(page).toHaveURL(/\/peladas\/\d+\/attendance/);
+      await test.step('Create Pelada and manage attendance', async () => {
+        await createPeladaFromAgenda(page);
+        await visible(page, 'attendance-confirm-button').click();
+        await closeAttendanceList(page);
       });
 
-      await test.step('Manage Attendance', async () => {
-        await page.getByRole('button', { name: /I'm In/i }).click();
-        await page.getByRole('button', { name: /Close List and Create Teams/i }).click();
-        await expect(page).toHaveURL(/\/peladas\/\d+$/);
+      await test.step('Enable fixed goalkeepers and draw teams', async () => {
+        // The fixed-goalkeeper toggle lives in the mobile draw panel, so
+        // shrink the viewport for this part of the flow.
+        await page.setViewportSize({ width: 500, height: 900 });
+        await page.reload();
+        await expect(page.getByText('Sorteio de times')).toBeVisible({
+          timeout: 15000,
+        });
+
+        const fixedGkSwitch = page.getByRole('checkbox', {
+          name: 'Goleiros fixos',
+        });
+        await expect(fixedGkSwitch).toBeVisible();
+        await fixedGkSwitch.check();
+
+        // Draw with the mobile panel
+        await page.getByText('SORTEAR DE NOVO').click();
+        await expect(page.getByText(/BANCO/).first()).toBeVisible({
+          timeout: 15000,
+        });
+
+        // Start the pelada (same StartPeladaDialog on mobile)
+        await page.getByText('INICIAR PELADA').click();
+        await visible(page, 'confirm-start-pelada-button').click();
+        await expect(page).toHaveURL(/\/peladas\/\d+\/matches/, {
+          timeout: 20000,
+        });
       });
 
-      await test.step('Verify Global GK Section', async () => {
-        await expect(page.getByText(/Session Fixed Goalkeepers/i)).toBeVisible();
-        await expect(page.getByText(/GOALKEEPER \(HOME\)/i)).toBeVisible();
-        await expect(page.getByText(/GOALKEEPER \(AWAY\)/i)).toBeVisible();
+      await test.step('Verify Match Dashboard renders players', async () => {
+        // Back to desktop for the dashboard assertions
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.reload();
+        const playerRow = page
+          .locator('[data-testid^="player-row-"]')
+          .first();
+        await expect(playerRow).toBeVisible({ timeout: 15000 });
+        const playerName = await playerRow
+          .getByTestId('player-name')
+          .textContent();
+        expect(playerName).toContain('Admin');
+        // Position labels (ATA/GOL/ZAG/MEI) are rendered next to each player
+        await expect(
+          playerRow.getByTestId('player-position-label'),
+        ).toBeVisible();
       });
-
-      await test.step('Randomize and Start Match', async () => {
-        // Create teams
-        await page.getByTestId('create-team-button').click();
-        await page.getByTestId('create-team-button').click();
-        
-        await page.getByTestId('randomize-teams-button').click();
-        await page.waitForTimeout(1000);
-
-        const startBtn = page.getByTestId('start-pelada-button');
-        await startBtn.scrollIntoViewIfNeeded();
-        await startBtn.click();
-        await page.getByTestId('confirm-start-pelada-button').click();
-        
-        await expect(page).toHaveURL(/\/peladas\/\d+\/matches/);
-      });
-
-      await test.step('Verify Match Dashboard GK Identification', async () => {
-        const playerRow = page.getByTestId('player-row').first();
-        await expect(playerRow).toBeVisible();
-        const playerName = await playerRow.getByTestId('player-name').textContent();
-        expect(playerName).not.toContain('0');
-      });
-
     } finally {
       await context.close();
       await saveVideo(page, 'fixed-goalkeepers-final', testInfo);

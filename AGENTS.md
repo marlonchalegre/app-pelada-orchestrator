@@ -72,6 +72,11 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint` and `npm run format:all`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
 *   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein clj-kondo`, etc.) inside the backend container using `docker compose exec backend <command>`.
+*   **Database Preservation (CRITICAL):**
+    *   **NEVER** wipe the Postgres volume or run `docker compose down -v` without backing up the PostgreSQL database (`peladaapp_full`). The user and developers test against real seeded state (85 users, organizations like 100Fôlego, peladas, attendance).
+    *   The master database dump is preserved in `scripts/backups_db_backup_20260909_030031.sql`.
+    *   To restore the database at any time, execute `./scripts/restore_db.sh`.
+    *   `./e2e-test.sh` has been updated to automatically back up and restore PostgreSQL on exit, ensuring test runs never wipe development data.
 *   **End-to-End Tests:** Use the root-level `./e2e-test.sh` script to run the Playwright suite.
     *   To run all E2E tests: `./e2e-test.sh`
     *   To run a specific E2E test file: `./e2e-test.sh --test tests/filename.spec.ts`
