@@ -48,6 +48,7 @@ test.describe('Phase 1: Identity & Profile', () => {
     });
 
     await test.step('Log back in', async () => {
+      await page.goto('/login');
       await page.getByTestId('login-email').fill(user.email);
       await page.getByTestId('login-password').fill(user.password);
       await page.getByTestId('login-submit').click();

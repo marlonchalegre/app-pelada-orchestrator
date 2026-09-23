@@ -56,7 +56,7 @@ test.describe('Feature: Global Fixed Goalkeepers', () => {
         await fixedGkSwitch.check();
 
         // Draw with the mobile panel
-        await page.getByText('SORTEAR DE NOVO').click();
+        await page.getByTestId('draw-teams-button').click();
         await expect(page.getByText(/BANCO/).first()).toBeVisible({
           timeout: 15000,
         });
