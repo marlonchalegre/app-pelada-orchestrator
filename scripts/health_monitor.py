@@ -17,6 +17,7 @@ WAHA_API_URL = os.environ.get("WAHA_API_URL", "http://waha.peladaapp.svc.cluster
 WAHA_API_KEY = os.environ.get("WAHA_API_KEY")
 WAHA_SESSION = os.environ.get("WAHA_SESSION", "default")
 BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://backend.peladaapp.svc.cluster.local:8000")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://frontend.peladaapp.svc.cluster.local:8080")
 
 # Kubernetes Service Account Configs
 try:
@@ -210,6 +211,24 @@ def check_backend_api():
     except Exception as e:
         return False, str(e), None
 
+def check_frontend():
+    url = f"{FRONTEND_URL}/version.json"
+    req = urllib.request.Request(url, method="GET")
+    req.add_header("Accept", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.getcode() == 200:
+                data = json.loads(resp.read().decode('utf-8'))
+                version = data.get("version")
+                if version:
+                    return True, "OK", version
+                else:
+                    return False, "Version field missing in version.json", None
+            else:
+                return False, f"HTTP status code {resp.getcode()}", None
+    except Exception as e:
+        return False, str(e), None
+
 def check_postgres_conn(host, port=5432):
     try:
         with socket.create_connection((host, port), timeout=5):
@@ -252,6 +271,7 @@ def process_command(text):
     if text == "/status":
         is_waha_ok, waha_msg = check_waha_session()
         is_backend_ok, backend_msg, version = check_backend_api()
+        is_frontend_ok, frontend_msg, frontend_version = check_frontend()
         
         postgres_host = os.environ.get("POSTGRES_HOST", "postgres")
         is_db_ok, db_msg = check_postgres_conn(postgres_host)
@@ -262,10 +282,12 @@ def process_command(text):
         
         status_waha = "✅ WORKING" if is_waha_ok else f"❌ DOWN ({waha_msg})"
         status_api = f"✅ OK (v{version})" if is_backend_ok else f"❌ DOWN ({backend_msg})"
+        status_frontend = f"✅ OK (v{frontend_version})" if is_frontend_ok else f"❌ DOWN ({frontend_msg})"
         status_db = "✅ CONNECTED" if is_db_ok else f"❌ ERROR ({db_msg})"
         
         msg = (
             f"📊 <b>System Status Report</b>\n\n"
+            f"🌐 <b>Frontend Web:</b> {status_frontend}\n"
             f"🖥️ <b>Clojure API:</b> {status_api}\n"
             f"💬 <b>WAHA Session:</b> {status_waha}\n"
             f"🗄️ <b>Postgres DB:</b> {status_db}\n\n"
@@ -315,7 +337,7 @@ def process_command(text):
         msg = (
             f"🤖 <b>PeladaApp Health Monitor Bot</b>\n\n"
             f"Use the following commands to interact with the monitor:\n"
-            f" • /status - View current API, DB, and WAHA status and disk space\n"
+            f" • /status - View current Frontend, API, DB, and WAHA status and disk space\n"
             f" • /qr - Fetch current WAHA QR code to login\n"
             f" • /logs - Fetch last 20 lines of Clojure API logs\n"
             f" • /restart_waha - Restart the WAHA container"
@@ -350,7 +372,6 @@ def handle_telegram_updates():
 
 class PortainerWebhookHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Suppress request logs to stdout to keep stdout clean
         pass
         
     def do_POST(self):
@@ -409,7 +430,9 @@ def main():
     print("Starting Health Monitor...")
     waha_healthy = True
     backend_healthy = True
+    frontend_healthy = True
     current_version = None
+    current_frontend_version = None
     
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         t = threading.Thread(target=handle_telegram_updates, daemon=True)
@@ -456,6 +479,29 @@ def main():
                 alert_msg = f"✅ <b>Backend Alert</b>\nClojure API is back online."
                 send_telegram_message(alert_msg)
 
+        # Check Frontend Web
+        is_frontend_ok, frontend_msg, f_version = check_frontend()
+        print(f"Frontend health: ok={is_frontend_ok}, message={frontend_msg}, version={f_version}")
+
+        if is_frontend_ok:
+            if current_frontend_version is None:
+                current_frontend_version = f_version
+                print(f"Initialized Frontend version tracking at version: {current_frontend_version}")
+            elif f_version != current_frontend_version:
+                alert_msg = f"🚀 <b>Frontend Web Updated</b>\nWeb project has been updated!\nFrom: <code>{current_frontend_version}</code>\nTo: <code>{f_version}</code>"
+                send_telegram_message(alert_msg)
+                current_frontend_version = f_version
+
+        # Handle frontend health state transition
+        if is_frontend_ok != frontend_healthy:
+            frontend_healthy = is_frontend_ok
+            if not frontend_healthy:
+                alert_msg = f"⚠️ <b>Frontend Alert</b>\nFrontend Web is down/unhealthy!\nReason: <i>{frontend_msg}</i>"
+                send_telegram_message(alert_msg)
+            else:
+                alert_msg = f"✅ <b>Frontend Alert</b>\nFrontend Web is back online."
+                send_telegram_message(alert_msg)
+
         # Auditing backend logs for errors
         try:
             log_data = get_backend_logs(since_seconds=60)
@@ -474,8 +520,8 @@ def main():
                         f"<pre>{escaped_err}</pre>"
                     )
                     send_telegram_message(alert_msg)
-            except Exception as e:
-                print(f"Error auditing logs: {e}")
+        except Exception as e:
+            print(f"Error auditing logs: {e}")
 
         time.sleep(60)
 
