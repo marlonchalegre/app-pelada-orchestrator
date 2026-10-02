@@ -28,6 +28,10 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Performance Optimization:** Implement lazy loading, code splitting, and optimize rendering where appropriate.
 *   **Accessibility (A11y):** Ensure all UI components are accessible.
 *   **User Experience (UX):** Prioritize intuitive and responsive user interfaces.
+*   **Theming & Styling (Centralized Theme Rule):**
+    *   **NEVER Hardcode Inline Mode Checks:** Do NOT write dark/light mode ternary checks (such as `theme.palette.mode === "dark" ? ... : ...`) or ad-hoc mode-conditional styles (e.g., `boxShadow`, `backgroundColor`, `border`) inside component files or `sx` props.
+    *   **Move Mode-Dependent Tokens to Theme Files:** All mode-dependent styling tokens, shadows, elevations, subtle backgrounds, and color variations MUST be configured centrally in the theme files (`src/lib/theme.ts`).
+    *   **Use Theme Tokens in Components:** Components must only reference theme tokens (e.g., `theme.customShadows.card`, `theme.customShadows.subtle`, `theme.palette.matchEvents.*`, `theme.palette.matchEventBg.*`, `theme.palette.divider`, `theme.palette.action.hover`, `alpha(theme.palette.*, ...)`, or MUI `elevation={n}`) instead of calculating values based on `palette.mode`.
 
 ## Backend Development (Clojure/Ring - `api-peladaapp`)
 
