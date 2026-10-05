@@ -21,8 +21,7 @@ yarn-error.log*
 # Clojure / JVM build outputs
 target/
 classes/
-.lein-repl-history
-.lein-failures
+.lein*
 
 # Editor / IDE
 .idea/
@@ -35,11 +34,38 @@ tmp/
 
 .clj-kondo/
 .lsp/
+.antigravitycli/
 
 # Scripts
-scripts/
+# scripts/
 # E2E Test Results
 e2e-tests/test-results/
+e2e-tests/tests/*.png
 
 # Local Documentation
 local-docs/
+peladaapp.db*
+*.db
+*.db-wal
+*.db-shm
+*.wal
+*.shm
+waha_data/
+
+# User Uploads
+api-peladaapp/uploads/
+uploads/
+remote-data/
+
+# K8s Sensitive Files
+k8s/k3s-vps.yaml
+k8s/ansible/inventory.ini
+k8s/manifests/*secrets.yaml
+
+pgdata/
+
+# Versioning
+version.json
+
+# Scratch
+api-peladaapp/scratch/

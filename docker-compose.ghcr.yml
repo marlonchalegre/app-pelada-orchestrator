@@ -1,26 +1,77 @@
 services:
   frontend:
     restart: always
-    image: ghcr.io/marlonchalegre/pelada-web:${TAG:-latest}
+    image: ghcr.io/marlonchalegre/web-peladaapp:${TAG:-latest}
     ports:
       - 80:80
     volumes:
       - ./nginx/frontend.prod.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
+      - waha
 
   backend:
     restart: always
-    image: ghcr.io/marlonchalegre/pelada-api:${TAG:-latest}
+    image: ghcr.io/marlonchalegre/api-peladaapp:${TAG:-latest}
     environment:
-      - DB_NAME=data/peladaapp.db
+      - DATABASE_URL=${DATABASE_URL}
       - SKIP_MIGRATIONS=false
       - APP_VERSION=${TAG:-latest}
       - PELADA_API_SECURITY_SIGNING_KEY=${PELADA_API_SECURITY_SIGNING_KEY}
-      - LITESTREAM_ACCESS_KEY_ID=${LITESTREAM_ACCESS_KEY_ID}
-      - LITESTREAM_SECRET_ACCESS_KEY=${LITESTREAM_SECRET_ACCESS_KEY}
-      - LITESTREAM_BUCKET=${LITESTREAM_BUCKET}
-      - LITESTREAM_ENDPOINT=${LITESTREAM_ENDPOINT}
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - SUPER_ADMIN_EMAIL=${SUPER_ADMIN_EMAIL}
+      - SUPER_ADMIN_PASSWORD=${SUPER_ADMIN_PASSWORD}
     volumes:
-      - ./data:/app/data
-      - ./api-peladaapp/litestream.yml:/etc/litestream.yml:ro
+      - ./uploads:/app/uploads
+    depends_on:
+      - waha
+      - postgres
+
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+
+  waha:
+    image: ${WAHA_IMAGE}
+    restart: always
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WAHA_SWAGGER_ENABLED=${WAHA_SWAGGER_ENABLED}
+      - WAHA_DASHBOARD_ENABLED=${WAHA_DASHBOARD_ENABLED}
+      - WHATSAPP_DEFAULT_ENGINE=${WHATSAPP_DEFAULT_ENGINE}
+      - WAHA_RESTART_ALL_SESSIONS=${WAHA_RESTART_ALL_SESSIONS}
+      - WAHA_AUTO_START_DELAY_SECONDS=${WAHA_AUTO_START_DELAY_SECONDS}
+      - WAHA_LOCAL_STORE_BASE_DIR=${WAHA_LOCAL_STORE_BASE_DIR}
+      - WAHA_SQLITE_ENGINE=${WAHA_SQLITE_ENGINE}
+    ports:
+      - 3000:3000
+    volumes:
+      - ./waha_data:/app/.waha/sessions
+
+  scheduler-trigger:
+    image: alpine:latest
+    container_name: pelada-cron-ghcr
+    restart: always
+    depends_on:
+      - backend
+    entrypoint: |
+      sh -c 'echo "*/5 * * * * wget -qO- --post-data=\"\" http://backend:8000/internal/scheduler/tick" > /etc/crontabs/root && crond -f'
+

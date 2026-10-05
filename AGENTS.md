@@ -28,6 +28,10 @@ This document outlines the principles and practices to be followed by an AI assi
 *   **Performance Optimization:** Implement lazy loading, code splitting, and optimize rendering where appropriate.
 *   **Accessibility (A11y):** Ensure all UI components are accessible.
 *   **User Experience (UX):** Prioritize intuitive and responsive user interfaces.
+*   **Theming & Styling (Centralized Theme Rule):**
+    *   **NEVER Hardcode Inline Mode Checks:** Do NOT write dark/light mode ternary checks (such as `theme.palette.mode === "dark" ? ... : ...`) or ad-hoc mode-conditional styles (e.g., `boxShadow`, `backgroundColor`, `border`) inside component files or `sx` props.
+    *   **Move Mode-Dependent Tokens to Theme Files:** All mode-dependent styling tokens, shadows, elevations, subtle backgrounds, and color variations MUST be configured centrally in the theme files (`src/lib/theme.ts`).
+    *   **Use Theme Tokens in Components:** Components must only reference theme tokens (e.g., `theme.customShadows.card`, `theme.customShadows.subtle`, `theme.palette.matchEvents.*`, `theme.palette.matchEventBg.*`, `theme.palette.divider`, `theme.palette.action.hover`, `alpha(theme.palette.*, ...)`, or MUI `elevation={n}`) instead of calculating values based on `palette.mode`.
 
 ## Backend Development (Clojure/Ring - `api-peladaapp`)
 
@@ -45,7 +49,7 @@ This document outlines the principles and practices to be followed by an AI assi
 ## General Development Practices
 
 *   **Testing is Paramount:**
-    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api, and `./e2e-test.sh` for critical user flows) after modifying any code in the respective projects. This is a strict rule.
+    *   **Mandatory Verification:** You MUST always run tests and linting (`npm run lint` & `npm run build` for web, `lein test` & `lein clj-kondo --lint src` for api, and `npm run test:e2e` in `e2e-tests`) after modifying any code in the respective projects. This is a strict rule.
     *   **Bug Fix Verification:** When fixing a bug, you MUST create a new test case that reproduces the bug (failing initially) and passes after the fix. This test case MUST be integrated into the existing feature or unit tests to ensure permanent regression testing. Never delete the reproduction test after the fix; make it a permanent part of the codebase.
     *   **Test-Driven Development (TDD):** Where appropriate, write tests before implementation.
     *   **Unit Tests:** Cover individual functions/components with comprehensive unit tests.
@@ -60,27 +64,33 @@ This document outlines the principles and practices to be followed by an AI assi
     *   **Simplicity:** Prefer simple, elegant solutions over overly complex ones.
     *   **Documentation:** Add comments sparingly, focusing on *why* complex decisions were made, not *what* the code does (which should be self-evident). Update `README.md` and other documentation as necessary.
 *   **Version Control (Git):**
+    *   **Authorization:** NEVER push code to remote repositories without explicit authorization from the user.
     *   **Atomic Commits:** Make small, focused commits that represent a single logical change.
     *   **Descriptive Commit Messages:** Write clear, concise, and informative commit messages.
     *   **Branching Strategy:** Follow the project's branching strategy (e.g., Git Flow, Trunk-Based Development).
 *   **Debugging:** Use systematic debugging approaches. Leverage logging, tracing, and debugging tools effectively.
 *   **Code Reviews:** Think about how your changes would be reviewed by a human senior engineer. Self-review your code thoroughly.
 
+## Business Rules
+
+*   **Attendance Sorting:** Players in attendance lists (confirmed, waitlist, etc.) MUST be sorted primarily by their member type priority (mensalista > diarista > convidado) and then by their attendance update time (FIFO - First In First Out). If update time is missing, it falls back to alphabetical sort by name.
+
+## Authentication & Security
+
+*   **Cookie-Only Authentication:** You MUST NOT use the HTTP header for Authorization token. The token MUST be sent using cookies only (`authToken` cookie).
+*   **Cookie-Based Auth:** The project uses an `authToken` cookie for authentication. The `Authorization` header is **NOT** used for API requests.
+*   **E2E Testing Auth:** In Playwright tests, use the `request` object from hooks or `page.request` to perform API calls. These automatically include the session cookies from the browser context, eliminating the need for manual header management.
+
 ## Tooling & Environment
 
 *   Utilize project-specific tooling (linters, formatters, build tools) to ensure code quality and consistency.
-*   **Pre-commit Requirements:** Always run linting and formatting fixes for both `web-peladaapp` (`npm run lint` and `npm run format:all`) and `api-peladaapp` (`lein clojure-lsp clean-ns` and `lein clojure-lsp format`) before committing any changes.
+*   **Pre-commit Requirements:** Always run linting, formatting fixes, and **full project build** for `web-peladaapp` (`npm run lint`, `npm run format:all`, and `npm run build`) and `api-peladaapp` (`lein lint-fix`) before committing any changes. This ensures no type errors or build regressions are introduced.
 *   For the `api-peladaapp` submodule, after any code modifications, run `lein lint` from within the `api-peladaapp` directory to ensure adherence to linting rules and code formatting.
-*   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein clj-kondo`, etc.) inside the backend container using `docker compose exec backend <command>`.
-*   **Database Preservation (CRITICAL):**
-    *   **NEVER** wipe the Postgres volume or run `docker compose down -v` without backing up the PostgreSQL database (`peladaapp_full`). The user and developers test against real seeded state (85 users, organizations like 100Fôlego, peladas, attendance).
-    *   The master database dump is preserved in `scripts/backups_db_backup_20260909_030031.sql`.
-    *   To restore the database at any time, execute `./scripts/restore_db.sh`.
-    *   `./e2e-test.sh` has been updated to automatically back up and restore PostgreSQL on exit, ensuring test runs never wipe development data.
-*   **End-to-End Tests:** Use the root-level `./e2e-test.sh` script to run the Playwright suite.
-    *   To run all E2E tests: `./e2e-test.sh`
-    *   To run a specific E2E test file: `./e2e-test.sh --test tests/filename.spec.ts`
-    *   To record video of the tests: `./e2e-test.sh --video`
+*   **Docker Container Usage:** Always start the `docker-compose` environment and execute backend commands (like `lein test`, `lein lint`, etc.) inside the backend container using `docker compose exec backend <command>`.
+*   **End-to-End Tests:** Use the `npm run test:e2e` command inside `e2e-tests` directory.
+    *   To run all E2E tests: `cd e2e-tests && npm run test:e2e`
+    *   To run a specific E2E test file (requires environment up): `cd e2e-tests && npm run test -- tests/filename.spec.ts`
+
 *   Understand and leverage the `docker-compose` setup for development and production environments.
 
 By adhering to these guidelines, the AI assistant will function as a highly effective and integrated member of the development team, contributing to the success and longevity of the project.

@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+import json
+import urllib.request
+import urllib.parse
+import http.cookiejar
+import sys
+import argparse
+import time
+
+# Default configuration
+DEFAULT_BASE_URL = "http://localhost:8000"
+
+# Set up cookie handling
+cj = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+urllib.request.install_opener(opener)
+
+users = [
+    {"name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "position": "Midfielder", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Frodo Baggins", "username": "frodo", "email": "frodo@fantasy.com", "position": "Midfielder", "score": 7.0, "member_type": "diarista"},
+    {"name": "Samwise Gamgee", "username": "samwise", "email": "samwise@fantasy.com", "position": "Defender", "score": 7.5, "member_type": "mensalista"},
+    {"name": "Aragorn", "username": "aragorn", "email": "aragorn@fantasy.com", "position": "Striker", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Legolas", "username": "legolas", "email": "legolas@fantasy.com", "position": "Striker", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Gimli", "username": "gimli", "email": "gimli@fantasy.com", "position": "Defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Boromir", "username": "boromir", "email": "boromir@fantasy.com", "position": "Defender", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Saruman", "username": "saruman", "email": "saruman@fantasy.com", "position": "Goalkeeper", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Galadriel", "username": "galadriel", "email": "galadriel@fantasy.com", "position": "Midfielder", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Elrond", "username": "elrond", "email": "elrond@fantasy.com", "position": "Midfielder", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Bilbo Baggins", "username": "bilbo", "email": "bilbo@fantasy.com", "position": "Goalkeeper", "score": 7.0, "member_type": "diarista"},
+    {"name": "Gollum", "username": "gollum", "email": "gollum@fantasy.com", "position": "Striker", "score": 6.5, "member_type": "diarista"},
+    {"name": "Sauron", "username": "sauron", "email": "sauron@fantasy.com", "position": "Defender", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Arwen", "username": "arwen", "email": "arwen@fantasy.com", "position": "Midfielder", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eowyn", "username": "eowyn", "email": "eowyn@fantasy.com", "position": "Striker", "score": 8.2, "member_type": "mensalista"},
+    {"name": "Faramir", "username": "faramir", "email": "faramir@fantasy.com", "position": "Midfielder", "score": 7.8, "member_type": "mensalista"},
+    {"name": "Theoden", "username": "theoden", "email": "theoden@fantasy.com", "position": "Defender", "score": 8.0, "member_type": "mensalista"},
+    {"name": "Eomer", "username": "eomer", "email": "eomer@fantasy.com", "position": "Striker", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Treebeard", "username": "treebeard", "email": "treebeard@fantasy.com", "position": "Defender", "score": 8.8, "member_type": "mensalista"},
+    {"name": "Radagast", "username": "radagast", "email": "radagast@fantasy.com", "position": "Midfielder", "score": 7.5, "member_type": "diarista"},
+    {"name": "Witch King", "username": "witchking", "email": "witchking@fantasy.com", "position": "Defender", "score": 9.0, "member_type": "mensalista"},
+    {"name": "Smaug", "username": "smaug", "email": "smaug@fantasy.com", "position": "Striker", "score": 9.5, "member_type": "mensalista"},
+    {"name": "Thorin Oakenshield", "username": "thorin", "email": "thorin@fantasy.com", "position": "Defender", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Balrog", "username": "balrog", "email": "balrog@fantasy.com", "position": "Striker", "score": 9.2, "member_type": "mensalista"},
+    {"name": "Isildur", "username": "isildur", "email": "isildur@fantasy.com", "position": "Midfielder", "score": 8.5, "member_type": "mensalista"},
+    {"name": "Celeborn", "username": "celeborn", "email": "celeborn@fantasy.com", "position": "Midfielder", "score": 8.2, "member_type": "mensalista"}
+]
+
+def make_request(base_url, path, method="GET", data=None, headers=None):
+    url = f"{base_url}{path}"
+    if headers is None:
+        headers = {}
+    
+    body = None
+    if data:
+        body = json.dumps(data).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req) as f:
+            return json.loads(f.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        # For register, 400 often means already exists
+        if e.code == 400 and path == "/auth/register":
+            raise e
+        # Read body for better error message
+        try:
+            error_body = e.read().decode("utf-8")
+        except:
+            error_body = "No error body"
+        raise Exception(f"HTTP {e.code}: {e.reason} - {error_body}")
+
+def seed(base_url):
+    print(f"Targeting: {base_url}")
+    
+    # 1. Ensure Gandalf exists and login
+    print("Authenticating Gandalf...")
+    gandalf_id = None
+    
+    # Try login first
+    try:
+        login_res = make_request(base_url, "/auth/login", method="POST", data={"email": "gandalf@fantasy.com", "password": "1234"})
+        gandalf_id = login_res["user"]["id"]
+        print(f"Gandalf logged in (ID: {gandalf_id})")
+    except Exception:
+        print("Gandalf login failed, trying to register...")
+        try:
+            res = make_request(base_url, "/auth/register", method="POST", data={
+                "name": "Gandalf", "username": "gandalf", "email": "gandalf@fantasy.com", "password": "1234", "position": "Midfielder"
+            })
+            gandalf_id = res["id"]
+            make_request(base_url, "/auth/login", method="POST", data={"email": "gandalf@fantasy.com", "password": "1234"})
+            print(f"Gandalf registered and logged in (ID: {gandalf_id})")
+        except Exception as e:
+            # If register failed, he might exist with a different password or we just need to find his ID
+            print(f"Gandalf registration failed: {e}")
+            print("Attempting to find Gandalf via search...")
+            try:
+                # We need a session to search, but we don't have one. 
+                # Let's try to register another temporary admin to perform the search
+                temp_email = f"temp_admin_{int(time.time())}@fantasy.com"
+                make_request(base_url, "/auth/register", method="POST", data={
+                    "name": "Temp Admin", "username": f"temp_{int(time.time())}", "email": temp_email, "password": "1234"
+                })
+                make_request(base_url, "/auth/login", method="POST", data={"email": temp_email, "password": "1234"})
+                search_res = make_request(base_url, f"/api/users/search?q=gandalf")
+                found = next((u for u in search_res if u["username"] == "gandalf"), None)
+                if found:
+                    gandalf_id = found["id"]
+                    print(f"Found existing Gandalf ID: {gandalf_id}. PLEASE ENSURE PASSWORD IS '1234'")
+                    # Now try to login again assuming password 1234
+                    # Logout temp admin first by clearing cookies
+                    cj.clear()
+                    make_request(base_url, "/auth/login", method="POST", data={"email": "gandalf@fantasy.com", "password": "1234"})
+                else:
+                    print("Gandalf not found even after search.")
+                    return
+            except Exception as e2:
+                print(f"CRITICAL: Could not setup Gandalf: {e2}")
+                return
+
+    # 2. Create Organization
+    print("Setting up 'Fantasy League' organization...")
+    org_id = None
+    try:
+        # Check if it exists first by listing all organizations (if allowed)
+        # Or just try to create and catch
+        org_res = make_request(base_url, "/api/organizations", method="POST", data={"name": "Fantasy League"})
+        org_id = org_res["id"]
+        print(f"Organization created (ID: {org_id}) with Gandalf as owner.")
+    except Exception as e:
+        print(f"Organization creation failed or it already exists: {e}")
+        print("Searching for 'Fantasy League' in Gandalf's organizations...")
+        try:
+            user_orgs = make_request(base_url, f"/api/users/{gandalf_id}/organizations")
+            fantasy_org = next((o for o in user_orgs if o["name"] == "Fantasy League"), None)
+            if fantasy_org:
+                org_id = fantasy_org["id"]
+                print(f"Found existing 'Fantasy League' organization (ID: {org_id})")
+            else:
+                # If Gandalf doesn't have it, maybe someone else created it?
+                # But Gandalf MUST be the owner for this script to work correctly with his token.
+                print("Gandalf is not an admin of 'Fantasy League'.")
+                # Try to find it globally if possible
+                all_orgs = make_request(base_url, "/api/organizations")
+                fantasy_org = next((o for o in all_orgs if o["name"] == "Fantasy League"), None)
+                if fantasy_org:
+                    org_id = fantasy_org["id"]
+                    print(f"Found 'Fantasy League' (ID: {org_id}) but Gandalf might not be owner.")
+                else:
+                    print("Could not find or create organization.")
+                    return
+        except Exception as e:
+            print(f"Failed to find organization: {e}")
+            return
+
+    # 3. Process all users
+    print(f"Processing {len(users)} users...")
+    
+    # Fetch existing org members to avoid duplicates
+    existing_members = []
+    try:
+        existing_members = make_request(base_url, f"/api/organizations/{org_id}/players")
+        print(f"  (Found {len(existing_members)} existing members in org)")
+    except Exception as e:
+        print(f"  (Warning: Could not fetch existing members: {e})")
+
+    for u in users:
+        print(f"  > {u['name']}...", end=" ", flush=True)
+        user_id = None
+        
+        # Try register
+        try:
+            res = make_request(base_url, "/auth/register", method="POST", data={
+                "name": u["name"], "username": u["username"], "email": u["email"], "password": "1234", "position": u["position"]
+            })
+            user_id = res["id"]
+        except Exception:
+            # Try find existing via search
+            try:
+                search_res = make_request(base_url, f"/api/users/search?q={u['username']}")
+                found = next((item for item in search_res if item["username"] == u["username"]), None)
+                if found:
+                    user_id = found["id"]
+            except Exception:
+                pass
+
+        if user_id:
+            # Check if already in org
+            existing_player = next((m for m in existing_members if m["user_id"] == user_id), None)
+            
+            if existing_player:
+                # Update existing player to ensure score and member_type are correct
+                try:
+                    make_request(base_url, f"/api/players/{existing_player['id']}", method="PUT", data={
+                        "grade": u["score"],
+                        "member_type": u["member_type"]
+                    })
+                    print("Updated in org.")
+                except Exception as e:
+                    print(f"Error updating in org: {e}")
+                continue
+
+            # Add to org as player
+            try:
+                make_request(base_url, "/api/players", method="POST", data={
+                    "user_id": user_id,
+                    "organization_id": org_id,
+                    "grade": u["score"],
+                    "member_type": u["member_type"]
+                })
+                print("Added to org.")
+            except Exception as e:
+                print(f"Error adding to org: {e}")
+        else:
+            print("Failed to identify user ID.")
+
+    print("\nFantasy League setup complete!")
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Seed fantasy users and organization into Pelada App.")
+    parser.add_argument("--url", default=DEFAULT_BASE_URL, help=f"Base URL of the API (default: {DEFAULT_BASE_URL})")
+    args = parser.parse_args()
+    
+    seed(args.url)

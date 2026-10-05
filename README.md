@@ -6,9 +6,19 @@ The Pelada App monorepo bundles the backend Clojure API and the React front-end 
 Technology Stack
 ---------------
 
-- **Backend:** Clojure, Ring/Compojure, next.jdbc, SQLite, Buddy Auth (JWT), Stuart Sierra Component.
+- **Backend:** Clojure, Ring/Compojure, next.jdbc, PostgreSQL, Buddy Auth (Cookie), Stuart Sierra Component.
 - **Frontend:** React 19, TypeScript, Vite, Material-UI (MUI), Vitest.
 - **Infrastructure:** Docker, Docker Compose, Nginx.
+
+Documentation Portal
+--------------------
+
+For detailed guides, please refer to our **[📚 Documentation Portal](docs/README.md)**:
+
+*   **[⚽ User Features Guide](docs/user-features.md)**: Role models, registration, game day lifecycles, team randomizations, and post-match voting rules.
+*   **[🏛️ Technical Architecture](docs/technical-architecture.md)**: Decoupled structures, database schemas, and mathematical algorithms (Bucket Shuffle, ILS).
+*   **[🛠️ Development & Testing Guide](docs/development-testing.md)**: Local configurations, code standards, and test suites.
+*   **[🚢 Kubernetes Deployment Guide](docs/kubernetes-deployment.md)**: VPS setups using K3s and Cloudflare Tunnels.
 
 Repository Layout
 -----------------
@@ -18,13 +28,15 @@ Repository Layout
 - `e2e-tests/`: Playwright end-to-end tests suite and documentation.
 - `docker-compose*.yml`: Docker Compose definitions for development and production-like workflows.
 - `nginx/`: Reverse proxy configuration used by the Compose stacks.
-- `seed_anime_users.sh`: Script to seed the database with test users.
+- `ARCHITECTURE.md`: High-level system design overview.
+- `CONTRIBUTING.md`: Guidelines for development and submission.
 
 Prerequisites
 -------------
 
 - Docker Engine 24.x or newer with the Compose plugin (`docker compose`).
 - Git 2.34+ with SSH access to the submodule repositories.
+- PostgreSQL 15+ (if running outside Docker).
 - Optional: `direnv` or another env loader if you manage environment variables outside Compose.
 
 Cloning the Repository
@@ -47,10 +59,10 @@ Docker Workflows
 
 ### Local development stack
 
-Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access.
+Runs the React front-end with hot reload (using specific volume mounts for better performance), the Clojure API with code reloading, and Nginx for unified access. It also includes a PostgreSQL database.
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build
+docker compose up --build
 ```
 
 Services exposed:
@@ -58,41 +70,28 @@ Services exposed:
 - **Unified Web UI (Nginx):** `http://localhost:8080`
 - **Front-end dev server:** `http://localhost:8080` (Proxied)
 - **Backend API:** `http://localhost:8000` (Direct) or `http://localhost:8080/api` (Proxied)
+- **Database (PostgreSQL):** `localhost:5432`
 
 Restart or rebuild individual services as needed:
 
 ```bash
-docker compose -f docker-compose.dev.yml up --build frontend
-docker compose -f docker-compose.dev.yml restart backend
+docker compose up --build frontend
+docker compose restart backend
 ```
-
-### Production build preview
-
-Builds production images for both services and serves the pre-built front-end via Nginx.
-
-```bash
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up
-```
-
-This stack builds and tags production images as `peladaapp-frontend:prod` and `peladaapp-backend:prod`. The Nginx container exposes the bundled site at `http://localhost`.
 
 Testing
 -------
 
 ### End-to-End (E2E) Tests
 
-We use Playwright for end-to-end testing. The `e2e-test.sh` script orchestrates the environment setup (using Docker), runs the tests, and handles cleanup.
+We use Playwright for end-to-end testing. These tests run against a full docker-compose environment to ensure real-world reliability.
 
 ```bash
-# Run all E2E tests
-./e2e-test.sh
+# To run all E2E tests:
+cd e2e-tests && npm run test:e2e
 
-# Run a specific test file
-./e2e-test.sh --test tests/leave_organization.spec.ts
-
-# Record video of the test run
-./e2e-test.sh --video
+# To run a specific E2E test file (requires environment up):
+cd e2e-tests && npm run test -- tests/filename.spec.ts
 ```
 
 See `e2e-tests/README.md` for more details.
@@ -100,9 +99,22 @@ See `e2e-tests/README.md` for more details.
 Development Tips
 ----------------
 
-- **Database:** The backend uses an embedded SQLite database (`peladaapp.db`). In development, this file is persisted via Docker volumes if you mount the `api-peladaapp` directory.
-- **Seeding:** Use `./seed_anime_users.sh` to populate the database with test data once the backend is running.
+- **Database:** The backend uses a PostgreSQL database. In development, data is persisted via Docker volumes.
+- **Seeding:** Use the available seeding scripts to populate the database with test data once the backend is running.
 - **Submodules:** Remember that `api-peladaapp` and `web-peladaapp` are separate git repositories. Commits made inside them must be pushed to their respective remotes.
+
+Deployment
+----------
+
+### Docker Compose
+For standard VPS deployments using Docker Compose and GHCR images, use:
+```bash
+docker compose -f docker-compose.ghcr.yml up -d
+```
+
+### Kubernetes (K3s + Cloudflare Tunnel)
+For a more robust, production-grade deployment on a VPS using Kubernetes, refer to our:
+👉 **[Kubernetes Deployment Guide](docs/kubernetes-deployment.md)**
 
 License
 -------

@@ -1,0 +1,151 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: db-backup
+  namespace: peladaapp
+spec:
+  schedule: "0 3 * * *" # Daily at 3 AM
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: postgres-backup
+              image: amazon/aws-cli:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  # Install dependencies
+                  yum install -y postgresql16 gzip
+                  
+                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+                  FILENAME="db_backup_${TIMESTAMP}.sql.gz"
+                  
+                  echo "Starting database dump..."
+                  # Use .pgpass file for more robust authentication
+                  export PGPASSFILE="/tmp/.pgpass"
+                  echo "${POSTGRES_HOST}:5432:${POSTGRES_DB}:${POSTGRES_USER}:${POSTGRES_PASSWORD}" > "$PGPASSFILE"
+                  chmod 0600 "$PGPASSFILE"
+                  
+                  pg_dump -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -w | gzip > "/tmp/$FILENAME"
+                  
+                  if [ ${PIPESTATUS[0]} -ne 0 ]; then
+                    echo "Error: pg_dump failed"
+                    rm -f "$PGPASSFILE"
+                    exit 1
+                  fi
+                  
+                  rm -f "$PGPASSFILE"
+                  echo "Uploading to R2..."
+                  aws s3 cp /tmp/$FILENAME s3://$R2_BUCKET/backups/db/$FILENAME \
+                    --endpoint-url $R2_ENDPOINT_URL \
+                    --region auto
+                  
+                  echo "Backup completed: $FILENAME"
+              env:
+                - name: POSTGRES_HOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: POSTGRES_HOST
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: POSTGRES_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: POSTGRES_DB
+                - name: R2_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_ACCESS_KEY_ID
+                - name: R2_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_SECRET_ACCESS_KEY
+                - name: R2_ENDPOINT_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_ENDPOINT_URL
+                - name: R2_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_BUCKET
+                - name: AWS_ACCESS_KEY_ID
+                  value: $(R2_ACCESS_KEY_ID)
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: $(R2_SECRET_ACCESS_KEY)
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: uploads-backup
+  namespace: peladaapp
+spec:
+  schedule: "0 4 * * *" # Daily at 4 AM
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: uploads-sync
+              image: amazon/aws-cli:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  echo "Syncing uploads to R2..."
+                  aws s3 sync /app/uploads s3://$R2_BUCKET/backups/uploads \
+                    --endpoint-url $R2_ENDPOINT_URL \
+                    --region auto \
+                    --delete
+                  echo "Sync completed."
+              env:
+                - name: R2_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_ACCESS_KEY_ID
+                - name: R2_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_SECRET_ACCESS_KEY
+                - name: R2_ENDPOINT_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_ENDPOINT_URL
+                - name: R2_BUCKET
+                  valueFrom:
+                    secretKeyRef:
+                      name: peladaapp-secrets
+                      key: R2_BUCKET
+                - name: AWS_ACCESS_KEY_ID
+                  value: $(R2_ACCESS_KEY_ID)
+                - name: AWS_SECRET_ACCESS_KEY
+                  value: $(R2_SECRET_ACCESS_KEY)
+              volumeMounts:
+                - name: uploads-storage
+                  mountPath: /app/uploads
+          volumes:
+            - name: uploads-storage
+              persistentVolumeClaim:
+                claimName: backend-uploads-pvc

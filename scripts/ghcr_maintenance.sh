@@ -9,11 +9,19 @@ set -o pipefail
 # Configuration
 PROJECT_DIR="/home/dietpi/app-pelada-orchestrator"
 BACKUP_DIR="/home/dietpi/backups/peladaapp"
-DATA_FILE="./data/peladaapp.db"
 TAG_FILE="./last_success_tag"
 COMPOSE_FILE="docker-compose.ghcr.yml"
 LOCK_FILE="/tmp/peladaapp_maintenance.lock"
-TURSO_DB_NAME="peladaapp"
+
+FORCE_RUN=false
+
+# Argument parsing
+while getopts "f" opt; do
+  case $opt in
+    f) FORCE_RUN=true ;;
+    *) echo "Usage: $0 [-f]" >&2; exit 1 ;;
+  esac
+done
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
@@ -28,6 +36,12 @@ error_exit() {
 
 setup_environment() {
     log "Setting up environment..."
+    
+    # Load user's bashrc if it exists to get exported variables like DATABASE_URL
+    if [ -f "$HOME/.bashrc" ]; then
+        source "$HOME/.bashrc"
+    fi
+
     if [ -f "$LOCK_FILE" ]; then
         log "Maintenance already in progress. Exiting."
         exit 0
@@ -63,44 +77,37 @@ update_code_and_get_tag() {
     git fetch origin main --tags --quiet
     git reset --hard origin/main
     
+    # Use SHA for precise change detection
+    local current_sha=$(git rev-parse HEAD)
+    
     # 1. Try to find a semver tag on this commit (e.g., v1.0.5)
     local exact_tag=$(git describe --tags --exact-match 2>/dev/null || true)
     
     if [ -n "$exact_tag" ]; then
         TAG="$exact_tag"
     else
-        # 2. Use the timestamp format matching GitHub Actions (BRT)
-        # We assume the server environment is set correctly or we force TZ
-        TAG=$(TZ="America/Sao_Paulo" date +'%d%m%Y-%H%M')
+        # 2. Use 'latest' tag for general deployments
+        TAG="latest"
     fi
     
-    log "Identified version tag: $TAG"
+    log "Identified version tag: $TAG (SHA: ${current_sha:0:7})"
     
-    # Check if we are already running this version (unlikely with timestamp, but good for semver)
-    if [ -f "$TAG_FILE" ] && [ "$(cat "$TAG_FILE")" == "$TAG" ]; then
-        if docker compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
-            log "Version $TAG is already deployed and running."
-            return 1 # No change needed
+    # Check if we are already running this exact commit
+    # Format in TAG_FILE: current_sha:tag
+    if [ "$FORCE_RUN" = false ] && [ -f "$TAG_FILE" ]; then
+        local last_state=$(cat "$TAG_FILE")
+        local last_sha="${last_state%%:*}"
+        if [ "$last_sha" == "$current_sha" ]; then
+            if docker compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
+                log "Commit ${current_sha:0:7} is already deployed and running. Use -f to force."
+                return 1 # No change needed
+            fi
         fi
     fi
+    
+    # Store the new state to be saved on success
+    NEW_STATE="$current_sha:$TAG"
     return 0 # Change detected
-}
-
-backup_database() {
-    log "Backing up local database..."
-    mkdir -p ./data
-    if [ -f "$DATA_FILE" ]; then
-        cp "$DATA_FILE" "$BACKUP_DIR/peladaapp.db_$TAG"
-    fi
-}
-
-migrate_turso() {
-    if [ -n "$TURSO_DATABASE_URL" ]; then
-        log "Applying migrations to Turso..."
-        if [ -f "./scripts/migrate.sh" ]; then
-            ./scripts/migrate.sh "$TURSO_DB_NAME"
-        fi
-    fi
 }
 
 pull_images() {
@@ -109,8 +116,8 @@ pull_images() {
     # Create deployment-specific env file
     echo "TAG=$TAG" > .env.deploy
     
-    # Pass necessary runtime secrets to the backend
-    vars=("PELADA_API_SECURITY_SIGNING_KEY" "LITESTREAM_ACCESS_KEY_ID" "LITESTREAM_SECRET_ACCESS_KEY" "LITESTREAM_BUCKET" "LITESTREAM_ENDPOINT")
+    # Pass necessary runtime secrets to the backend and waha
+    vars=("PELADA_API_SECURITY_SIGNING_KEY" "WAHA_API_KEY" "WAHA_DASHBOARD_USERNAME" "WAHA_DASHBOARD_PASSWORD" "POSTGRES_HOST" "POSTGRES_USER" "POSTGRES_PASSWORD" "POSTGRES_DB" "POSTGRES_PORT" "DATABASE_URL")
     for v in "${vars[@]}"; do
         [ -n "${!v}" ] && echo "$v=${!v}" >> .env.deploy
     done
@@ -129,9 +136,25 @@ pull_images() {
     fi
 }
 
+WAHA_RECREATED=false
+
 replace_containers() {
     log "Replacing containers with version $TAG..."
-    TAG=$TAG docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up -d --force-recreate
+    
+    # Get current waha container ID to check if it changes
+    OLD_WAHA_ID=$(docker compose -f "$COMPOSE_FILE" ps -q waha || true)
+    
+    # Removed --force-recreate to avoid unnecessary restarts
+    # This will only recreate containers whose configuration or image has changed
+    TAG=$TAG docker compose --env-file .env.deploy -f "$COMPOSE_FILE" up -d
+    
+    # Get new waha container ID
+    NEW_WAHA_ID=$(docker compose -f "$COMPOSE_FILE" ps -q waha || true)
+    
+    if [ "$OLD_WAHA_ID" != "$NEW_WAHA_ID" ]; then
+        WAHA_RECREATED=true
+        log "Waha container was recreated/restarted."
+    fi
 }
 
 perform_health_check() {
@@ -148,15 +171,16 @@ perform_health_check() {
 
 save_success_state() {
     [ -f "$TAG_FILE" ] && cp "$TAG_FILE" "$TAG_FILE.prev"
-    echo "$TAG" > "$TAG_FILE"
+    echo "$NEW_STATE" > "$TAG_FILE"
     [ -f .env.deploy ] && rm -f .env.deploy
 }
 
 perform_rollback() {
     log "Rolling back..."
     if [ -f "$TAG_FILE.prev" ]; then
-        local prev_tag=$(cat "$TAG_FILE.prev")
-        log "Attempting rollback to $prev_tag"
+        local last_state=$(cat "$TAG_FILE.prev")
+        local prev_tag="${last_state#*:}"
+        log "Attempting rollback to tag: $prev_tag"
         TAG=$prev_tag docker compose -f "$COMPOSE_FILE" up -d --force-recreate
     fi
 }
@@ -183,10 +207,14 @@ main() {
     fi
 
     login_ghcr
-    backup_database
-    migrate_turso
     
     if pull_images && replace_containers && perform_health_check; then
+        if [ "$WAHA_RECREATED" = true ]; then
+            log "Waha was recreated, waiting for it to be ready and resuming sessions..."
+            # Wait for waha to initialize (GOWS engine can take a few seconds)
+            sleep 15
+            WAHA_API_URL="http://localhost:3000" WAHA_API_KEY=$WAHA_API_KEY python3 scripts/waha_manager.py resume || log "Warning: Failed to resume waha sessions"
+        fi
         save_success_state
         log "Deployment successful!"
         cleanup_old_system

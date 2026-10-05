@@ -5,15 +5,21 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: 0,
-  workers: 2,
+  workers: undefined,
   reporter: 'list',
-  timeout: 120000,
+  timeout: 60000,
+  maxFailures: 0,
   use: {
     baseURL: 'http://localhost:8080',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    actionTimeout: 30000,
+  },
+  expect: {
+    timeout: 15000,
   },
   // Custom property to make it easy to reuse in manual contexts
+
   metadata: {
     recordVideo: process.env.VIDEO ? { dir: 'test-results/videos/' } : undefined,
   },
