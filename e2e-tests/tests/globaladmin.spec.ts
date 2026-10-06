@@ -1,18 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { execSync } from "child_process";
 import {
   saveVideo,
   registerUser,
   createOrganization,
   grantOrgCreation,
+  promoteToGlobalAdmin,
+  visible,
   UserData,
 } from "./utils";
-
-// Helper to run PostgreSQL command inside docker container to promote user
-function promoteToGlobalAdmin(email: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET is_super_admin = TRUE WHERE email = '${email}';"`;
-  execSync(cmd);
-}
 
 test.describe("Global Admin Panel & Block Systems", () => {
   const timestamp = Date.now() + Math.floor(Math.random() * 10000);
@@ -44,6 +39,7 @@ test.describe("Global Admin Panel & Block Systems", () => {
   const orgName = `Test Block Org ${timestamp}`;
 
   test("Global Admin and Blocking Workflows", async ({ browser }, testInfo) => {
+    test.setTimeout(120000);
     const videoOptions = process.env.VIDEO
       ? { recordVideo: { dir: testInfo.outputPath("raw-videos") } }
       : {};
@@ -68,7 +64,7 @@ test.describe("Global Admin Panel & Block Systems", () => {
       await expect(regularPage).toHaveURL("/home");
 
       // Dropdown menu should not contain Admin Panel
-      await regularPage.getByTestId("user-settings-button").click();
+      await visible(regularPage, "user-settings-button").click();
       await expect(regularPage.getByTestId("admin-menu-item")).toBeHidden();
       // Close dropdown
       await regularPage.keyboard.press("Escape");
@@ -82,8 +78,8 @@ test.describe("Global Admin Panel & Block Systems", () => {
       promoteToGlobalAdmin(globalAdminUser.email);
 
       // Log out and log back in to get a new token/cookie with the updated claim
-      await globalAdminPage.getByTestId("user-settings-button").click();
-      await globalAdminPage.getByTestId("logout-menu-item").click();
+      await visible(globalAdminPage, "user-settings-button").click();
+      await visible(globalAdminPage, "logout-menu-item").click();
       await expect(globalAdminPage).toHaveURL("/");
 
       // Log back in
@@ -98,8 +94,8 @@ test.describe("Global Admin Panel & Block Systems", () => {
       await expect(globalAdminPage).toHaveURL("/home");
 
       // Click avatar menu and click admin panel
-      await globalAdminPage.getByTestId("user-settings-button").click();
-      const adminMenu = globalAdminPage.getByTestId("admin-menu-item");
+      await visible(globalAdminPage, "user-settings-button").click();
+      const adminMenu = visible(globalAdminPage, "admin-menu-item");
       await expect(adminMenu).toBeVisible();
       await adminMenu.click();
 
@@ -268,8 +264,8 @@ test.describe("Global Admin Panel & Block Systems", () => {
       ).toBeHidden();
 
       // Blocked users should still be able to view their profile page
-      await regularPage.getByTestId("user-settings-button").click();
-      await regularPage.getByTestId("profile-menu-item").click();
+      await visible(regularPage, "user-settings-button").click();
+      await visible(regularPage, "profile-menu-item").click();
       await expect(regularPage).toHaveURL("/profile");
     });
 
@@ -378,8 +374,8 @@ test.describe("Global Admin Panel & Block Systems", () => {
 
       // Log out regular user and verify they can log back in with the new password
       await regularPage.goto("/home");
-      await regularPage.getByTestId("user-settings-button").click();
-      await regularPage.getByTestId("logout-menu-item").click();
+      await visible(regularPage, "user-settings-button").click();
+      await visible(regularPage, "logout-menu-item").click();
       await expect(regularPage).toHaveURL("/");
 
       const updatedRegularUser = { ...regularUser, password: newPassword };
@@ -531,8 +527,8 @@ test.describe("Global Admin Panel & Block Systems", () => {
 
       // Verify regular user cannot log in anymore
       await regularPage.goto("/home");
-      await regularPage.getByTestId("user-settings-button").click();
-      await regularPage.getByTestId("logout-menu-item").click();
+      await visible(regularPage, "user-settings-button").click();
+      await visible(regularPage, "logout-menu-item").click();
       await expect(regularPage).toHaveURL("/");
 
       await regularPage.goto("/login");

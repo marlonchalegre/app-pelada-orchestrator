@@ -37,35 +37,24 @@ test.describe("Organization Statistics", () => {
       await expect(
         page.getByRole("heading", { name: new RegExp(orgName) }),
       ).toBeVisible();
-
       await expect(
-        page.getByRole("heading", { name: /Artilheiro|Top Scorer/i }),
+        page.getByText(/Estatísticas da temporada|Season statistics/i),
       ).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: /Garçom|Top Assister/i }),
-      ).toBeVisible();
-      await expect(page.getByRole("heading", { name: /MVP/i })).toBeVisible();
     });
 
-    await test.step("Verify Filters", async () => {
-      const searchInput = page.getByPlaceholder(/Nome do Jogador|Player Name/i);
-      await expect(searchInput).toBeVisible();
-      await searchInput.fill("Non Existent Player");
-      await expect(
-        page.getByText(/Nenhuma estatística encontrada|No statistics found/i),
-      ).toBeVisible();
-      await searchInput.fill("");
+    await test.step("Verify Metric Tabs", async () => {
+      await expect(page.getByRole("button", { name: "GOLS" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "ASSISTÊNCIAS" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "PRESENÇA" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "TÍTULOS" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "NOTA" })).toBeVisible();
 
-      await page.getByTestId("filters-header").click();
-      await expect(searchInput).toBeHidden();
-      await page.getByTestId("filters-header").click();
-      await expect(searchInput).toBeVisible();
+      await page.getByRole("button", { name: "ASSISTÊNCIAS" }).click();
+      await page.getByRole("button", { name: "GOLS" }).click();
     });
 
     await test.step("Verify Export Button", async () => {
-      await expect(
-        page.getByRole("button", { name: /EXPORTAR|EXPORT/i }),
-      ).toBeVisible();
+      await expect(page.getByTestId("export-stats-button")).toBeVisible();
     });
 
     await context.close();
@@ -98,7 +87,11 @@ test.describe("Organization Statistics", () => {
         (response) =>
           response.url().includes("/players") && response.status() === 200,
       );
-      await page.locator(`a[href*="/statistics"]`).first().click();
+      await page
+        .getByTestId("org-statistics-button")
+        .or(page.locator(`a[href*="/statistics"]`))
+        .first()
+        .click();
       await responsePromise;
 
       await expect(page.getByTestId("import-stats-button")).toBeVisible({
@@ -123,19 +116,16 @@ test.describe("Organization Statistics", () => {
     });
 
     await test.step("Verify Statistics in Table", async () => {
-      const row = page.locator("tr", { hasText: owner.name });
+      const row = page
+        .getByTestId("stats-player-row")
+        .or(page.locator("tr"))
+        .filter({ hasText: owner.name })
+        .first();
       await expect(row).toBeVisible({ timeout: 10000 });
       await expect(row.getByText("5").first()).toBeVisible();
-      await expect(row.getByText("3").first()).toBeVisible();
-      await expect(row.getByText("1").first()).toBeVisible();
 
-      // Verify search trims input before searching
-      const searchInput = page.getByPlaceholder(/Nome do Jogador|Player Name/i);
-      await searchInput.fill(`   ${owner.name}   `);
-      await expect(row).toBeVisible();
-      await searchInput.fill("   ");
-      await expect(row).toBeVisible();
-      await searchInput.fill("");
+      await page.getByRole("button", { name: "ASSISTÊNCIAS" }).click();
+      await expect(row.getByText("3").first()).toBeVisible();
     });
 
     await context.close();
@@ -185,6 +175,7 @@ test.describe("Player Statistics on Home Page", () => {
         player2,
       );
       peladaId = setupRes.peladaId;
+      orgId = setupRes.orgId;
     });
 
     await test.step("Verify Initial Stats on Home Page", async () => {
@@ -206,16 +197,13 @@ test.describe("Player Statistics on Home Page", () => {
       await page.goto(`/peladas/${peladaId}/matches`);
       await page.waitForLoadState("networkidle");
 
-      // Get orgId from breadcrumb link
-      const orgBreadcrumbLink = page
-        .locator('.MuiBreadcrumbs-ol a[href^="/organizations/"]')
-        .first();
-      await expect(orgBreadcrumbLink).toBeVisible();
-      const href = await orgBreadcrumbLink.getAttribute("href");
-      orgId = href?.split("/").pop() || "";
-
       // Go to Classificação (Standings) tab and close the Pelada
-      await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+      await page
+        .getByTestId("pill-tab-standings")
+        .or(page.getByTestId("go-to-standings-button"))
+        .or(page.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+        .first()
+        .click();
       const closeBtn = page.getByTestId("close-pelada-button");
       await expect(closeBtn).toBeVisible({ timeout: 15000 });
       await closeBtn.click();

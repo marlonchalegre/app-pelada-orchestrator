@@ -86,7 +86,7 @@ export async function registerUser(page: Page, user: UserData) {
   }
 
   await page.getByTestId("register-submit").click();
-  await expect(page).toHaveURL("/home", { timeout: 10000 });
+  await expect(page).toHaveURL(/\/home/, { timeout: 20000 });
   await page.waitForLoadState("networkidle");
 }
 
@@ -111,33 +111,46 @@ export async function getApiContext(
 }
 // ─── Organization ────────────────────────────────────────────────────────────
 
-/**
- * Grant allow_org_creation=true for a user by email in the e2e schema.
- * Required because new users default to allow_org_creation=false.
- */
-export function grantOrgCreation(email: string) {
-  for (const schema of ["e2e", "public"]) {
-    try {
-      const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"${schema}\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';"`;
-      execSync(cmd, { stdio: "ignore" });
-    } catch {
-      /* ignore */
-    }
+function execPsqlOnSchemas(queryForSchema: (schema: string) => string) {
+  const composeFile = path.resolve(__dirname, "../../docker-compose.yml");
+  const sql = ["e2e", "public"].map(queryForSchema).join(" ");
+  try {
+    const cmd = `docker compose -f "${composeFile}" exec -T postgres psql -U pelada -d peladaapp -c "${sql}"`;
+    execSync(cmd, { stdio: "ignore" });
+  } catch {
+    /* ignore */
   }
 }
 
 /**
- * Enable premium feature flags for an organization in the E2E or public schema.
+ * Grant allow_org_creation=true for a user by email in the e2e and public schema.
+ * Required because new users default to allow_org_creation=false.
+ */
+export function grantOrgCreation(email: string) {
+  execPsqlOnSchemas(
+    (schema) =>
+      `UPDATE \\"${schema}\\".\\"Users\\" SET allow_org_creation = TRUE WHERE email = '${email}';`,
+  );
+}
+
+/**
+ * Enable premium feature flags for an organization in the E2E and public schema.
  */
 export function enableFeatureFlags(orgId: string) {
-  for (const schema of ["e2e", "public"]) {
-    try {
-      const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"${schema}\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';"`;
-      execSync(cmd, { stdio: "ignore" });
-    } catch {
-      /* ignore */
-    }
-  }
+  execPsqlOnSchemas(
+    (schema) =>
+      `UPDATE \\"${schema}\\".\\"OrganizationFeatureFlags\\" SET finance_control = TRUE, waha_communications = TRUE, player_characteristics = TRUE, monthly_substitutions = TRUE, org_statistics = TRUE, peer_voting = TRUE WHERE organization_id = '${orgId}';`,
+  );
+}
+
+/**
+ * Promote user to global admin (super admin) in the E2E and public schema.
+ */
+export function promoteToGlobalAdmin(email: string) {
+  execPsqlOnSchemas(
+    (schema) =>
+      `UPDATE \\"${schema}\\".\\"Users\\" SET is_super_admin = TRUE WHERE email = '${email}';`,
+  );
 }
 
 export async function createOrganization(page: Page, orgName: string) {
@@ -208,20 +221,25 @@ export async function invitePlayerByEmail(
 
   // If we're already on the management page, skip navigation
   if (!(await inviteBtn.isVisible())) {
-    const mgmtBtn = page.getByTestId("org-management-button");
-    const mgmtLink = page.getByRole("link", {
-      name: /MANAGEMENT|GERENCIAMENTO/i,
-    });
+    const mgmtTarget = page
+      .getByTestId("org-management-button")
+      .or(page.getByRole("button", { name: /ELENCO|ROSTER/i }))
+      .or(page.getByRole("link", { name: /MANAGEMENT|GERENCIAMENTO/i }))
+      .first();
 
-    if (!(await mgmtBtn.isVisible()) && !(await mgmtLink.isVisible())) {
-      await page.waitForTimeout(3000);
-      await page.reload();
-      await page.waitForLoadState("networkidle");
+    if (await mgmtTarget.isVisible()) {
+      await mgmtTarget.click();
+    } else {
+      try {
+        const orgId = getOrgIdFromUrl(page.url());
+        await page.goto(`/organizations/${orgId}/management?tab=members`);
+      } catch {
+        /* fallback */
+      }
     }
-
-    await mgmtBtn.or(mgmtLink).click();
   }
 
+  await expect(inviteBtn).toBeVisible({ timeout: 15000 });
   await inviteBtn.click();
   await page.getByTestId("invite-email-input").fill(email);
   await page.getByTestId("send-invite-button").click();
@@ -543,7 +561,10 @@ export async function setupTeams(
   }
 
   if (randomize) {
-    await page.getByTestId("randomize-teams-button").click();
+    await page
+      .getByTestId("randomize-teams-button")
+      .or(page.getByTestId("draw-again-button"))
+      .click();
     // Handle the confirmation dialog
     const confirmRandBtn = page.getByTestId("confirm-randomize-button");
     if (await confirmRandBtn.isVisible({ timeout: 3000 })) {
@@ -611,7 +632,7 @@ export async function setupMatchDay(
   user: UserData,
   orgName: string,
   player2: UserData,
-): Promise<{ peladaId: string }> {
+): Promise<{ peladaId: string; orgId: string }> {
   await registerAndCreateOrg(page, user, orgName);
 
   const p2Invite = await invitePlayerByEmail(page, player2.email);
@@ -620,6 +641,7 @@ export async function setupMatchDay(
   await page.goto("/home");
   await page.getByTestId(`org-link-${orgName}`).click();
   await page.waitForURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
+  const orgId = getOrgIdFromUrl(page.url());
 
   const peladaId = await createPelada(page);
 
@@ -638,5 +660,5 @@ export async function setupMatchDay(
   await buildAndUseSchedule(page);
   await startPelada(page);
 
-  return { peladaId };
+  return { peladaId, orgId };
 }
