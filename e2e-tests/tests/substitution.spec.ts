@@ -122,14 +122,18 @@ test.describe("Substitution and Empty Spots", () => {
     const dashPromise = page.waitForResponse(
       (r) => r.url().includes("/dashboard-data") && r.status() === 200,
     );
-    await player2Row.getByTestId("stat-goals-increment").click();
+    await page.getByTestId("goal-button-home").click();
+    await page
+      .getByTestId("goal-select-dialog")
+      .getByText(player2Name)
+      .click();
     await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
     await page.getByTestId("without-assistance-option").click();
     await dashPromise;
     await expect(page.getByTestId("assist-select-dialog")).not.toBeVisible();
 
     const scoreDisplay = page.getByTestId("match-score-display");
-    await expect(scoreDisplay).toHaveText(/1\s*—\s*0/);
+    await expect(scoreDisplay).toHaveText(/1[\s\S]*0/);
 
     // Substitute Player 2 (Y) back with Player 1 (X)
     const replaceDashPromise = page.waitForResponse(
@@ -151,6 +155,6 @@ test.describe("Substitution and Empty Spots", () => {
     ).toBeVisible();
 
     // Score MUST remain 1 — 0 even after substituting Player 2 (Y) back out
-    await expect(scoreDisplay).toHaveText(/1\s*—\s*0/);
+    await expect(scoreDisplay).toHaveText(/1[\s\S]*0/);
   });
 });

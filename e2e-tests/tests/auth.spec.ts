@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { saveVideo, registerUser } from "./utils";
+import { saveVideo, registerUser, visible } from "./utils";
 import path from "path";
 import fs from "fs";
 
@@ -28,9 +28,10 @@ test.describe("Auth & Profile", () => {
     });
 
     await test.step("Update Profile", async () => {
-      await page.getByTestId("user-settings-button").click();
-      await page.getByTestId("profile-menu-item").click();
+      await visible(page, "user-settings-button").click();
+      await visible(page, "profile-menu-item").click();
       await expect(page).toHaveURL("/profile");
+      await visible(page, "edit-profile-button").click();
 
       // Check initial values
       await expect(page.getByTestId("profile-name")).toHaveValue(user.name);
@@ -65,6 +66,7 @@ test.describe("Auth & Profile", () => {
 
       // Verify persistence
       await page.reload();
+      await visible(page, "edit-profile-button").click();
       await expect(page.getByTestId("profile-name")).toHaveValue(updatedName);
       await expect(page.getByTestId("profile-phone")).toHaveValue(
         "(55) 11888-8888",
@@ -75,8 +77,11 @@ test.describe("Auth & Profile", () => {
     });
 
     await test.step("Delete Account", async () => {
-      await page.getByTestId("profile-delete-account-button").click();
-      await page.getByTestId("confirm-delete-account-button").click();
+      if (!(await page.getByTestId("profile-delete-account-button").isVisible())) {
+        await visible(page, "edit-profile-button").click();
+      }
+      await visible(page, "profile-delete-account-button").click();
+      await visible(page, "confirm-delete-account-button").click();
       await expect(page).toHaveURL("/", { timeout: 10000 });
     });
 
@@ -106,9 +111,10 @@ test.describe("Auth & Profile", () => {
     });
 
     await test.step("Add Phone in Profile", async () => {
-      await page.getByTestId("user-settings-button").click();
-      await page.getByTestId("profile-menu-item").click();
+      await visible(page, "user-settings-button").click();
+      await visible(page, "profile-menu-item").click();
       await expect(page).toHaveURL("/profile");
+      await visible(page, "edit-profile-button").click();
 
       await expect(page.getByTestId("profile-phone")).toHaveValue("");
 
@@ -122,6 +128,7 @@ test.describe("Auth & Profile", () => {
       ).toBeVisible();
 
       await page.reload();
+      await visible(page, "edit-profile-button").click();
       await expect(page.getByTestId("profile-phone")).toHaveValue(
         "(55) 11777-7777",
       );
@@ -163,9 +170,10 @@ test.describe("Auth & Profile", () => {
     });
 
     await test.step("Navigate to Profile", async () => {
-      await page.getByTestId("user-settings-button").click();
-      await page.getByTestId("profile-menu-item").click();
+      await visible(page, "user-settings-button").click();
+      await visible(page, "profile-menu-item").click();
       await expect(page).toHaveURL("/profile");
+      await visible(page, "edit-profile-button").click();
     });
 
     await test.step("Upload Avatar", async () => {
@@ -182,7 +190,7 @@ test.describe("Auth & Profile", () => {
       );
 
       const profileAvatar = page.locator(
-        'main [data-testid="secure-avatar"] img',
+        'main [data-testid="secure-avatar"]:visible img',
       );
       await expect(profileAvatar).toBeVisible();
     });
@@ -190,11 +198,14 @@ test.describe("Auth & Profile", () => {
     await test.step("Verify Avatar in Header", async () => {
       const headerAvatar = page.locator(
         'header [data-testid="secure-avatar"] img',
-      );
+      ).first();
       await expect(headerAvatar).toBeVisible();
     });
 
     await test.step("Delete Avatar", async () => {
+      if (!(await page.getByLabel(/delete picture/i).isVisible())) {
+        await visible(page, "edit-profile-button").click();
+      }
       await page.getByLabel(/delete picture/i).click();
       await expect(
         page.getByText(/Profile picture removed|Foto de perfil removida/i),
@@ -203,12 +214,12 @@ test.describe("Auth & Profile", () => {
       const profileAvatarImg = page.locator(
         'main [data-testid="secure-avatar"] img',
       );
-      await expect(profileAvatarImg).not.toBeVisible();
+      await expect(profileAvatarImg).toHaveCount(0);
 
       const headerAvatarImg = page.locator(
         'header [data-testid="secure-avatar"] img',
       );
-      await expect(headerAvatarImg).not.toBeVisible();
+      await expect(headerAvatarImg).toHaveCount(0);
     });
 
     if (fs.existsSync(testImagePath)) {
@@ -233,8 +244,8 @@ test.describe("Auth & Profile", () => {
 
     await registerUser(page, resetUser);
 
-    await page.getByTestId("user-settings-button").click();
-    await page.getByTestId("logout-menu-item").click();
+    await visible(page, "user-settings-button").click();
+    await visible(page, "logout-menu-item").click();
     await expect(page).toHaveURL("/");
 
     await page.goto("/login");

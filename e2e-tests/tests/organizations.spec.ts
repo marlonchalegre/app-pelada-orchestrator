@@ -363,6 +363,10 @@ test.describe("Organization Management", () => {
     await page.goto("/home");
     await page.waitForLoadState("networkidle");
     await page.getByTestId(`org-link-${mobileOrgName}`).click();
+    await expect(page).toHaveURL(/\/organizations\/[^\/]+/, { timeout: 15000 });
+    const menuBtn = page.getByTestId("org-menu-button");
+    await expect(menuBtn).toBeVisible({ timeout: 15000 });
+    await menuBtn.click();
     await page.getByTestId("org-management-button").click();
     const tabLabel = page
       .getByTestId("mgmt-tab-members")

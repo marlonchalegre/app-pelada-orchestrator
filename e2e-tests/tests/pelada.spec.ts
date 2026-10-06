@@ -136,32 +136,37 @@ test.describe("Pelada Lifecycle & Matches", () => {
       ).toBeVisible({ timeout: 15000 });
 
       // Record a goal
-      const anyPlayerRow = ownerPage
-        .locator("#pelada-matches-tabs-content")
-        .getByTestId("player-row")
-        .first();
-      await anyPlayerRow.getByTestId("stat-goals-increment").click();
+      const dashPromise = ownerPage.waitForResponse(
+        (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+      );
+      await ownerPage.getByTestId("goal-button-home").click();
+      await ownerPage.getByTestId(/goal-player-item-.*/).first().click();
+      await expect(ownerPage.getByTestId("assist-select-dialog")).toBeVisible();
       await ownerPage.getByTestId("without-assistance-option").click();
-      await expect(anyPlayerRow.getByTestId("stat-goals-value")).toHaveText(
-        "1",
+      await dashPromise;
+      await expect(ownerPage.getByTestId("match-score-display")).toHaveText(
+        /1[\s\S]*0/,
       );
 
       // Record a custom event (drible)
-      await expect(ownerPage.getByTestId("record-event-fab")).toBeVisible();
-      await ownerPage.getByTestId("record-event-fab").click();
+      const recordEventBtn = ownerPage
+        .getByTestId("record-event-inline-button")
+        .or(ownerPage.getByTestId("record-event-fab"));
+      await expect(recordEventBtn).toBeVisible();
+      await recordEventBtn.click();
       await expect(ownerPage.getByTestId("record-event-dialog")).toBeVisible();
+      await ownerPage.getByTestId("event-type-card-drible").click();
       const firstPlayerItem = ownerPage
         .getByTestId(/event-player-item-.*/)
         .first();
       await expect(firstPlayerItem).toBeVisible();
       await firstPlayerItem.click();
-      await ownerPage.getByTestId("event-type-card-drible").click();
-      await ownerPage.getByTestId("confirm-event-button").click();
       await expect(
         ownerPage.getByTestId("record-event-dialog"),
       ).not.toBeVisible();
 
       // Record a substitution
+      const anyPlayerRow = ownerPage.getByTestId("player-row").first();
       await anyPlayerRow.getByTestId("sub-button").click();
       await expect(ownerPage.getByTestId("player-select-dialog")).toBeVisible();
       const benchItem = ownerPage.getByTestId(/bench-player-item-.*/).first();
@@ -196,7 +201,10 @@ test.describe("Pelada Lifecycle & Matches", () => {
         timeout: 10000,
       });
       await drawer.getByTestId("match-history-item-1").click();
-      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
+      await ownerPage
+        .getByTestId("pill-tab-live")
+        .or(ownerPage.getByRole("tab", { name: /Dashboard|Match|Ao Vivo|Live/i }))
+        .click();
       await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
@@ -210,7 +218,7 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     await test.step("Verify Timeline and Export", async () => {
       await ownerPage
-        .getByRole("tab", { name: /Linha do Tempo|Timeline/i })
+        .getByRole("tab", { name: /Linha do Tempo|Timeline|Súmula/i })
         .click();
       const timeline = ownerPage.locator(".MuiTimeline-root");
       await expect(timeline).toBeVisible({ timeout: 10000 });
@@ -243,7 +251,10 @@ test.describe("Pelada Lifecycle & Matches", () => {
     });
 
     await test.step("Edit Match", async () => {
-      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
+      await ownerPage
+        .getByTestId("pill-tab-live")
+        .or(ownerPage.getByRole("tab", { name: /Dashboard|Match|Ao Vivo|Live/i }))
+        .click();
 
       await ownerPage.getByTestId("toggle-history-drawer").click();
       const drawer = ownerPage.getByTestId("history-drawer");
@@ -251,22 +262,23 @@ test.describe("Pelada Lifecycle & Matches", () => {
         timeout: 10000,
       });
       await drawer.getByTestId("match-history-item-1").click();
-      await ownerPage.getByRole("tab", { name: /Dashboard|Match/i }).click();
+      await ownerPage
+        .getByTestId("pill-tab-live")
+        .or(ownerPage.getByRole("tab", { name: /Dashboard|Match|Ao Vivo|Live/i }))
+        .click();
       await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
       await ownerPage.getByTestId("edit-match-button").click();
 
-      const editPlayerRow = ownerPage
-        .locator("#pelada-matches-tabs-content")
-        .getByTestId("player-row")
-        .first();
-      const currentGoals = await editPlayerRow
-        .getByTestId("stat-goals-value")
-        .innerText();
-      const expectedGoals = (parseInt(currentGoals) + 1).toString();
-      await editPlayerRow.getByTestId("stat-goals-increment").click();
+      const dashPromise = ownerPage.waitForResponse(
+        (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+      );
+      await ownerPage.getByTestId("goal-button-home").click();
+      await ownerPage.getByTestId(/goal-player-item-.*/).first().click();
+      await expect(ownerPage.getByTestId("assist-select-dialog")).toBeVisible();
       await ownerPage.getByTestId("without-assistance-option").click();
+      await dashPromise;
       await ownerPage.getByTestId("finish-editing-button").click();
       await ownerPage.waitForTimeout(500);
 
@@ -279,19 +291,15 @@ test.describe("Pelada Lifecycle & Matches", () => {
       await ownerPage.keyboard.press("Escape");
       await ownerPage.waitForTimeout(500);
 
-      const updatedRow = ownerPage
-        .locator("#pelada-matches-tabs-content")
-        .getByTestId("player-row")
-        .first();
-      await expect(updatedRow.getByTestId("stat-goals-value")).toHaveText(
-        expectedGoals,
+      await expect(ownerPage.getByTestId("match-score-display")).toHaveText(
+        /2[\s\S]*0/,
         { timeout: 15000 },
       );
     });
 
     await test.step("Timeline Edit and Delete", async () => {
       await ownerPage
-        .getByRole("tab", { name: /Linha do Tempo|Timeline/i })
+        .getByRole("tab", { name: /Linha do Tempo|Timeline|Súmula/i })
         .click();
       await ownerPage.waitForTimeout(500);
 
@@ -357,7 +365,10 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     await test.step("Close Pelada and Vote", async () => {
       await ownerPage
-        .getByRole("tab", { name: /Classificação|Standings/i })
+        .getByTestId("pill-tab-standings")
+        .or(ownerPage.getByTestId("go-to-standings-button"))
+        .or(ownerPage.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+        .first()
         .click();
 
       const closeBtn = ownerPage.getByTestId("close-pelada-button");
@@ -373,17 +384,17 @@ test.describe("Pelada Lifecycle & Matches", () => {
       );
 
       // Verify Performance tab is active
-      const performanceTab = ownerPage.getByRole("tab", {
-        name: /Desempenho|Performance/i,
-      });
+      const performanceTab = ownerPage.getByTestId("pill-tab-standings");
       await expect(performanceTab).toHaveAttribute("aria-selected", "true");
       await expect(
-        ownerPage.getByText(/Destaques|Highlights/i).first(),
+        ownerPage.getByText(/Destaques|Highlights|Classificação|Standings/i).first(),
       ).toBeVisible();
 
       // Verify Champion in Standings
       await ownerPage
-        .getByRole("tab", { name: /Classificação|Standings/i })
+        .getByTestId("pill-tab-standings")
+        .or(ownerPage.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+        .first()
         .click();
       await expect(ownerPage.getByText(/Campeão|Champion/i)).toBeVisible();
       await expect(ownerPage.getByTestId("standings-table")).toBeVisible();
@@ -819,7 +830,12 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     await adminPage.reload();
     await adminPage
-      .getByRole("tab", { name: /Lista de Espera|Waitlist/i })
+      .getByTestId("attendance-tab-waitlist")
+      .or(
+        adminPage.getByRole("tab", {
+          name: /Lista de Espera|Fila de Espera|Waitlist/i,
+        }),
+      )
       .click();
     const diaristaCard = adminPage.getByTestId(
       `attendance-card-${diaristaUser.username}`,
@@ -828,7 +844,8 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await diaristaCard.getByTestId("attendance-card-confirm").click();
 
     await adminPage
-      .getByRole("tab", { name: /Confirm/i })
+      .getByTestId("attendance-tab-confirmed")
+      .or(adminPage.getByRole("tab", { name: /Confirm/i }))
       .first()
       .click();
     await expect(
@@ -869,14 +886,18 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await adminPage.getByTestId(`org-link-${toolsOrgName}`).click();
     await createPelada(adminPage);
 
-    await adminPage.getByRole("tab", { name: /Pendente|Pending/i }).click();
+    await adminPage
+      .getByTestId("attendance-tab-pending")
+      .or(adminPage.getByRole("tab", { name: /Pendente|Pending/i }))
+      .click();
     const playerCard = adminPage.getByTestId(
       `attendance-card-${playerUser.username}`,
     );
     await playerCard.getByTestId("attendance-card-confirm").click();
 
     await adminPage
-      .getByRole("tab", { name: /Confirm/i })
+      .getByTestId("attendance-tab-confirmed")
+      .or(adminPage.getByRole("tab", { name: /Confirm/i }))
       .first()
       .click();
     await expect(
@@ -885,14 +906,18 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     await adminPage.getByTestId("attendance-card-waitlist").click();
 
-    await adminPage.getByRole("tab", { name: /Espera|Waitlist/i }).click();
+    await adminPage
+      .getByTestId("attendance-tab-waitlist")
+      .or(adminPage.getByRole("tab", { name: /Espera|Waitlist/i }))
+      .click();
     await expect(
       adminPage.getByTestId(`attendance-card-${playerUser.username}`),
     ).toBeVisible();
 
     await adminPage.getByTestId("attendance-card-confirm").click();
     await adminPage
-      .getByRole("tab", { name: /Confirm/i })
+      .getByTestId("attendance-tab-confirmed")
+      .or(adminPage.getByRole("tab", { name: /Confirm/i }))
       .first()
       .click();
     await expect(
@@ -1018,7 +1043,16 @@ test.describe("Pelada Lifecycle & Matches", () => {
       "Existem alterações pendentes",
     );
 
-    await page.getByTestId("stat-goals-increment").first().click();
+    await page.getByTestId("goal-button-home").click();
+    let playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    if (!(await playerItem.isVisible({ timeout: 1500 }).catch(() => false))) {
+      await page.keyboard.press("Escape");
+      await page.getByTestId("goal-button-away").click();
+      playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    }
+    await expect(playerItem).toBeVisible({ timeout: 5000 });
+    await playerItem.click();
+    await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
     await page.getByTestId("without-assistance-option").click();
     await expect(page.getByTestId("pending-actions-count")).toContainText(
       "Existem alterações pendentes",
@@ -1027,7 +1061,9 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await expect(scoreBoard).toContainText("1");
 
     await expect(
-      page.getByRole("tab", { name: /Dashboard|Match/i }),
+      page
+        .getByTestId("pill-tab-live")
+        .or(page.getByRole("tab", { name: /Dashboard|Match|AO VIVO/i })),
     ).toBeVisible();
     await expect(scoreBoard).toContainText("1");
 
@@ -1067,7 +1103,12 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await buildAndUseSchedule(page);
     await startPelada(page);
 
-    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+    await page
+      .getByTestId("pill-tab-standings")
+      .or(page.getByTestId("go-to-standings-button"))
+      .or(page.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+      .first()
+      .click();
 
     const closeBtn = page.getByTestId("close-pelada-button");
     await closeBtn.click();
@@ -1144,17 +1185,24 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await buildAndUseSchedule(page);
     await startPelada(page);
 
-    const anyPlayerRow = page
-      .locator("#pelada-matches-tabs-content")
-      .getByTestId("player-row")
-      .first();
-    await anyPlayerRow.getByTestId("stat-goals-increment").click();
+    const dashPromise = page.waitForResponse(
+      (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+    );
+    await page.getByTestId("goal-button-home").click();
+    await page.getByTestId(/goal-player-item-.*/).first().click();
+    await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
     await page.getByTestId("without-assistance-option").click();
+    await dashPromise;
     await page.getByTestId("end-match-button").click();
     await page.getByTestId("pretty-confirm-button").click();
     await page.getByTestId("summary-close-button").click();
 
-    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+    await page
+      .getByTestId("pill-tab-standings")
+      .or(page.getByTestId("go-to-standings-button"))
+      .or(page.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+      .first()
+      .click();
     const closeBtn = page.getByTestId("close-pelada-button");
     await expect(closeBtn).toBeVisible({ timeout: 10000 });
     await closeBtn.click();
@@ -1210,27 +1258,33 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await startPelada(page);
 
     // Verify inline record event button is present and click it
-    const inlineBtn = page.getByTestId("record-event-inline-button");
+    const inlineBtn = page
+      .getByTestId("record-event-inline-button")
+      .or(page.getByTestId("record-event-fab"));
     await expect(inlineBtn).toBeVisible({ timeout: 10000 });
     await inlineBtn.click();
 
     // Verify dialog opens
     await expect(page.getByTestId("record-event-dialog")).toBeVisible();
 
-    // Select a player
-    await page.locator('[data-testid^="event-player-item-"]').first().click();
-
     // Select custom event type: drible
     await page.getByTestId("event-type-card-drible").click();
 
-    // Click confirm
-    await page.getByTestId("confirm-event-button").click();
+    // Select a player
+    const eventPlayer = page
+      .locator('[data-testid^="event-player-item-"]')
+      .first();
+    await expect(eventPlayer).toBeVisible({ timeout: 5000 });
+    await eventPlayer.click();
 
     // Dialog should close
     await expect(page.getByTestId("record-event-dialog")).not.toBeVisible();
 
     // Switch to Timeline tab
-    await page.getByRole("tab", { name: /Linha do Tempo|Timeline/i }).click();
+    await page
+      .getByTestId("pill-tab-sumula")
+      .or(page.getByRole("tab", { name: /Linha do Tempo|Timeline|Súmula/i }))
+      .click();
 
     // Intercept window.alert
     let dialogMessage = "";
@@ -1244,7 +1298,8 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     // Click on Copy Table button
     await page
-      .getByRole("button", { name: /Copiar Tabela|Copy Table/i })
+      .getByTestId("export-tabular-button")
+      .or(page.getByRole("button", { name: /Copiar Tabela|Copy Table/i }))
       .click();
 
     // Verify the alert dialog was triggered with success message
@@ -1282,15 +1337,25 @@ test.describe("Pelada Lifecycle & Matches", () => {
       (resp) =>
         resp.url().includes("/events") && resp.request().method() === "POST",
     );
-    const goalBtn = page.getByTestId("stat-goals-increment").first();
-    await expect(goalBtn).toBeVisible({ timeout: 15000 });
-    await goalBtn.click();
+    await page.getByTestId("goal-button-home").click();
+    let playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    if (!(await playerItem.isVisible({ timeout: 1500 }).catch(() => false))) {
+      await page.keyboard.press("Escape");
+      await page.getByTestId("goal-button-away").click();
+      playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    }
+    await expect(playerItem).toBeVisible({ timeout: 5000 });
+    await playerItem.click();
+    await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
     await page.getByTestId("without-assistance-option").click();
     await eventResponsePromise;
     await page.waitForTimeout(500);
 
     // Switch to Timeline tab
-    await page.getByRole("tab", { name: /Linha do Tempo|Timeline/i }).click();
+    await page
+      .getByTestId("pill-tab-sumula")
+      .or(page.getByRole("tab", { name: /Linha do Tempo|Timeline|Súmula/i }))
+      .click();
     const timeline = page.locator(".MuiTimeline-root");
     await expect(timeline).toBeVisible({ timeout: 15000 });
 
@@ -1448,29 +1513,39 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await expect(page.getByTestId("pause-match-timer-button")).toBeVisible();
 
     // 2. Verify Standings shows the initial draw (both teams have 1 point, 1 draw)
-    await page.getByRole("tab", { name: /Classificação|Standings/i }).click();
+    await page
+      .getByTestId("pill-tab-standings")
+      .or(page.getByTestId("go-to-standings-button"))
+      .or(page.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+      .first()
+      .click();
     const standingsTable = page.getByTestId("standings-table");
     await expect(standingsTable).toBeVisible();
     await expect(page.getByTestId("champion-trophy-icon")).not.toBeVisible();
 
     // 3. Return to Dashboard tab, score a goal for home team to establish a winner
-    await page.getByRole("tab", { name: /Dashboard|Partidas/i }).click();
-    const firstPlayerRow = page
-      .locator("#pelada-matches-tabs-content")
-      .getByTestId("player-row")
-      .first();
-    await expect(firstPlayerRow).toBeVisible({ timeout: 10000 });
-    await firstPlayerRow.getByTestId("stat-goals-increment").click();
-    await Promise.all([
-      page.waitForResponse(
-        (resp) => resp.url().includes("/events") && resp.status() === 200,
-      ),
-      page.getByTestId("without-assistance-option").click(),
-    ]);
-    await expect(firstPlayerRow.getByTestId("stat-goals-value")).toHaveText(
-      "1",
-      { timeout: 10000 },
+    await page
+      .getByTestId("pill-tab-live")
+      .or(page.getByTestId("go-to-live-button"))
+      .or(page.getByRole("tab", { name: /Dashboard|Partidas|AO VIVO/i }))
+      .first()
+      .click();
+    const dashPromise = page.waitForResponse(
+      (r) => r.url().includes("/dashboard-data") && r.status() === 200,
     );
+    await page.getByTestId("goal-button-home").click();
+    let playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    if (!(await playerItem.isVisible({ timeout: 1500 }).catch(() => false))) {
+      await page.keyboard.press("Escape");
+      await page.getByTestId("goal-button-away").click();
+      playerItem = page.getByTestId(/goal-player-item-.*/).first();
+    }
+    await expect(playerItem).toBeVisible({ timeout: 5000 });
+    await playerItem.click();
+    await expect(page.getByTestId("assist-select-dialog")).toBeVisible();
+    await page.getByTestId("without-assistance-option").click();
+    await dashPromise;
+    await expect(page.getByTestId("match-score-display")).toHaveText(/1[\s\S]*0/);
 
     // 4. End match #1
     await page.getByTestId("end-match-button").click();

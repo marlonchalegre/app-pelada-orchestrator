@@ -68,7 +68,9 @@ test.describe("New UI Features: Control Panel and Player Movement", () => {
     await expect(perTeamValue).toHaveText("5");
 
     // Randomize button
-    const randomizeBtn = page.getByTestId("randomize-teams-button");
+    const randomizeBtn = page
+      .getByTestId("randomize-teams-button")
+      .or(page.getByTestId("draw-again-button"));
     await expect(randomizeBtn).toBeVisible();
     await randomizeBtn.click();
     // (Wait for any potential loading or toast if applicable)
@@ -150,6 +152,7 @@ test.describe("New UI Features: Control Panel and Player Movement", () => {
       .getByText(/Adicionar Time|Add Team/i)
       .first()
       .click();
+    await expect(page.getByTestId("team-card")).toHaveCount(1);
     await page
       .getByText(/Adicionar Time|Add Team/i)
       .first()
@@ -177,6 +180,9 @@ test.describe("New UI Features: Control Panel and Player Movement", () => {
         name: new RegExp(`Mover para ${team1Name}|Move to ${team1Name}`, "i"),
       })
       .click();
+    await expect(
+      page.getByTestId("team-card").nth(0).getByTestId("player-row"),
+    ).toHaveCount(1);
 
     // Move Player 2 to Team 2
     await page
@@ -190,9 +196,6 @@ test.describe("New UI Features: Control Panel and Player Movement", () => {
       })
       .click();
 
-    await expect(
-      page.getByTestId("team-card").nth(0).getByTestId("player-row"),
-    ).toHaveCount(1);
     await expect(
       page.getByTestId("team-card").nth(1).getByTestId("player-row"),
     ).toHaveCount(1);
@@ -260,7 +263,9 @@ test.describe("New UI Features: Control Panel and Player Movement", () => {
     // 4. Move player from Fixed GK to Away GK
     // Move from Home GK back to Bench (using the delete/remove button in Fixed GK section)
     await homeGkSlot
-      .locator('button:has(svg[data-testid="DeleteOutlinedIcon"])')
+      .locator(
+        'button:has(svg[data-testid="DeleteOutlinedIcon"]), button:has(svg[data-testid="CloseIcon"])',
+      )
       .click();
     await expect(homeGkSlot.getByText(player1Name)).not.toBeVisible();
 

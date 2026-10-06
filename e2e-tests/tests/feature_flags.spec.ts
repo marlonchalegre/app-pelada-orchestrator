@@ -1,16 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { execSync } from "child_process";
 import {
   registerUser,
   createOrganization,
   grantOrgCreation,
   getOrgIdFromUrl,
+  promoteToGlobalAdmin,
+  visible,
 } from "./utils";
-
-function promoteToGlobalAdmin(email: string) {
-  const cmd = `docker compose -f ../docker-compose.yml exec -T postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Users\\" SET is_super_admin = TRUE WHERE email = '${email}';"`;
-  execSync(cmd);
-}
 
 test.describe("Premium Feature Flags Workflows", () => {
   const timestamp = Date.now() + Math.floor(Math.random() * 10000);
@@ -76,13 +72,13 @@ test.describe("Premium Feature Flags Workflows", () => {
       // Click tab: Finance
       await orgAdminPage.getByTestId("mgmt-tab-finance").click();
       await expect(
-        orgAdminPage.getByText(/Controle Financeiro Premium/i),
+        orgAdminPage.getByText(/Controle Financeiro/i),
       ).toBeVisible();
 
       // Click tab: Substitutions
       await orgAdminPage.getByTestId("mgmt-tab-substitutions").click();
       await expect(
-        orgAdminPage.getByText(/Substituições de Mensalistas/i),
+        orgAdminPage.getByText(/Gestão de Substituições|Substituições de Mensalistas/i),
       ).toBeVisible();
 
       // Click tab: Ratings
@@ -104,8 +100,8 @@ test.describe("Premium Feature Flags Workflows", () => {
       promoteToGlobalAdmin(globalAdminUser.email);
 
       // Log out and log back in to get superadmin cookie
-      await globalAdminPage.getByTestId("user-settings-button").click();
-      await globalAdminPage.getByTestId("logout-menu-item").click();
+      await visible(globalAdminPage, "user-settings-button").click();
+      await visible(globalAdminPage, "logout-menu-item").click();
       await expect(globalAdminPage).toHaveURL("/");
 
       await globalAdminPage.goto("/login");
@@ -192,13 +188,13 @@ test.describe("Premium Feature Flags Workflows", () => {
       // Click tab: Finance - lock should be gone
       await orgAdminPage.getByTestId("mgmt-tab-finance").click();
       await expect(
-        orgAdminPage.getByText(/Controle Financeiro Premium/i),
+        orgAdminPage.getByText(/Controle Financeiro/i),
       ).toBeHidden();
 
       // Click tab: Substitutions - lock should be gone
       await orgAdminPage.getByTestId("mgmt-tab-substitutions").click();
       await expect(
-        orgAdminPage.getByText(/Substituições de Mensalistas/i),
+        orgAdminPage.getByText(/Gestão de Substituições|Substituições de Mensalistas/i),
       ).toBeHidden();
 
       // Click tab: Ratings - lock should be gone
