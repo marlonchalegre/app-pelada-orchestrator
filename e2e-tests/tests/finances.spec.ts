@@ -36,6 +36,31 @@ async function makeDiarista(page: Page, orgName: string, playerName: string) {
 
   await page.getByRole("option", { name: "Diarista", exact: true }).click();
   await responsePromise;
+  await expect(page.locator("#menu-")).toBeHidden();
+}
+
+async function setFixedDate(page: Page, isoDate: string) {
+  const fixedTime = new Date(isoDate).getTime();
+  await page.addInitScript((fixedTimestamp: number) => {
+    const NativeDate = window.Date;
+    window.Date = new Proxy(NativeDate, {
+      construct(target, args) {
+        if (args.length === 0) {
+          return new target(fixedTimestamp);
+        }
+        return new target(...(args as [number]));
+      },
+      apply(target) {
+        return new target(fixedTimestamp).toString();
+      },
+      get(target, prop, receiver) {
+        if (prop === "now") {
+          return () => fixedTimestamp;
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+  }, fixedTime);
 }
 
 async function goToFinanceTab(page: Page) {
@@ -293,7 +318,7 @@ test.describe("Financial Control & Fines", () => {
 
   test.describe("Automatic Fine", () => {
     test.beforeEach(async ({ page }) => {
-      await page.clock.install({ time: new Date("2026-05-06T12:00:00Z") });
+      await setFixedDate(page, "2026-05-06T12:00:00Z");
     });
 
     test("should apply fine automatically after day 5", async ({ page }) => {
@@ -329,6 +354,7 @@ test.describe("Financial Control & Fines", () => {
 
       await page.getByTestId("month-select").click();
       await page.getByTestId("month-option-5").click();
+      await expect(page.locator("#menu-")).toBeHidden();
       await page.waitForLoadState("networkidle");
 
       const playerRow = page
@@ -385,7 +411,7 @@ test.describe("Financial Control & Fines", () => {
 
   test.describe("Manual Fine Control", () => {
     test.beforeEach(async ({ page }) => {
-      await page.clock.install({ time: new Date("2026-05-06T12:00:00Z") });
+      await setFixedDate(page, "2026-05-06T12:00:00Z");
     });
 
     test("should allow admin to choose not to apply fine after deadline", async ({

@@ -421,6 +421,7 @@ export async function makeMensalista(page: Page, playerName: string) {
 
   await page.getByRole("option", { name: "Mensalista", exact: true }).click();
   await responsePromise;
+  await expect(page.locator("#menu-")).toBeHidden();
 }
 
 export async function addPlayerBySearch(page: Page, query: string) {
