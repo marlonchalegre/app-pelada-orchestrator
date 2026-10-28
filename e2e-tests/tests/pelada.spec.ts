@@ -1557,6 +1557,12 @@ test.describe("Pelada Lifecycle & Matches", () => {
     await expect(page.getByTestId("match-finished-title")).toBeVisible({
       timeout: 30000,
     });
+    // Verify that the match summary modal does NOT display a champion trophy icon for an individual match win
+    await expect(
+      page
+        .getByRole("dialog")
+        .locator('svg[data-testid="EmojiEventsIcon"]'),
+    ).not.toBeVisible();
 
     // 6. Advance through any remaining matches until the last match is reached
     while (
@@ -1727,6 +1733,87 @@ test.describe("Pelada Lifecycle & Matches", () => {
       await page.keyboard.press("Escape");
     }
     await expect(dialog).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test("should toggle pitch sides mirror in active match dashboard and persist preference across reloads", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 30000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: "E2E Mirror Pitch",
+      username: "e2e_mirror_" + Math.random().toString(36).substring(7),
+      email: `e2e_mirror_${ts}@test.com`,
+      password: "password123",
+    };
+    const orgName = "Mirror Pitch Org";
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: true });
+    await buildAndUseSchedule(page);
+    await startPelada(page);
+
+    // 1. Verify Active Match Dashboard is visible
+    const heroHome = page.getByTestId("hero-home-name");
+    const heroAway = page.getByTestId("hero-away-name");
+    await expect(heroHome).toBeVisible({ timeout: 15000 });
+    await expect(heroAway).toBeVisible({ timeout: 15000 });
+
+    // 2. Default layout: Home team is on the left, Away team is on the right
+    const homeBox = await heroHome.boundingBox();
+    const awayBox = await heroAway.boundingBox();
+    expect(homeBox).not.toBeNull();
+    expect(awayBox).not.toBeNull();
+    expect(homeBox!.x).toBeLessThan(awayBox!.x);
+
+    const goalHome = page.getByTestId("goal-button-home");
+    const goalAway = page.getByTestId("goal-button-away");
+    await expect(goalHome).toBeVisible();
+    await expect(goalAway).toBeVisible();
+    const goalHomeBox = await goalHome.boundingBox();
+    const goalAwayBox = await goalAway.boundingBox();
+    expect(goalHomeBox).not.toBeNull();
+    expect(goalAwayBox).not.toBeNull();
+    expect(goalHomeBox!.x).toBeLessThan(goalAwayBox!.x);
+
+    // 3. Click mirror toggle button
+    const mirrorBtn = page.getByTestId("toggle-mirror-sides").first();
+    await expect(mirrorBtn).toBeVisible();
+    await mirrorBtn.click();
+
+    // 4. Mirrored layout: Away team is on the left, Home team is on the right
+    const mirroredHomeBox = await heroHome.boundingBox();
+    const mirroredAwayBox = await heroAway.boundingBox();
+    expect(mirroredAwayBox!.x).toBeLessThan(mirroredHomeBox!.x);
+
+    const mirroredGoalHomeBox = await goalHome.boundingBox();
+    const mirroredGoalAwayBox = await goalAway.boundingBox();
+    expect(mirroredGoalAwayBox!.x).toBeLessThan(mirroredGoalHomeBox!.x);
+
+    // 5. Reload page to verify persistence in localStorage
+    await page.reload();
+    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+      timeout: 15000,
+    });
+
+    const reloadedHome = page.getByTestId("hero-home-name");
+    const reloadedAway = page.getByTestId("hero-away-name");
+    await expect(reloadedHome).toBeVisible();
+    await expect(reloadedAway).toBeVisible();
+    const reloadedHomeBox = await reloadedHome.boundingBox();
+    const reloadedAwayBox = await reloadedAway.boundingBox();
+    expect(reloadedAwayBox!.x).toBeLessThan(reloadedHomeBox!.x);
+
+    // 6. Click mirror toggle again to restore default
+    const restoreMirrorBtn = page.getByTestId("toggle-mirror-sides").first();
+    await expect(restoreMirrorBtn).toBeVisible();
+    await restoreMirrorBtn.click();
+
+    const restoredHomeBox = await reloadedHome.boundingBox();
+    const restoredAwayBox = await reloadedAway.boundingBox();
+    expect(restoredHomeBox!.x).toBeLessThan(restoredAwayBox!.x);
   });
 });
 
