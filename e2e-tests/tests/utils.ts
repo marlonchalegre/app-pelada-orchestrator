@@ -78,7 +78,7 @@ export async function registerUser(page: Page, user: UserData) {
   await page.getByTestId("register-password").fill(user.password);
 
   if (user.position) {
-    await page.getByLabel("Position").or(page.getByLabel("Posição")).click();
+    await page.getByTestId("register-position-select").click();
     await page.waitForTimeout(250);
     const option = page.getByTestId(`position-option-${user.position}`);
     await expect(option).toBeVisible();
@@ -662,4 +662,22 @@ export async function setupMatchDay(
   await startPelada(page);
 
   return { peladaId, orgId };
+}
+
+export function expirePeladaVotingWindow(peladaId: string) {
+  const sql = `UPDATE \\"e2e\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}'; UPDATE \\"public\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}';`;
+  execSync(
+    `docker compose exec -T postgres psql -U pelada -d peladaapp -c "${sql}"`,
+    { stdio: "ignore" },
+  );
+}
+
+export async function voteFiveStarsForAllVisibleCards(page: Page) {
+  const cards = page.getByTestId(/^voting-card-/);
+  const count = await cards.count();
+  for (let i = 0; i < count; i++) {
+    const card = cards.nth(i);
+    await card.scrollIntoViewIfNeeded();
+    await card.locator("label").nth(4).click();
+  }
 }

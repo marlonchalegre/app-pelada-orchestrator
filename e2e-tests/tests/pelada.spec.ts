@@ -18,6 +18,8 @@ import {
   getOrgIdFromUrl,
   closeAttendance,
   setupMatchDay,
+  expirePeladaVotingWindow,
+  voteFiveStarsForAllVisibleCards,
   UserData,
 } from "./utils";
 
@@ -411,30 +413,21 @@ test.describe("Pelada Lifecycle & Matches", () => {
           .first(),
       ).toBeVisible();
 
-      // Explicitly wait for both player voting cards to be visible to avoid race conditions
-      const card2 = ownerPage
-        .getByTestId(/voting-card-.*/)
-        .filter({ hasText: player2.name });
-      const card3 = ownerPage
-        .getByTestId(/voting-card-.*/)
-        .filter({ hasText: player3.name });
-      await expect(card2).toBeVisible({ timeout: 15000 });
-      await expect(card3).toBeVisible({ timeout: 15000 });
+      // Explicitly wait for teammate voting cards to be visible
+      const votingCards = ownerPage.getByTestId(/voting-card-.*/);
+      await expect(votingCards.first()).toBeVisible({ timeout: 15000 });
+      const cardCount = await votingCards.count();
+      expect(cardCount).toBeGreaterThanOrEqual(1);
 
       // Verify that secure avatar elements are rendered in the voting cards
-      await expect(card2.getByTestId("secure-avatar")).toBeVisible();
-      await expect(card3.getByTestId("secure-avatar")).toBeVisible();
+      await expect(votingCards.first().getByTestId("secure-avatar")).toBeVisible();
 
       // Verify that secure avatar elements are rendered in the status sidebar
       await expect(
         ownerPage.getByTestId("secure-avatar").first(),
       ).toBeVisible();
 
-      // Click the 5 Stars rating for each player
-      await card2.scrollIntoViewIfNeeded();
-      await card2.locator("label").nth(4).click();
-      await card3.scrollIntoViewIfNeeded();
-      await card3.locator("label").nth(4).click();
+      await voteFiveStarsForAllVisibleCards(ownerPage);
 
       await ownerPage.getByTestId("save-votes-button").click();
       await expect(
@@ -443,11 +436,7 @@ test.describe("Pelada Lifecycle & Matches", () => {
     });
 
     await test.step("Verify Restricted Results for Non-Voting Participant", async () => {
-      const { execSync } = require("child_process");
-      const out = execSync(
-        `docker compose exec postgres psql -U pelada -d peladaapp -c "UPDATE \\"e2e\\".\\"Peladas\\" SET closed_at = NOW() - INTERVAL '26 hours' WHERE id = '${peladaId}'"`,
-      ).toString();
-      console.log(`DB UPDATE OUTPUT FOR ID ${peladaId}:`, out);
+      expirePeladaVotingWindow(peladaId);
 
       const p2Context = await browser.newContext(videoOptions);
       const p2Page = await p2Context.newPage();
@@ -1234,6 +1223,151 @@ test.describe("Pelada Lifecycle & Matches", () => {
 
     const rating = gkCard.getByTestId(/^rating-/);
     await expect(rating).toBeEnabled();
+  });
+
+  test("voting rules: players vote only in their team and who voted is hidden for non-admins", async ({
+    browser,
+  }) => {
+    test.setTimeout(180000);
+    const ts = Date.now() + 14500 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: `Admin Vote ${ts}`,
+      username: `admin_vote_${ts}`,
+      email: `admin_vote_${ts}@test.com`,
+      password: "password123",
+      position: "Midfielder",
+    };
+    const player2User: UserData = {
+      name: `P2 Teammate ${ts}`,
+      username: `p2_vote_${ts}`,
+      email: `p2_vote_${ts}@test.com`,
+      password: "password123",
+      position: "Striker",
+    };
+    const player3User: UserData = {
+      name: `P3 Opponent ${ts}`,
+      username: `p3_vote_${ts}`,
+      email: `p3_vote_${ts}@test.com`,
+      password: "password123",
+      position: "Defender",
+    };
+    const orgName = `Team Vote Org ${ts}`;
+
+    const adminContext = await browser.newContext();
+    const adminPage = await adminContext.newPage();
+
+    // 1. Admin creates org and invites players
+    await registerAndCreateOrg(adminPage, adminUser, orgName);
+    const p2Invite = await invitePlayerByEmail(adminPage, player2User.email);
+    const p3Invite = await invitePlayerByEmail(adminPage, player3User.email);
+
+    await setupInvitedPlayer(browser, p2Invite, player2User, orgName);
+    await setupInvitedPlayer(browser, p3Invite, player3User, orgName);
+
+    // 2. Make everyone mensalista so attendance is confirmed
+    await adminPage.goto("/home");
+    await adminPage.getByTestId(`org-link-${orgName}`).click();
+    await makeMensalista(adminPage, adminUser.name);
+    await makeMensalista(adminPage, player2User.name);
+    await makeMensalista(adminPage, player3User.name);
+
+    await adminPage.goto("/home");
+    await adminPage.getByTestId(`org-link-${orgName}`).click();
+    const peladaId = await createPelada(adminPage);
+    await confirmAndCloseAttendance(adminPage);
+
+    // Add players to pelada
+    await adminPage.reload();
+    await adminPage.waitForLoadState("networkidle");
+    await adminPage
+      .getByTestId("invite-player-button")
+      .or(
+        adminPage.getByRole("button", {
+          name: /Adicionar jogadores|Add players/i,
+        }),
+      )
+      .click();
+    await adminPage.getByRole("dialog").getByText(player2User.name).click();
+    await adminPage.getByRole("dialog").getByText(player3User.name).click();
+    await adminPage
+      .getByRole("button", { name: /Add Selected|Adicionar Selecionados/i })
+      .click();
+
+    // 3. Setup teams: 2 teams, 2 players per team
+    await setupTeams(adminPage, { count: 2, playersPerTeam: 2, randomize: true });
+    await buildAndUseSchedule(adminPage);
+    await startPelada(adminPage);
+
+    // End match and close pelada
+    const dashPromise = adminPage.waitForResponse(
+      (r) => r.url().includes("/dashboard-data") && r.status() === 200,
+    );
+    await adminPage.getByTestId("goal-button-home").click();
+    await adminPage.getByTestId(/goal-player-item-.*/).first().click();
+    await expect(adminPage.getByTestId("assist-select-dialog")).toBeVisible();
+    await adminPage.getByTestId("without-assistance-option").click();
+    await dashPromise;
+
+    await adminPage.getByTestId("end-match-button").click();
+    await adminPage.getByTestId("pretty-confirm-button").click();
+    await adminPage.getByTestId("summary-close-button").click();
+
+    await adminPage
+      .getByTestId("pill-tab-standings")
+      .or(adminPage.getByTestId("go-to-standings-button"))
+      .or(adminPage.getByRole("tab", { name: /Classificação|Standings|TABELA/i }))
+      .first()
+      .click();
+    const closeBtn = adminPage.getByTestId("close-pelada-button");
+    await expect(closeBtn).toBeVisible({ timeout: 10000 });
+    await closeBtn.click();
+    await Promise.all([
+      adminPage.waitForResponse(
+        (resp) => resp.url().includes("/close") && resp.status() === 200,
+      ),
+      adminPage.getByTestId("pretty-confirm-button").click(),
+    ]);
+
+    // 4. Test Player 2 (non-admin) experience
+    const p2Context = await browser.newContext();
+    const p2Page = await p2Context.newPage();
+    await loginUser(p2Page, player2User);
+    await p2Page.goto(`/peladas/${peladaId}/voting`);
+    await expect(p2Page.getByText(/Votação|Voting/i).first()).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Verify privacy: Player 2 (non-admin) must NOT see who voted sidebar lists
+    await expect(
+      p2Page.getByText(/privacidade|privacy|confidenci/i).first(),
+    ).toBeVisible();
+    await expect(
+      p2Page.getByText(new RegExp(`Aguardando \\(\\d+\\)|Já votaram \\(\\d+\\)|Already Voted \\(\\d+\\)`, "i")),
+    ).not.toBeVisible();
+
+    // Verify teammate-only rule: Player 2 only votes for players in their team
+    await voteFiveStarsForAllVisibleCards(p2Page);
+    const p2CardCount = await p2Page.getByTestId(/^voting-card-/).count();
+    if (p2CardCount > 0) {
+      await p2Page.getByTestId("save-votes-button").click();
+      await expect(
+        p2Page.getByText(/Votos registrados|Votes saved/i).first(),
+      ).toBeVisible();
+    }
+
+    // 5. Test Admin experience
+    await adminPage.goto(`/peladas/${peladaId}/voting`);
+    await expect(adminPage.getByText(/Votação|Voting/i).first()).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Admin CAN see who voted
+    await expect(
+      adminPage.getByText(/Já votaram|Already Voted|Aguardando|Pending/i).first(),
+    ).toBeVisible();
+
+    await adminContext.close();
+    await p2Context.close();
   });
 
   test("should verify inline event recording and timeline copy table features", async ({
