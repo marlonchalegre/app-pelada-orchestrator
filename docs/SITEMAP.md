@@ -103,13 +103,13 @@ Gestão do grupo: CRIAR PELADA ─▶ /peladas/:id/attendance  (lista aberta)
                                                    ▼
                                           /peladas/:id  (times sorteados)
                                                    │
-                     Algoritmo de sorteio: Clássico · Gemini · ChatGPT (+ sinais históricos)
+                     Formação: Clássico · Gemini · ChatGPT · Ordem de Chegada · Tira-Time (Capitães)
                                                    │
                                                    ▼
-                                          /peladas/:id/build-schedule
+                                          /peladas/:id/build-schedule (formato: Pontos Corridos, Final, Semis+Final, Quem Ganha Fica)
                                                    │
                                                    ▼
-                                          /peladas/:id/matches  (súmula ao vivo)
+                                          /peladas/:id/matches  (súmula ao vivo + chaveamento mata-mata)
                                                    │
                                                    ▼
                                           /peladas/:id/voting ──▶ /peladas/:id/results

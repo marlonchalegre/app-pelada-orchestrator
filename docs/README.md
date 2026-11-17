@@ -42,13 +42,16 @@ Here is a quick-reference guide to the system's core behaviors and mathematical 
 *   **Attendance & Waitlist Sorting**: Roster and waitlists **MUST** be sorted primarily by member type priority (**Mensalista > Diarista > Convidado**) and then by their update time (**FIFO** - First In, First Out). If update time is missing, it falls back to alphabetical sorting by name.
 *   **Tactical Displays & Chat Alerts**: Displays for printing or chat notifications are also sorted by football position (**Goalkeeper > Defender > Midfielder > Striker**) and then alphabetically by name.
 
-### 2. Team Generation (Bucket Shuffle)
-*   **Grouping & Bucketing**: Gathers all confirmed players (excluding designated Fixed Goalkeepers). Groups them by position, sorts them by technical rating, and splits them into position-based buckets equal to the number of teams.
-*   **Shuffling & Greedy Balancing**: Shuffles each bucket individually and distributes players sequentially to ensure skill variety. Evaluates cumulative team ratings and performs micro-swaps inside matching positions to minimize standard deviation.
+### 2. Team Formation Modes (Bucket Shuffle, Arrival Order & Captain Snake Draft)
+*   **Bucket Shuffle & Skill Balance**: Gathers all confirmed players (excluding designated Fixed Goalkeepers), groups them by position, sorts by technical rating, and splits them into position-based buckets equal to the number of teams. Shuffles each bucket and performs micro-swaps to minimize skill standard deviation.
+*   **Check-in / Arrival Order (`arrival_fifo` & `arrival_first_balanced`)**: Tracks player arrival order (`arrival_order`) so admins can form teams strictly by check-in order (`arrival_fifo`) or prioritize early arrivals while balancing team skill (`arrival_first_balanced`).
+*   **Captain Snake Draft**: Lets admins select team captains and run an interactive Snake Draft (alternating pick order across rounds).
 *   **Fixed Goalkeepers**: Administrators can designate specific players as permanent goalkeepers (Home/Away). The system pins them to their respective teams and excludes them from the main randomization pool.
 
-### 3. Match Scheduling (ILS)
-*   Uses an **Iterated Local Search (ILS)** optimization algorithm. Starts with a standard round-robin schedule and perturbs rounds/matchups to find the sequence that minimizes back-to-back matches for any team and limits consecutive standby rounds.
+### 3. Pelada Formats & Match Scheduling
+*   **Round Robin (ILS)**: Uses an **Iterated Local Search (ILS)** optimization algorithm to minimize back-to-back matches and consecutive standby rounds.
+*   **Championship Formats (`championship_final`, `championship_semis_final`)**: Runs a group stage and automatically generates Knockout Bracket fixtures (Semifinals, 3rd-Place Match, and Final) when group matches finish.
+*   **Winner Stays On (`winner_stays_on`)**: King-of-the-court format supporting multi-team rotation or 2 teams + bench (`player_queue` with `least_played` or `balanced` challenger completion), dynamically computing lineups after each match.
 
 ### 4. Normalized Post-Match Voting
 *   Players rate peers on a 1-5 scale. Raw votes are adjusted using Z-Score calculations comparing the votes against the session mean and standard deviation.

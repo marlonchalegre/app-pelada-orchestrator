@@ -75,29 +75,38 @@ stateDiagram-v2
     *   **Attendance & Waitlists**: Players are sorted primarily by their membership type priority (**Mensalista > Diarista > Convidado**) and then by their update time (**FIFO** - First In, First Out). If update time is missing, it falls back to alphabetical sorting by name.
     *   **Tactical Displays**: For notifications and print-outs, the roster is sorted by football position (**Goalkeeper > Defender > Midfielder > Striker**) and then alphabetically.
 
-#### 🔀 Phase B: Team Generation & Randomization
+#### 🔀 Phase B: Team Generation & Formation Modes
 *   Once attendance is closed, the pelada enters the **open** phase.
 *   The system dynamically allocates players into a configured number of teams (`num_teams`) of a specified size (`players_per_team`).
-*   **Bucket Shuffle Algorithm**:
+*   **Balanced Skill Draws (Bucket Shuffle)**:
     *   To balance competitiveness and variety, players are grouped by position and sorted by their overall rating.
     *   Within each position, players are divided into "buckets" matching the number of teams.
     *   Each bucket is shuffled individually, and players are greedily assigned to teams to minimize the standard deviation of total team scores.
 *   **Fixed Goalkeepers**:
     *   Admins can designate specific players as **Fixed Goalkeepers** (Home/Away).
     *   Fixed Goalkeepers are excluded from the main randomization pool and locked to their respective teams to ensure they do not get shuffled out of their tactical positions.
+*   **Check-in / Arrival Order (`ArrivalOrderDialog`)**:
+    *   Admins can check in and reorder confirmed players by arrival time (`arrival_order`), then run arrival-based draws:
+        *   **Arrival Order (`arrival_fifo`)**: Forms teams strictly in check-in arrival order.
+        *   **Arrival + Balance (`arrival_first_balanced`)**: Prioritizes early arrivals for initial team slots while balancing skill ratings across teams.
+*   **Captain Snake Draft (`CaptainDraftDialog`)**:
+    *   Admins can select team captains and run an interactive **Snake Draft**, where captains take turns picking players in alternating rounds (e.g., 1 → 2 → 3 → 3 → 2 → 1) until teams are complete.
 
-#### 🗓️ Phase C: Match Scheduling
-*   The schedule is generated based on the number of teams using an **Iterated Local Search (ILS)** algorithm.
-*   This generates an optimal round-robin match matrix that minimizes player wait times (ensuring teams do not sit out for too long) and balances matches.
+#### 🗓️ Phase C: Pelada Formats & Match Scheduling
+*   Before starting, admins choose the **Pelada Format** (`PeladaFormatSelector`) in `ScheduleBuilderPage` or `StartPeladaDialog`:
+    *   **Round Robin (`round_robin`)**: Points-based schedule generated via an **Iterated Local Search (ILS)** algorithm that minimizes player wait times and balances matchups.
+    *   **Championship: Group Stage + Final (`championship_final`)**: Plays a group stage and automatically generates the **Final** between 1st and 2nd place once group matches finish (requires at least 3 teams).
+    *   **Championship: Semifinals + Final (`championship_semis_final`)**: Plays a group stage and automatically generates **Semifinals** (1st vs 4th, 2nd vs 3rd), a **3rd-Place Match**, and the **Final** (requires at least 4 teams), displayed in an interactive **Knockout Bracket** in `StandingsPanel`.
+    *   **Winner Stays On (`winner_stays_on`)**: King-of-the-court format supporting multi-team rotation or **2 teams + bench** (`player_queue` rotation mode with `least_played` or `balanced` challenger completion rules), automatically building the next match lineup as each game ends.
 *   Admins can manually adjust match orders, swap teams, or add matches before pushing the schedule live.
 
 #### ⏱️ Phase D: Live Match Tracking
 *   Starting the Pelada transitions the state to **running**.
 *   Admins control the active match dashboard:
-    *   Record real-time events: Goals, Assists, Own Goals, Yellow/Red Cards.
+    *   Record real-time events: Goals, Assists, Own Goals, Yellow/Red Cards, and stage badges (`group`, `semi`, `third_place`, `final`).
     *   Manage **Lineups** and log **Substitutions**.
     *   **Substitutions**: Supports both temporary player swaps (during gameplay) and permanent monthly substitution rules.
-*   A real-time scoreboard tracks standings (Points, Wins, Goal Difference, Goals Scored).
+*   A real-time scoreboard tracks standings (Points, Wins, Goal Difference, Goals Scored) and knockout progression.
 
 #### ⭐ Phase E: Post-Game Voting & Normalized Scores
 *   After all matches finish, the pelada enters the **voting** phase.

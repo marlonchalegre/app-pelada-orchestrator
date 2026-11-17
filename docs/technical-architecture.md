@@ -107,10 +107,11 @@ erDiagram
 *   **`Users`**: Holds system credentials, emails, and global permissions (e.g., `allow_org_creation`).
 *   **`Organizations`**: Scope boundary for matches and players.
 *   **`OrganizationPlayers`**: Maps users to organizations. Stores position preferences, active status, member classifications (`mensalista`, `diarista`, `convidado`), and historical stats (goals, ratings).
-*   **`Peladas`**: Match days. Maintains configuration (`num_teams`, `players_per_team`, `status`, `fixed_goalkeepers`).
-*   **`Attendance`**: Links players to specific peladas with RSVP states (`confirmed`, `waitlist`, `declined`, `pending`).
-*   **`Teams` & `TeamPlayers`**: Randomized group configurations generated for a pelada.
-*   **`Matches`**: Tracks scheduling orders and scores.
+*   **`Peladas`**: Match days. Maintains configuration (`num_teams`, `players_per_team`, `status`, `fixed_goalkeepers`, `format`, `format_config`).
+*   **`Attendance`**: Links players to specific peladas with RSVP states (`confirmed`, `waitlist`, `declined`, `pending`) and optional check-in `arrival_order`.
+*   **`Teams` & `TeamPlayers`**: Team configurations generated via skill-balanced draws, arrival-order draws, or captain snake draft.
+*   **`Matches`**: Tracks scheduling orders, match `stage` (`group`, `semi`, `third_place`, `final`), and scores.
+*   **`MatchLineups`**: Stores per-match active lineups (used for dynamic `winner_stays_on` bench rotation).
 *   **`MatchEvents`**: Chronological event logs for goals, assists, and cards.
 *   **`Votes`**: Peers rating data (1-5 stars).
 *   **`Transactions`**: Ledger of incomes and expenditures for accounting.
@@ -119,18 +120,15 @@ erDiagram
 
 ## 🧠 Key System Algorithms
 
-### 🔀 1. Team Balancing: Bucket Shuffle
-To prevent uneven teams while still introducing variety, team creation uses a **Bucket Shuffle** algorithm:
-1.  **Selection**: Gathers all confirmed players for the pelada. Excludes any designated **Fixed Goalkeepers** who are pinned to specific team positions.
-2.  **Grouping**: Group players by their preferred tactical position (`goalkeeper`, `defender`, `midfielder`, `striker`).
-3.  **Bucketing**: For each position group, sort the players by their overall technical grade. Divide this sorted list into blocks (buckets) of size equal to the number of teams (`num_teams`).
-4.  **Shuffle & Distribute**: Shuffle each bucket individually. This ensures that players of matching skill levels are randomized against each other. Distribute players sequentially from each bucket to the teams.
-5.  **Greedy Compensation**: Evaluate the cumulative strength scores of the teams. If an imbalance exists, perform micro-swaps of players within the same tactical position to equalize total ratings.
+### 🔀 1. Team Formation: Bucket Shuffle, Arrival Order & Captain Draft
+*   **Bucket Shuffle (`classic`, `gemini`, `gpt`)**: Gathers all confirmed players (excluding Fixed Goalkeepers), groups them by tactical position (`goalkeeper`, `defender`, `midfielder`, `striker`), sorts by overall grade, splits into buckets of size `num_teams`, shuffles each bucket, and performs greedy position-locked compensation swaps.
+*   **Arrival Order (`arrival_fifo`, `arrival_first_balanced`)**: Uses check-in `arrival_order` on `Attendance` to either fill teams strictly in FIFO arrival order or prioritize early arrivals while balancing team ratings.
+*   **Captain Snake Draft**: Interactive draft endpoint where designated captains alternate picks in snake order across rounds.
 
-### 🗓️ 2. Match Scheduling: Iterated Local Search (ILS)
-Generating a fair match sequence for $N$ teams is modeled as an optimization problem:
-*   **Goals**: Minimize back-to-back matches for any single team (avoiding player exhaustion) and minimize the maximum consecutive standby rounds (avoiding players cooling down).
-*   **Algorithm**: An Iterated Local Search starts with a standard round-robin seed schedule, then applies randomized perturbations (e.g., swapping rounds or matches) and evaluates the sequence against a penalty cost function. It iterates to find the schedule with the lowest penalty score.
+### 🗓️ 2. Pelada Formats & Match Scheduling
+*   **Round Robin (Iterated Local Search)**: Models $N$-team scheduling as an optimization problem, perturbing a round-robin seed schedule to minimize back-to-back matches and consecutive standby rounds.
+*   **Championship Progression (`championship_final`, `championship_semis_final`)**: After all `group` stage matches finish, the backend automatically computes standings and generates `semi`, `third_place`, and `final` stage matches.
+*   **Winner Stays On (`winner_stays_on`)**: Replays finished matches in sequence order to determine the staying winner and next challenger. In `player_queue` rotation mode (2 teams + bench), dynamically computes `MatchLineups` using `least_played` or `balanced` completion rules.
 
 ### 📊 3. Rating Normalization
 Because users grade differently (some rate strictly, others give out 5 stars easily), the system normalizes voting values before updating profiles:
