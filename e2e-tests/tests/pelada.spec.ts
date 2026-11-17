@@ -1949,5 +1949,94 @@ test.describe("Pelada Lifecycle & Matches", () => {
     const restoredAwayBox = await reloadedAway.boundingBox();
     expect(restoredHomeBox!.x).toBeLessThan(restoredAwayBox!.x);
   });
+
+  test("should support selecting Championship format (Group Stage + Final) and automatically generate the Final match", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 45000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: "E2E Championship",
+      username: "e2e_champ_" + Math.random().toString(36).substring(7),
+      email: `e2e_champ_${ts}@test.com`,
+      password: "password123",
+    };
+    const orgName = "Championship Org";
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    const peladaId = await createPelada(page);
+    await confirmAndCloseAttendance(page);
+
+    // Setup 3 teams so Championship Final (3+ teams) is enabled
+    await setupTeams(page, { count: 3, randomize: true });
+
+    // Navigate to Schedule Builder
+    await page.goto(`/peladas/${peladaId}/build-schedule`);
+    await expect(page.getByTestId("pelada-format-selector")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Verify 4+ teams option is disabled when only 3 teams exist
+    await expect(
+      page.getByTestId("format-option-championship_semis_final"),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    // Select Championship Final (Group Stage + Final)
+    await page.getByTestId("format-option-championship_final").click();
+    await expect(
+      page.getByTestId("championship-bracket-preview"),
+    ).toBeVisible();
+
+    // Save schedule plan
+    await page.getByTestId("save-schedule-button").click();
+    await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}$`), {
+      timeout: 15000,
+    });
+
+    // Start Pelada
+    await startPelada(page);
+    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Verify stage badge shows Group Stage
+    await expect(page.getByTestId("match-stage-badge")).toBeVisible();
+
+    // Fetch matches via API and finish the 3 group matches
+    const dashRes = await page.request.get(
+      `http://localhost:8000/api/peladas/${peladaId}/dashboard-data`,
+    );
+    expect(dashRes.ok()).toBeTruthy();
+    const dashData = await dashRes.json();
+    expect(dashData.matches.length).toBe(3);
+
+    for (let i = 0; i < dashData.matches.length; i++) {
+      const m = dashData.matches[i];
+      const scoreRes = await page.request.put(
+        `http://localhost:8000/api/matches/${m.id}/score`,
+        {
+          data: {
+            home_score: i === 0 ? 2 : 1,
+            away_score: 0,
+            status: "finished",
+          },
+        },
+      );
+      expect(scoreRes.ok()).toBeTruthy();
+    }
+
+    // Reload page and verify the 4th match (GRANDE FINAL) was automatically generated!
+    await page.reload();
+    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.getByTestId("match-stage-badge")).toContainText(/FINAL/i);
+
+    // Check Standings tab shows the Knockout Bracket section
+    await page.getByTestId("pill-tab-standings").click();
+    await expect(
+      page.getByTestId("standings-knockout-bracket"),
+    ).toBeVisible();
+  });
 });
 
