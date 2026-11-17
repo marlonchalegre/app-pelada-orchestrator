@@ -2039,29 +2039,81 @@ test.describe("Pelada Lifecycle & Matches", () => {
     ).toBeVisible();
   });
 
+  const setupTwoTeamPeladaWithPlayers = async (
+    page: import("@playwright/test").Page,
+    orgName: string,
+    playerPrefix: string,
+  ) => {
+    const ts = Date.now() + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: `E2E ${playerPrefix}`,
+      username: `e2e_${playerPrefix.toLowerCase()}_${Math.random().toString(36).substring(7)}`,
+      email: `e2e_${playerPrefix.toLowerCase()}_${ts}@test.com`,
+      password: "password123",
+    };
+
+    await registerAndCreateOrg(page, adminUser, orgName);
+    const orgId = getOrgIdFromUrl(page.url());
+
+    await Promise.all(
+      Array.from({ length: 5 }, async (_, idx) => {
+        const i = idx + 1;
+        const invRes = await page.request.post(
+          `/api/organizations/${orgId}/invite`,
+          { data: { name: `${playerPrefix} Player ${i}` } },
+        );
+        expect(invRes.ok()).toBeTruthy();
+        const inv = await invRes.json();
+        const playerRes = await page.request.post("/api/players", {
+          data: { organization_id: orgId, user_id: inv.user_id, grade: 5 + i },
+        });
+        expect(playerRes.ok()).toBeTruthy();
+      }),
+    );
+
+    const peladaId = await createPelada(page);
+    const playersRes = await page.request.get(
+      `/api/organizations/${orgId}/players`,
+    );
+    expect(playersRes.ok()).toBeTruthy();
+    const orgPlayers = await playersRes.json();
+
+    const batchRes = await page.request.post(
+      `/api/peladas/${peladaId}/attendance/batch`,
+      {
+        data: {
+          player_ids: orgPlayers.map((p: { id: string }) => p.id),
+          status: "confirmed",
+        },
+      },
+    );
+    expect(batchRes.ok()).toBeTruthy();
+
+    const closeRes = await page.request.post(
+      `/api/peladas/${peladaId}/close-attendance`,
+    );
+    expect(closeRes.ok()).toBeTruthy();
+
+    await page.reload();
+    await setupTeams(page, { count: 2, randomize: false });
+    return peladaId;
+  };
+
   test("should form teams by arrival order and rotate dynamic lineups in winner_stays_on", async ({
     page,
   }) => {
     test.setTimeout(120000);
-    const ts = Date.now() + 55000 + Math.floor(Math.random() * 1000000);
-    const adminUser: UserData = {
-      name: "E2E WSO Arrival",
-      username: "e2e_wso_" + Math.random().toString(36).substring(7),
-      email: `e2e_wso_${ts}@test.com`,
-      password: "password123",
-    };
-
-    await registerAndCreateOrg(page, adminUser, "WSO Arrival Org");
-    const peladaId = await createPelada(page);
-    await confirmAndCloseAttendance(page);
-    await setupTeams(page, { count: 2, randomize: false });
+    const peladaId = await setupTwoTeamPeladaWithPlayers(
+      page,
+      "WSO Arrival Org",
+      "WSO",
+    );
 
     await page.goto(`/peladas/${peladaId}`);
     await expect(page.getByTestId("algo-arrival_fifo")).toBeVisible({
       timeout: 15000,
     });
 
-    // Open Arrival Order dialog, save order & draw by arrival
     await page.getByTestId("open-arrival-order-button").click();
     await expect(page.getByTestId("arrival-order-dialog")).toBeVisible();
     await page.getByTestId("save-and-draw-arrival-button").click();
@@ -2069,9 +2121,8 @@ test.describe("Pelada Lifecycle & Matches", () => {
       timeout: 15000,
     });
 
-    // Select winner_stays_on (2 teams allowed!) with player_queue in Schedule Builder
     await page.goto(`/peladas/${peladaId}/build-schedule`);
-    await expect(page.getByTestId("pelada-format-selector")).toBeVisible({
+    await expect(page.getByTestId("save-schedule-button")).toBeEnabled({
       timeout: 15000,
     });
     await page.getByTestId("format-option-winner_stays_on").click();
@@ -2080,45 +2131,82 @@ test.describe("Pelada Lifecycle & Matches", () => {
       timeout: 15000,
     });
     await rotationSelect.click();
-    await page.getByRole("option", { name: /Fila de Próximo Misturado/i }).click();
+    await page
+      .getByRole("option", { name: /Fila de Próximo Misturado/i })
+      .click();
 
     await page.getByTestId("save-schedule-button").click();
     await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}$`), {
       timeout: 15000,
     });
 
-    // Start Pelada
     await startPelada(page);
     await expect(page.getByTestId("match-score-hero")).toBeVisible({
       timeout: 15000,
     });
 
-    // Finish match 1 -> match 2 is auto-created with the 2 bench players as challenger
-    const dash1 = await (
-      await page.request.get(
-        `http://localhost:8000/api/peladas/${peladaId}/dashboard-data`,
-      )
-    ).json();
+    const dash1Res = await page.request.get(
+      `/api/peladas/${peladaId}/dashboard-data`,
+    );
+    expect(dash1Res.ok()).toBeTruthy();
+    const dash1 = await dash1Res.json();
     expect(dash1.matches.length).toBe(1);
-    const m1 = dash1.matches[0];
+
     const finishRes = await page.request.put(
-      `http://localhost:8000/api/matches/${m1.id}/score`,
-      {
-        data: { home_score: 2, away_score: 0, status: "finished" },
-      },
+      `/api/matches/${dash1.matches[0].id}/score`,
+      { data: { home_score: 2, away_score: 0, status: "finished" } },
     );
     expect(finishRes.ok()).toBeTruthy();
 
-    await page.reload();
-    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+    const dash2Res = await page.request.get(
+      `/api/peladas/${peladaId}/dashboard-data`,
+    );
+    expect(dash2Res.ok()).toBeTruthy();
+    const dash2 = await dash2Res.json();
+    expect(dash2.matches.length).toBe(2);
+    const m2 = dash2.matches[1];
+    expect(
+      dash2.match_lineups_map?.[m2.id]?.[m2.away_team_id]?.length,
+    ).toBeGreaterThan(0);
+  });
+
+  test("should form teams via Captain Snake Draft", async ({ page }) => {
+    test.setTimeout(120000);
+    const peladaId = await setupTwoTeamPeladaWithPlayers(
+      page,
+      "Captain Draft Org",
+      "Draft",
+    );
+
+    await page.goto(`/peladas/${peladaId}`);
+    await expect(page.getByTestId("open-captain-draft-button")).toBeVisible({
       timeout: 15000,
     });
-    const dash2 = await (
-      await page.request.get(
-        `http://localhost:8000/api/peladas/${peladaId}/dashboard-data`,
-      )
-    ).json();
-    expect(dash2.matches.length).toBe(2);
+
+    await page.getByTestId("open-captain-draft-button").click();
+    await expect(page.getByTestId("captain-draft-dialog")).toBeVisible();
+    await page.getByTestId("auto-pick-captains-grade").click();
+    await page.getByTestId("start-snake-draft-button").click();
+
+    const firstDraftPick = page.locator('[data-testid^="draft-player-"]').first();
+    await expect(firstDraftPick).toBeVisible();
+    await firstDraftPick.click();
+
+    await page.getByTestId("confirm-captain-draft-button").click();
+    await expect(page.getByTestId("captain-draft-dialog")).not.toBeVisible({
+      timeout: 15000,
+    });
+
+    const detailsRes = await page.request.get(
+      `/api/peladas/${peladaId}/full-details`,
+    );
+    expect(detailsRes.ok()).toBeTruthy();
+    const details = await detailsRes.json();
+    const totalAssigned = details.teams.reduce(
+      (acc: number, t: { players: unknown[] }) => acc + t.players.length,
+      0,
+    );
+    expect(totalAssigned).toBeGreaterThanOrEqual(3);
   });
 });
 
