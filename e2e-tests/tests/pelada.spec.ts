@@ -2038,5 +2038,87 @@ test.describe("Pelada Lifecycle & Matches", () => {
       page.getByTestId("standings-knockout-bracket"),
     ).toBeVisible();
   });
+
+  test("should form teams by arrival order and rotate dynamic lineups in winner_stays_on", async ({
+    page,
+  }) => {
+    test.setTimeout(120000);
+    const ts = Date.now() + 55000 + Math.floor(Math.random() * 1000000);
+    const adminUser: UserData = {
+      name: "E2E WSO Arrival",
+      username: "e2e_wso_" + Math.random().toString(36).substring(7),
+      email: `e2e_wso_${ts}@test.com`,
+      password: "password123",
+    };
+
+    await registerAndCreateOrg(page, adminUser, "WSO Arrival Org");
+    const peladaId = await createPelada(page);
+    await confirmAndCloseAttendance(page);
+    await setupTeams(page, { count: 2, randomize: false });
+
+    await page.goto(`/peladas/${peladaId}`);
+    await expect(page.getByTestId("algo-arrival_fifo")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Open Arrival Order dialog, save order & draw by arrival
+    await page.getByTestId("open-arrival-order-button").click();
+    await expect(page.getByTestId("arrival-order-dialog")).toBeVisible();
+    await page.getByTestId("save-and-draw-arrival-button").click();
+    await expect(page.getByTestId("arrival-order-dialog")).not.toBeVisible({
+      timeout: 15000,
+    });
+
+    // Select winner_stays_on (2 teams allowed!) with player_queue in Schedule Builder
+    await page.goto(`/peladas/${peladaId}/build-schedule`);
+    await expect(page.getByTestId("pelada-format-selector")).toBeVisible({
+      timeout: 15000,
+    });
+    await page.getByTestId("format-option-winner_stays_on").click();
+    const rotationSelect = page.getByTestId("wso-rotation-mode-select");
+    await expect(rotationSelect).not.toHaveClass(/Mui-disabled/, {
+      timeout: 15000,
+    });
+    await rotationSelect.click();
+    await page.getByRole("option", { name: /Fila de Próximo Misturado/i }).click();
+
+    await page.getByTestId("save-schedule-button").click();
+    await expect(page).toHaveURL(new RegExp(`/peladas/${peladaId}$`), {
+      timeout: 15000,
+    });
+
+    // Start Pelada
+    await startPelada(page);
+    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Finish match 1 -> match 2 is auto-created with the 2 bench players as challenger
+    const dash1 = await (
+      await page.request.get(
+        `http://localhost:8000/api/peladas/${peladaId}/dashboard-data`,
+      )
+    ).json();
+    expect(dash1.matches.length).toBe(1);
+    const m1 = dash1.matches[0];
+    const finishRes = await page.request.put(
+      `http://localhost:8000/api/matches/${m1.id}/score`,
+      {
+        data: { home_score: 2, away_score: 0, status: "finished" },
+      },
+    );
+    expect(finishRes.ok()).toBeTruthy();
+
+    await page.reload();
+    await expect(page.getByTestId("match-score-hero")).toBeVisible({
+      timeout: 15000,
+    });
+    const dash2 = await (
+      await page.request.get(
+        `http://localhost:8000/api/peladas/${peladaId}/dashboard-data`,
+      )
+    ).json();
+    expect(dash2.matches.length).toBe(2);
+  });
 });
 
